@@ -7,6 +7,10 @@ const app = express();
 
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("Microfinance server is running");
+});
+
 app.use("/api", pricingRoutes);
 
 app.get("/health", (req, res) => {
