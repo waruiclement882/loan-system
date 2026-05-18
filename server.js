@@ -1,21 +1,5 @@
 require("dotenv").config();
-const express = require("express");
-
-const pricingRoutes = require("./src/routes/pricingRoutes");
-
-const app = express();
-
-app.use(express.json());
-
-app.get("/", (req, res) => {
-  res.send("Microfinance server is running");
-});
-
-app.use("/api", pricingRoutes);
-
-app.get("/health", (req, res) => {
-  res.json({ status: "OK" });
-});
+const app = require("./src/app");
 
 const PORT = process.env.PORT || 3000;
 
