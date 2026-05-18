@@ -1,97 +1,69 @@
-"use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getCustomers, getLoans, getPayments } from "@/lib/api";
-
+﻿'use client';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 export default function DashboardPage() {
   const router = useRouter();
   const [customers, setCustomers] = useState([]);
   const [loans, setLoans] = useState([]);
   const [payments, setPayments] = useState([]);
-
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) router.push("/login");
-    loadData();
+    const token = localStorage.getItem('token');
+    if (!token) { router.push('/login'); return; }
+    const h = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+    const base = 'https://loan-system-h794.onrender.com';
+    fetch(base + '/api/customers', { headers: h }).then(r => r.json()).then(d => setCustomers(Array.isArray(d) ? d : []));
+    fetch(base + '/api/loans', { headers: h }).then(r => r.json()).then(d => setLoans(Array.isArray(d) ? d : []));
+    fetch(base + '/api/payments', { headers: h }).then(r => r.json()).then(d => setPayments(Array.isArray(d) ? d : []));
   }, []);
-
-  const loadData = async () => {
-    const c = await getCustomers();
-    const l = await getLoans();
-    const p = await getPayments();
-    setCustomers(c);
-    setLoans(l);
-    setPayments(p);
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/login");
-  };
-
-  const totalDisbursed = loans.reduce((sum, l) => sum + parseFloat(l.amount || 0), 0);
-  const totalRepayment = loans.reduce((sum, l) => sum + parseFloat(l.total_repayment || 0), 0);
-  const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-
+  const logout = () => { localStorage.clear(); router.push('/login'); };
+  const totalDisbursed = loans.reduce((s, l) => s + parseFloat(l.amount || 0), 0);
+  const totalPaid = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4">
-          <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600">Customers</button>
-          <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
-          <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600">Payments</button>
-          <button onClick={logout} className="text-red-500 hover:text-red-700">Logout</button>
+    <div style={{minHeight:'100vh',background:'#f3f4f6'}}>
+      <nav style={{background:'white',padding:'1rem 1.5rem',display:'flex',justifyContent:'space-between',alignItems:'center',boxShadow:'0 1px 3px rgba(0,0,0,0.1)'}}>
+        <h1 style={{color:'#2563eb',fontWeight:'bold',fontSize:'1.25rem'}}>Microfinance System</h1>
+        <div style={{display:'flex',gap:'1rem'}}>
+          <button onClick={() => router.push('/customers')} style={{background:'none',border:'none',cursor:'pointer',color:'#374151'}}>Customers</button>
+          <button onClick={() => router.push('/loans')} style={{background:'none',border:'none',cursor:'pointer',color:'#374151'}}>Loans</button>
+          <button onClick={() => router.push('/payments')} style={{background:'none',border:'none',cursor:'pointer',color:'#374151'}}>Payments</button>
+          <button onClick={logout} style={{background:'none',border:'none',cursor:'pointer',color:'red'}}>Logout</button>
         </div>
       </nav>
-      <div className="p-6">
-        <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Total Customers</p>
-            <p className="text-3xl font-bold text-blue-600">{customers.length}</p>
+      <div style={{padding:'1.5rem'}}>
+        <h2 style={{fontSize:'1.5rem',fontWeight:'bold',marginBottom:'1.5rem'}}>Dashboard</h2>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem',marginBottom:'2rem'}}>
+          <div style={{background:'white',borderRadius:'8px',padding:'1rem',boxShadow:'0 1px 3px rgba(0,0,0,0.1)'}}>
+            <p style={{color:'#6b7280',fontSize:'0.875rem'}}>Total Customers</p>
+            <p style={{fontSize:'2rem',fontWeight:'bold',color:'#2563eb'}}>{customers.length}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Total Loans</p>
-            <p className="text-3xl font-bold text-green-600">{loans.length}</p>
+          <div style={{background:'white',borderRadius:'8px',padding:'1rem',boxShadow:'0 1px 3px rgba(0,0,0,0.1)'}}>
+            <p style={{color:'#6b7280',fontSize:'0.875rem'}}>Total Loans</p>
+            <p style={{fontSize:'2rem',fontWeight:'bold',color:'#16a34a'}}>{loans.length}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Amount Disbursed</p>
-            <p className="text-3xl font-bold text-purple-600">KSh {totalDisbursed.toLocaleString()}</p>
+          <div style={{background:'white',borderRadius:'8px',padding:'1rem',boxShadow:'0 1px 3px rgba(0,0,0,0.1)'}}>
+            <p style={{color:'#6b7280',fontSize:'0.875rem'}}>Amount Disbursed</p>
+            <p style={{fontSize:'1.5rem',fontWeight:'bold',color:'#7c3aed'}}>KSh {totalDisbursed.toLocaleString()}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Total Collected</p>
-            <p className="text-3xl font-bold text-orange-600">KSh {totalPaid.toLocaleString()}</p>
+          <div style={{background:'white',borderRadius:'8px',padding:'1rem',boxShadow:'0 1px 3px rgba(0,0,0,0.1)'}}>
+            <p style={{color:'#6b7280',fontSize:'0.875rem'}}>Total Collected</p>
+            <p style={{fontSize:'1.5rem',fontWeight:'bold',color:'#ea580c'}}>KSh {totalPaid.toLocaleString()}</p>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <h3 className="font-bold text-lg mb-4">Recent Loans</h3>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="pb-2">Customer</th>
-                <th className="pb-2">Amount</th>
-                <th className="pb-2">Monthly Payment</th>
-                <th className="pb-2">Total Repayment</th>
-                <th className="pb-2">Status</th>
+        <div style={{background:'white',borderRadius:'8px',padding:'1rem',boxShadow:'0 1px 3px rgba(0,0,0,0.1)'}}>
+          <h3 style={{fontWeight:'bold',marginBottom:'1rem'}}>Recent Loans</h3>
+          <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.875rem'}}>
+            <thead><tr style={{borderBottom:'1px solid #e5e7eb',color:'#6b7280',textAlign:'left'}}>
+              <th style={{padding:'8px'}}>Customer</th><th style={{padding:'8px'}}>Amount</th><th style={{padding:'8px'}}>Monthly</th><th style={{padding:'8px'}}>Total</th><th style={{padding:'8px'}}>Status</th>
+            </tr></thead>
+            <tbody>{loans.map((loan) => (
+              <tr key={loan.id} style={{borderBottom:'1px solid #f3f4f6'}}>
+                <td style={{padding:'8px'}}>{loan.customer_name}</td>
+                <td style={{padding:'8px'}}>KSh {parseFloat(loan.amount).toLocaleString()}</td>
+                <td style={{padding:'8px'}}>KSh {parseFloat(loan.monthly_payment).toLocaleString()}</td>
+                <td style={{padding:'8px'}}>KSh {parseFloat(loan.total_repayment).toLocaleString()}</td>
+                <td style={{padding:'8px'}}><span style={{background:'#fef9c3',color:'#854d0e',padding:'2px 8px',borderRadius:'9999px',fontSize:'0.75rem'}}>{loan.status}</span></td>
               </tr>
-            </thead>
-            <tbody>
-              {loans.map((loan) => (
-                <tr key={loan.id} className="border-b hover:bg-gray-50">
-                  <td className="py-2">{loan.customer_name}</td>
-                  <td className="py-2">KSh {parseFloat(loan.amount).toLocaleString()}</td>
-                  <td className="py-2">KSh {parseFloat(loan.monthly_payment).toLocaleString()}</td>
-                  <td className="py-2">KSh {parseFloat(loan.total_repayment).toLocaleString()}</td>
-                  <td className="py-2">
-                    <span className={`px-2 py-1 rounded-full text-xs ${loan.status === "approved" ? "bg-green-100 text-green-700" : loan.status === "rejected" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
-                      {loan.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+            ))}</tbody>
           </table>
         </div>
       </div>

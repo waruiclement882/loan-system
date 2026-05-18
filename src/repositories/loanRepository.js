@@ -1,18 +1,14 @@
 const pool = require('../db/connection');
 
 const create = async (loan) => {
-  const { customer_id, amount, interest_rate, term_months } = loan;
-
-  const total_interest = amount * (interest_rate / 100) * (term_months / 12);
-  const total_repayment = amount + total_interest;
-  const monthly_payment = total_repayment / term_months;
+  const { customer_id, amount, term_weeks, interest_amount, total_amount } = loan;
 
   const result = await pool.query(`
     INSERT INTO loans 
-      (customer_id, amount, interest_rate, term_months, total_interest, total_repayment, monthly_payment, status)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
+      (customer_id, amount, term_weeks, interest_amount, total_amount, status)
+    VALUES ($1, $2, $3, $4, $5, 'pending')
     RETURNING *
-  `, [customer_id, amount, interest_rate, term_months, total_interest, total_repayment, monthly_payment]);
+  `, [customer_id, amount, term_weeks, interest_amount, total_amount]);
 
   return result.rows[0];
 };
