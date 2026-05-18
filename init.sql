@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS loans (
   amount DECIMAL(12,2) NOT NULL,
   interest_rate DECIMAL(5,2) NOT NULL,
   term_months INTEGER NOT NULL,
+  total_interest DECIMAL(12,2) NOT NULL,
+  total_repayment DECIMAL(12,2) NOT NULL,
+  monthly_payment DECIMAL(12,2) NOT NULL,
   status VARCHAR(20) DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
