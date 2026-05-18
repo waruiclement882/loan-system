@@ -1,10 +1,10 @@
 const express = require('express');
 
-const customerRoutes = require('./routes/customers');
-const loanRoutes = require('./routes/loans');
-const paymentRoutes = require('./routes/payments');
-const mpesaRoutes = require('./routes/mpesa');
-const authRoutes = require('./routes/auth');
+const customerRoutes = require('./src/routes/customers');
+const loanRoutes = require('./src/routes/loans');
+const paymentRoutes = require('./src/routes/payments');
+const mpesaRoutes = require('./src/routes/mpesa');
+const authRoutes = require('./src/routes/auth');
 
 const app = express();
 
