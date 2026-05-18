@@ -57,3 +57,8 @@ export const createPayment = async (data) => {
   });
   return res.json();
 };
+
+export const getPricingRules = async () => {
+  const res = await fetch(`${API_URL}/api/pricing`, { headers: headers() });
+  return res.json();
+};

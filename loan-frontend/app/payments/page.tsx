@@ -20,8 +20,8 @@ export default function PaymentsPage() {
   const loadData = async () => {
     const p = await getPayments();
     const l = await getLoans();
-    setPayments(p);
-    setLoans(l);
+    setPayments(Array.isArray(p) ? p : []);
+    setLoans(Array.isArray(l) ? l : []);
   };
 
   const handleSubmit = async () => {
@@ -58,7 +58,7 @@ export default function PaymentsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Loan</label>
                 <select value={form.loan_id} onChange={(e) => setForm({...form, loan_id: e.target.value})} className="w-full border rounded-lg px-3 py-2">
                   <option value="">Select loan</option>
-                  {loans.map((l) => (
+                  {loans.map((l: any) => (
                     <option key={l.id} value={l.id}>#{l.id} - {l.customer_name} (KSh {parseFloat(l.amount).toLocaleString()})</option>
                   ))}
                 </select>
@@ -97,7 +97,7 @@ export default function PaymentsPage() {
               </tr>
             </thead>
             <tbody>
-              {payments.map((p) => (
+              {payments.map((p: any) => (
                 <tr key={p.id} className="border-b hover:bg-gray-50">
                   <td className="p-4">#{p.loan_id}</td>
                   <td className="p-4">KSh {parseFloat(p.amount).toLocaleString()}</td>

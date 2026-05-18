@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getLoans, createLoan, getCustomers } from "@/lib/api";
+import { getLoans, createLoan, getCustomers, getPricingRules } from "@/lib/api";
 
 export default function LoansPage() {
   const router = useRouter();
@@ -27,19 +27,14 @@ export default function LoansPage() {
   const loadData = async () => {
     const l = await getLoans();
     const c = await getCustomers();
-    setLoans(l);
-    setCustomers(c);
-
-    // Load pricing rules from backend
-    const res = await fetch("http://localhost:3001/api/pricing");
-    const rules = await res.json();
-    setPricingRules(rules);
+    const rules = await getPricingRules();
+    setLoans(Array.isArray(l) ? l : []);
+    setCustomers(Array.isArray(c) ? c : []);
+    setPricingRules(Array.isArray(rules) ? rules : []);
   };
 
-  // Auto-populate when amount or term changes
   const handleAmountOrTerm = (field: string, value: string) => {
     const updated = { ...form, [field]: value };
-
     const amount = field === "amount" ? value : form.amount;
     const term = field === "term_weeks" ? value : form.term_weeks;
 
@@ -50,14 +45,13 @@ export default function LoansPage() {
           Number(r.term_weeks) === Number(term)
       );
       if (match) {
-        updated.interest_amount = match.interest_amount;
-        updated.total_amount = match.total_amount;
+        updated.interest_amount = (match as any).interest_amount;
+        updated.total_amount = (match as any).total_amount;
       } else {
         updated.interest_amount = "";
         updated.total_amount = "";
       }
     }
-
     setForm(updated);
   };
 
@@ -76,7 +70,6 @@ export default function LoansPage() {
     setLoading(false);
   };
 
-  // Get unique amounts and terms from pricing rules for dropdowns
   const uniqueAmounts = [...new Set(pricingRules.map((r: any) => r.loan_amount))].sort((a: any, b: any) => a - b);
   const uniqueTerms = [...new Set(pricingRules.map((r: any) => r.term_weeks))].sort((a: any, b: any) => a - b);
 
@@ -159,7 +152,7 @@ export default function LoansPage() {
             </div>
 
             {form.amount && form.term_weeks && !form.interest_amount && (
-              <p className="mt-3 text-sm text-red-500">⚠️ No pricing rule found for this amount + term combination.</p>
+              <p className="mt-3 text-sm text-red-500">⚠️ No pricing rule found for this combination.</p>
             )}
 
             <button
