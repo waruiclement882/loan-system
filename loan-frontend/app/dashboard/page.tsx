@@ -4,9 +4,9 @@ import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [customers, setCustomers] = useState([]);
-  const [loans, setLoans] = useState([]);
-  const [payments, setPayments] = useState([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loans, setLoans] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -75,7 +75,7 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {loans.map((loan) => {
+              {loans.map((loan: any) => {
                 const balance = parseFloat(loan.balance) || parseFloat(loan.total_repayment) || 0;
                 const total = parseFloat(loan.total_repayment) || 0;
                 const collected = total - balance;
@@ -109,7 +109,7 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {payments.slice(0,5).map((p) => (
+              {payments.slice(0,5).map((p: any) => (
                 <tr key={p.id} style={{borderBottom:'1px solid #f3f4f6'}}>
                   <td style={{padding:'8px'}}>{p.customer_name}</td>
                   <td style={{padding:'8px',color:'#16a34a',fontWeight:'500'}}>KSh {parseFloat(p.amount).toLocaleString()}</td>

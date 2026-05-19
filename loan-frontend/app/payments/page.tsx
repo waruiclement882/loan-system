@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 
 export default function PaymentsPage() {
   const router = useRouter();
-  const [payments, setPayments] = useState([]);
-  const [loans, setLoans] = useState([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loans, setLoans] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ loan_id: '', amount: '', transaction_code: '', source: 'mpesa' });
   const [loading, setLoading] = useState(false);
@@ -65,7 +65,7 @@ export default function PaymentsPage() {
                 <label style={{display:'block',marginBottom:'4px',fontSize:'0.875rem'}}>Loan</label>
                 <select value={form.loan_id} onChange={(e) => setForm({...form, loan_id: e.target.value})} style={{width:'100%',padding:'8px',border:'1px solid #d1d5db',borderRadius:'6px'}}>
                   <option value="">Select loan</option>
-                  {loans.map((l) => (
+                  {loans.map((l: any) => (
                     <option key={l.id} value={l.id}>Loan #{l.id} - {l.customer_name}</option>
                   ))}
                 </select>
@@ -106,7 +106,7 @@ export default function PaymentsPage() {
               </tr>
             </thead>
             <tbody>
-              {payments.map((p) => (
+              {payments.map((p: any) => (
                 <tr key={p.id} style={{borderBottom:'1px solid #f3f4f6'}}>
                   <td style={{padding:'12px',fontWeight:'500'}}>{p.customer_name}</td>
                   <td style={{padding:'12px',color:'#16a34a',fontWeight:'500'}}>KSh {parseFloat(p.amount).toLocaleString()}</td>

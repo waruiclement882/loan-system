@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 
 export default function LoansPage() {
   const router = useRouter();
-  const [loans, setLoans] = useState([]);
-  const [customers, setCustomers] = useState([]);
+  const [loans, setLoans] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ customer_id: '', amount: '', interest_rate: '', term_months: '' });
   const [loading, setLoading] = useState(false);
@@ -37,7 +37,7 @@ export default function LoansPage() {
     setLoading(false);
   };
 
-  const getBalanceColor = (loan) => {
+  const getBalanceColor = (loan: any) => {
     const balance = parseFloat(loan.balance) || parseFloat(loan.total_repayment) || 0;
     const total = parseFloat(loan.total_repayment) || 0;
     const pct = total > 0 ? (balance / total) * 100 : 0;
@@ -69,7 +69,7 @@ export default function LoansPage() {
                 <label style={{display:'block',marginBottom:'4px',fontSize:'0.875rem'}}>Customer</label>
                 <select value={form.customer_id} onChange={(e) => setForm({...form, customer_id: e.target.value})} style={{width:'100%',padding:'8px',border:'1px solid #d1d5db',borderRadius:'6px'}}>
                   <option value="">Select customer</option>
-                  {customers.map((c) => (
+                  {customers.map((c: any) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -107,7 +107,7 @@ export default function LoansPage() {
               </tr>
             </thead>
             <tbody>
-              {loans.map((loan) => {
+              {loans.map((loan: any) => {
                 const balance = parseFloat(loan.balance) || parseFloat(loan.total_repayment) || 0;
                 const total = parseFloat(loan.total_repayment) || 0;
                 const paid = total - balance;
