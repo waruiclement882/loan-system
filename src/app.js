@@ -7,6 +7,7 @@ const paymentRoutes = require("./routes/payments");
 const mpesaRoutes = require("./routes/mpesa");
 const authRoutes = require("./routes/auth");
 const pricingRoutes = require("./routes/pricingRoutes");
+const webhookRoutes = require("./routes/webhooks");
 
 const app = express();
 
@@ -23,5 +24,6 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/mpesa", mpesaRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", pricingRoutes);
+app.use("/webhooks", webhookRoutes);
 
 module.exports = app;
