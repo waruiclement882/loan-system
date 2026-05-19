@@ -21,7 +21,7 @@ const makeRequest = async (method, url, data = null, headers = {}, attempt = 1) 
   } catch (err) {
     const status = err.response?.status;
     if (status === 401) {
-      const { pool } = require('../../db/connection');
+      const pool = require('../../db/connection');
       await pool.query(`DELETE FROM token_cache WHERE provider = 'kcb'`);
       if (attempt < kcbConfig.retryAttempts) {
         return makeRequest(method, url, data, headers, attempt + 1);

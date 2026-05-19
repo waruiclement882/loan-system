@@ -1,4 +1,4 @@
-const { pool } = require('../db/connection');
+const pool = require('../db/connection');
 const { getProvider } = require('./providers/providerFactory');
 
 const logWebhook = async ({ provider, endpoint, method, headers, body, signatureValid, responseCode, responseBody, processingTimeMs, ipAddress }) => {

@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { pool } = require('../../db/connection');
+const pool = require('../../db/connection');
 const { kcbConfig } = require('../../../config/kcb');
 
 const TOKEN_EXPIRY_BUFFER_SECONDS = 60;
