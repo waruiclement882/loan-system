@@ -64,7 +64,7 @@ const reconcileLoan = async (normalized, bankTransactionId) => {
     }
 
     const loan = loanResult.rows[0];
-    const currentBalance = parseFloat(loan.balance) || parseFloat(loan.total_amount) || 0;
+    const currentBalance = parseFloat(loan.balance) || parseFloat(loan.total_repayment) || 0;
     const newBalance = Math.max(0, currentBalance - normalized.amount);
     const newStatus = newBalance === 0 ? 'paid' : 'active';
 
@@ -75,9 +75,9 @@ const reconcileLoan = async (normalized, bankTransactionId) => {
 
     await client.query(
       `INSERT INTO payments
-        (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, account_number, payment_date)
-       VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, $6, NOW())`,
-      [loan.id, normalized.amount, normalized.transactionReference, normalized.transactionReference, normalized.customerPhone, normalized.customerReference]
+        (loan_id, amount, transaction_code, source, payment_date)
+       VALUES ($1, $2, $3, 'kcb_paybill', NOW())`,
+      [loan.id, normalized.amount, normalized.transactionReference]
     );
 
     await client.query(
