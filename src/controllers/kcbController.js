@@ -3,46 +3,68 @@ const pool = require('../db/connection');
 const handlePayment = async (req, res) => {
   try {
     const {
-      TransID,        // KCB transaction ID
-      TransAmount,    // Amount paid
-      BillRefNumber,  // Account number (loan ID entered by customer)
-      MSISDN,         // Customer phone number
-      TransTime,      // Transaction time
+      transactionReference,    // KCB transaction ID e.g "FT00026252"
+      requestId,               // Unique request ID
+      channelCode,             // Channel code
+      timestamp,               // Transaction timestamp
+      transactionAmount,       // Amount paid e.g "100.00"
+      currency,                // Currency e.g "KES"
+      customerReference,       // Account number entered by customer (loan ID)
+      customerName,            // Customer name
+      customerMobileNumber,    // Customer phone number
+      narration,               // Payment narration
+      creditAccountIdentifier, // Your account identifier
+      organizationShortCode,   // Your paybill number
     } = req.body;
 
-    console.log('KCB Payment received:', req.body);
+    console.log('KCB IPN Payment received:', req.body);
 
-    // Always respond to KCB immediately
-    res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+    // Respond to KCB immediately as required
+    res.json({
+      transactionID: transactionReference,
+      statusCode: "0",
+      statusMessage: "Notification received"
+    });
 
-    if (!TransID || !TransAmount || !BillRefNumber) {
+    if (!transactionReference || !transactionAmount || !customerReference) {
       console.error('Missing required fields:', req.body);
       return;
     }
 
-    // Find loan by account number (BillRefNumber = loan ID)
+    // Find loan by customerReference (customer enters loan ID as account number)
     const loanResult = await pool.query(
       'SELECT * FROM loans WHERE id = $1',
-      [BillRefNumber]
+      [customerReference]
     );
 
     if (loanResult.rows.length === 0) {
-      console.error('Loan not found for account:', BillRefNumber);
+      console.error('Loan not found for reference:', customerReference);
       return;
     }
 
     const loan = loanResult.rows[0];
-    const amount = parseFloat(TransAmount);
+    const amount = parseFloat(transactionAmount);
     const currentBalance = parseFloat(loan.balance) || parseFloat(loan.total_amount) || 0;
     const newBalance = Math.max(0, currentBalance - amount);
-    const newStatus = newBalance === 0 ? 'paid' : loan.status;
+    const newStatus = newBalance === 0 ? 'paid' : 'active';
+
+    // Check for duplicate transaction
+    const duplicate = await pool.query(
+      'SELECT id FROM payments WHERE kcb_transaction_id = $1',
+      [transactionReference]
+    );
+
+    if (duplicate.rows.length > 0) {
+      console.log('Duplicate transaction ignored:', transactionReference);
+      return;
+    }
 
     // Record the payment
     await pool.query(
       `INSERT INTO payments 
         (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, account_number, payment_date)
        VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, $6, NOW())`,
-      [loan.id, amount, TransID, TransID, MSISDN, BillRefNumber]
+      [loan.id, amount, transactionReference, transactionReference, customerMobileNumber, customerReference]
     );
 
     // Update loan balance and status
@@ -51,11 +73,18 @@ const handlePayment = async (req, res) => {
       [newBalance, newStatus, loan.id]
     );
 
-    console.log(`Loan ${loan.id} payment of ${amount} processed. New balance: ${newBalance}`);
+    console.log(`Loan ${loan.id} - Payment KSh ${amount} received. New balance: KSh ${newBalance} Status: ${newStatus}`);
 
   } catch (error) {
-    console.error('KCB callback error:', error.message);
-    res.status(500).json({ ResultCode: 1, ResultDesc: 'Failed' });
+    console.error('KCB IPN error:', error.message);
+    // Still respond to KCB even on error
+    if (!res.headersSent) {
+      res.json({
+        transactionID: req.body.transactionReference || 'ERROR',
+        statusCode: "1",
+        statusMessage: "Processing failed"
+      });
+    }
   }
 };
 
