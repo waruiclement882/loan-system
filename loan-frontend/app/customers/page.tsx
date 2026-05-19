@@ -3,11 +3,20 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCustomers, createCustomer } from "@/lib/api";
 
+interface Customer {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  national_id: string;
+  created_at: string;
+}
+
 export default function CustomersPage() {
   const router = useRouter();
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", national_id: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", national_id: "" } as { name: string; email: string; phone: string; national_id: string });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -17,8 +26,8 @@ export default function CustomersPage() {
   }, []);
 
   const loadCustomers = async () => {
-    const data = await getCustomers();
-    setCustomers(Array.isArray(data) ? data : []);
+    const data = await getCustomers() as Customer[];
+    setCustomers(data);
   };
 
   const handleSubmit = async () => {
@@ -85,7 +94,7 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {customers.map((c: any) => (
+              {customers.map((c) => (
                 <tr key={c.id} className="border-b hover:bg-gray-50">
                   <td className="p-4 font-medium">{c.name}</td>
                   <td className="p-4">{c.email}</td>
