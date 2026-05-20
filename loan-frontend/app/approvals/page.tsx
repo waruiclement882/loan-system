@@ -68,6 +68,7 @@ export default function ApprovalsPage() {
           <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600">Customers</button>
           <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
           <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600">Payments</button>
+          <button onClick={() => router.push("/export")} className="text-gray-600 hover:text-blue-600">Export</button>
         </div>
       </nav>
 

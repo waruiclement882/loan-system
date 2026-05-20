@@ -51,6 +51,7 @@ export default function DashboardPage() {
           <button onClick={() => router.push("/approvals")} className="text-purple-600 hover:text-purple-800 font-medium">
             Approvals {pendingLoans > 0 && <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full ml-1">{pendingLoans}</span>}
           </button>
+          <button onClick={() => router.push("/export")} className="text-gray-600 hover:text-blue-600">Export</button>
           <button onClick={logout} className="text-red-500 hover:text-red-700">Logout</button>
         </div>
       </nav>

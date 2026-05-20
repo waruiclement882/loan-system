@@ -49,6 +49,8 @@ export default function PaymentsPage() {
           <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600">Dashboard</button>
           <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600">Customers</button>
           <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
+          <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600">Approvals</button>
+          <button onClick={() => router.push("/export")} className="text-gray-600 hover:text-blue-600">Export</button>
         </div>
       </nav>
 
