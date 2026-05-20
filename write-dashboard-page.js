@@ -1,4 +1,6 @@
-"use client";
+const fs = require('fs');
+
+const content = `"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCustomers, getLoans, getPayments } from "@/lib/api";
@@ -175,4 +177,7 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-}
+}`;
+
+fs.writeFileSync('loan-frontend/app/dashboard/page.tsx', content, 'utf8');
+console.log('Done!');
