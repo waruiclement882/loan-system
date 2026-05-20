@@ -109,7 +109,7 @@ export default function SlipPage() {
               <p style={{margin: '4px 0', fontSize: '13px'}}><strong>Step 2:</strong> Select Lipa na M-Pesa</p>
               <p style={{margin: '4px 0', fontSize: '13px'}}><strong>Step 3:</strong> Select Pay Bill</p>
               <p style={{margin: '4px 0', fontSize: '13px'}}><strong>Step 4:</strong> Business No: <strong style={{fontSize: '16px', color: '#1d4ed8'}}>{PAYBILL}</strong></p>
-              <p style={{margin: '4px 0', fontSize: '13px'}}><strong>Step 5:</strong> Account No: <strong style={{fontSize: '16px', color: '#dc2626'}}>#{selectedLoan.id}</strong></p>
+              <p style={{margin: '4px 0', fontSize: '13px'}}><strong>Step 5:</strong> Account No: <strong style={{fontSize: '16px', color: '#dc2626'}}>8086860</strong></p>
               <p style={{margin: '4px 0', fontSize: '13px'}}><strong>Step 6:</strong> Enter amount and confirm</p>
             </div>
             <div style={{textAlign: 'center', marginTop: '16px', fontSize: '11px', color: '#666'}}>
