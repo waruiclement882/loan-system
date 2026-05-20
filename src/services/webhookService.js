@@ -1,4 +1,6 @@
 const pool = require('../db/connection');
+const emailService = require('./emailService');
+const smsService = require('./smsService');
 const { getProvider } = require('./providers/providerFactory');
 
 const logWebhook = async ({ provider, endpoint, method, headers, body, signatureValid, responseCode, responseBody, processingTimeMs, ipAddress }) => {
@@ -88,6 +90,16 @@ const reconcileLoan = async (normalized, bankTransactionId) => {
 
     await client.query('COMMIT');
     console.log(`[WebhookService] Loan ${loan.id} - KSh ${normalized.amount} received. Balance: KSh ${newBalance}. Status: ${newStatus}`);
+
+    // Send payment notifications async
+    const customerResult = await pool.query('SELECT * FROM customers WHERE id = $1', [loan.customer_id]);
+    const customer = customerResult.rows[0];
+    const paymentRecord = { amount: normalized.amount, transaction_code: normalized.transactionReference, kcb_transaction_id: normalized.transactionReference };
+    const updatedLoan = { ...loan, balance: newBalance };
+    if (customer) {
+      emailService.sendPaymentReceivedEmail(customer, paymentRecord, updatedLoan).catch(e => console.error('[Notify] Email error:', e.message));
+      smsService.sendPaymentReceivedSms(customer.phone, normalized.amount, loan.id, newBalance).catch(e => console.error('[Notify] SMS error:', e.message));
+    }
     return { success: true, loanId: loan.id, newBalance, newStatus };
 
   } catch (err) {

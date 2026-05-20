@@ -1,4 +1,6 @@
-const loanService = require('../services/loanService');
+const fs = require('fs');
+
+fs.writeFileSync('src/controllers/loanController.js', `const loanService = require('../services/loanService');
 const emailService = require('../services/emailService');
 const smsService = require('../services/smsService');
 const pool = require('../db/connection');
@@ -109,3 +111,34 @@ const deleteLoan = async (req, res) => {
 };
 
 module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan };
+`);
+
+// Update webhook service to send payment notifications
+const webhookService = fs.readFileSync('src/services/webhookService.js', 'utf8');
+if (!webhookService.includes('emailService')) {
+  const updated = webhookService.replace(
+    "const pool = require('../db/connection');",
+    `const pool = require('../db/connection');
+const emailService = require('./emailService');
+const smsService = require('./smsService');`
+  ).replace(
+    "console.log(`[WebhookService] Loan ${loan.id} - KSh ${normalized.amount} received. Balance: KSh ${newBalance}. Status: ${newStatus}`);",
+    `console.log(\`[WebhookService] Loan \${loan.id} - KSh \${normalized.amount} received. Balance: KSh \${newBalance}. Status: \${newStatus}\`);
+
+    // Send payment notifications async
+    const customerResult = await pool.query('SELECT * FROM customers WHERE id = $1', [loan.customer_id]);
+    const customer = customerResult.rows[0];
+    const paymentRecord = { amount: normalized.amount, transaction_code: normalized.transactionReference, kcb_transaction_id: normalized.transactionReference };
+    const updatedLoan = { ...loan, balance: newBalance };
+    if (customer) {
+      emailService.sendPaymentReceivedEmail(customer, paymentRecord, updatedLoan).catch(e => console.error('[Notify] Email error:', e.message));
+      smsService.sendPaymentReceivedSms(customer.phone, normalized.amount, loan.id, newBalance).catch(e => console.error('[Notify] SMS error:', e.message));
+    }`
+  );
+  fs.writeFileSync('src/services/webhookService.js', updated, 'utf8');
+  console.log('Webhook service updated with notifications!');
+} else {
+  console.log('Webhook service already has notifications!');
+}
+
+console.log('Loan controller updated with notifications!');
