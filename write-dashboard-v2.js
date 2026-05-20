@@ -1,4 +1,6 @@
-"use client";
+const fs = require('fs');
+
+fs.writeFileSync('loan-frontend/app/dashboard/page.tsx', `"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCustomers, getLoans, getPayments } from "@/lib/api";
@@ -180,3 +182,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+`);
+
+console.log('Dashboard updated!');
