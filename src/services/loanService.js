@@ -1,19 +1,11 @@
 const loanRepository = require('../repositories/loanRepository');
 
-const createLoan = async (loanData) => {
-  return await loanRepository.create(loanData);
-};
+const createLoan = async (loanData) => await loanRepository.create(loanData);
+const getAllLoans = async (status) => await loanRepository.getAll(status);
+const getLoanById = async (id) => await loanRepository.getById(id);
+const approveLoan = async (id, approved_by) => await loanRepository.approve(id, approved_by);
+const rejectLoan = async (id, rejected_by, reason) => await loanRepository.reject(id, rejected_by, reason);
+const disburseLoan = async (id, disbursed_by) => await loanRepository.disburse(id, disbursed_by);
+const updateLoanStatus = async (id, status) => await loanRepository.updateStatus(id, status);
 
-const getAllLoans = async () => {
-  return await loanRepository.getAll();
-};
-
-const getLoanById = async (id) => {
-  return await loanRepository.getById(id);
-};
-
-const updateLoanStatus = async (id, status) => {
-  return await loanRepository.updateStatus(id, status);
-};
-
-module.exports = { createLoan, getAllLoans, getLoanById, updateLoanStatus };
+module.exports = { createLoan, getAllLoans, getLoanById, approveLoan, rejectLoan, disburseLoan, updateLoanStatus };
