@@ -46,11 +46,9 @@ const reconcileLoan = async (normalized, bankTransactionId) => {
   try {
     await client.query('BEGIN');
 
+    // Simple query with FOR UPDATE — no JOIN
     const loanResult = await client.query(
-      `SELECT loans.*, customers.name as customer_name
-       FROM loans
-       LEFT JOIN customers ON loans.customer_id = customers.id
-       WHERE loans.id = $1 FOR UPDATE`,
+      `SELECT * FROM loans WHERE id = $1 FOR UPDATE`,
       [normalized.customerReference]
     );
 
@@ -64,22 +62,25 @@ const reconcileLoan = async (normalized, bankTransactionId) => {
     }
 
     const loan = loanResult.rows[0];
-    const currentBalance = parseFloat(loan.balance) || parseFloat(loan.total_repayment) || 0;
+    const currentBalance = parseFloat(loan.balance) || parseFloat(loan.total_amount) || 0;
     const newBalance = Math.max(0, currentBalance - normalized.amount);
     const newStatus = newBalance === 0 ? 'paid' : 'active';
 
+    // Update loan balance and status
     await client.query(
       `UPDATE loans SET balance = $1, status = $2 WHERE id = $3`,
       [newBalance, newStatus, loan.id]
     );
 
+    // Record in payments table
     await client.query(
       `INSERT INTO payments
-        (loan_id, amount, transaction_code, source, payment_date)
-       VALUES ($1, $2, $3, 'kcb_paybill', NOW())`,
-      [loan.id, normalized.amount, normalized.transactionReference]
+        (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, account_number, payment_date)
+       VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, $6, NOW())`,
+      [loan.id, normalized.amount, normalized.transactionReference, normalized.transactionReference, normalized.customerPhone, normalized.customerReference]
     );
 
+    // Update bank_transaction with loan info
     await client.query(
       `UPDATE bank_transactions SET loan_id = $1, customer_id = $2, status = 'processed', processed_at = NOW() WHERE id = $3`,
       [loan.id, loan.customer_id, bankTransactionId]
@@ -88,6 +89,7 @@ const reconcileLoan = async (normalized, bankTransactionId) => {
     await client.query('COMMIT');
     console.log(`[WebhookService] Loan ${loan.id} - KSh ${normalized.amount} received. Balance: KSh ${newBalance}. Status: ${newStatus}`);
     return { success: true, loanId: loan.id, newBalance, newStatus };
+
   } catch (err) {
     await client.query('ROLLBACK');
     await pool.query(
