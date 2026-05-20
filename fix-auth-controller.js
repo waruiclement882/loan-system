@@ -1,4 +1,6 @@
-const bcrypt = require('bcryptjs');
+const fs = require('fs');
+
+const controller = `const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../db/pool');
 
@@ -70,3 +72,14 @@ const login = async (req, res) => {
 };
 
 module.exports = { register, login };
+`;
+
+fs.writeFileSync('src/controllers/authController.js', controller);
+console.log('✅ authController.js updated — role now returned on login');
+console.log('');
+console.log('John Kamau (john@example.com) currently has no role set in DB.');
+console.log('Run this SQL on your Render Postgres to set him as admin:');
+console.log('');
+console.log("  UPDATE users SET role = 'admin' WHERE email = 'john@example.com';");
+console.log('');
+console.log('You can run it via Render dashboard → your DB → Query tab.');
