@@ -2,7 +2,7 @@ const express  = require('express');
 const router   = express.Router();
 const bcrypt   = require('bcryptjs');
 const pool     = require('../db/pool');
-const { protect, adminOnly } = require('../middlewares/authMiddleware');
+const { verifyToken: protect, adminOnly } = require('../middlewares/authMiddleware');
 
 // GET all users (admin only)
 router.get('/users', protect, adminOnly, async (req, res) => {
