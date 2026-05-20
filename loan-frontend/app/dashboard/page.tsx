@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: "Approvals",  path: "/approvals",   roles: ["admin", "loan_officer"], badge: true },
   { label: "Slip",       path: "/slip",        roles: ["admin", "loan_officer", "cashier"] },
   { label: "Export",     path: "/export",      roles: ["admin"] },
+  { label: "Users",      path: "/users",       roles: ["admin"] },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
