@@ -1,14 +1,1 @@
-const pool = require('../db/connection');
-
-const getPricingRules = async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT * FROM loan_pricing_rules ORDER BY loan_amount, term_weeks'
-    );
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-module.exports = { getPricingRules };
+const pool = require('../db/connection'); const getPricing = async (req, res) => { try { const { loan_amount, term_weeks } = req.body; if (!loan_amount || !term_weeks) return res.status(400).json({ error: 'loan_amount and term_weeks are required' }); const result = await pool.query('SELECT * FROM loan_pricing_rules WHERE loan_amount='+String.fromCharCode(36)+'1 AND term_weeks='+String.fromCharCode(36)+'2', [loan_amount, term_weeks]); if (!result.rows[0]) return res.status(404).json({ error: 'Pricing rule not found' }); return res.json(result.rows[0]); } catch (err) { return res.status(500).json({ error: err.message }); } }; const getAllPricing = async (req, res) => { try { const result = await pool.query('SELECT * FROM loan_pricing_rules ORDER BY loan_amount, term_weeks'); return res.json(result.rows); } catch (err) { return res.status(500).json({ error: err.message }); } }; module.exports = { getPricing, getAllPricing };

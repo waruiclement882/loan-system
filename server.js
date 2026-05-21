@@ -1,8 +1,1 @@
-require("dotenv").config();
-const app = require("./src/app");
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+require('dotenv').config(); const app = require('./src/app'); const { startCronJobs } = require('./src/services/cronService'); const PORT = process.env.PORT || 3001; app.listen(PORT, () => { console.log('Server running on port ' + PORT); startCronJobs(); });
