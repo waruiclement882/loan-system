@@ -1,0 +1,1 @@
+require('dotenv').config(); const { sendLoanApprovedEmail } = require('./src/services/emailService'); sendLoanApprovedEmail({ name: 'Test User', email: 'waruiclement882@gmail.com' }, { id: 1, amount: 5000, total_amount: 7650, term_weeks: 6 }).then(() => { console.log('Email sent!'); process.exit(); }).catch(e => { console.error('Failed:', e.message); process.exit(); });

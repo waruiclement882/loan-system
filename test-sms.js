@@ -1,0 +1,1 @@
+require('dotenv').config(); const { sendSms } = require('./src/services/smsService'); sendSms('0768750371', 'Test SMS from Microfinance System - working!').then(() => { console.log('SMS sent!'); process.exit(); }).catch(e => { console.error('Failed:', e.message); process.exit(); });
