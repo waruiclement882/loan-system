@@ -1,11 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getLoans } from "@/lib/api";
 
 const API = "https://loan-system-h794.onrender.com";
 
-export default function SchedulePage() {
+function ScheduleContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const [loans, setLoans]         = useState<any[]>([]);
@@ -184,5 +184,13 @@ export default function SchedulePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-100 flex items-center justify-center"><p className="text-gray-400">Loading...</p></div>}>
+      <ScheduleContent />
+    </Suspense>
   );
 }
