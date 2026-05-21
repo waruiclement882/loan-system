@@ -12,4 +12,15 @@ router.patch('/:id/disburse', verifyToken, loanController.disburseLoan);
 router.patch('/:id/status', verifyToken, loanController.updateLoanStatus);
 router.delete('/:id', verifyToken, loanController.deleteLoan);
 
+// Mark processing fee as paid
+router.patch('/:id/processing-fee-paid', async (req, res) => {
+  try {
+    const loanService = require('../services/loanService');
+    const loan = await loanService.markProcessingFeePaid(req.params.id, req.body.transaction_code);
+    res.json(loan);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 module.exports = router;

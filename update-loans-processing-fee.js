@@ -1,4 +1,129 @@
-"use client";
+const fs = require('fs');
+
+// ── 1. Updated loanRepository.js ─────────────────────────────────────────────
+fs.writeFileSync('src/repositories/loanRepository.js', `const pool = require('../db/connection');
+
+const create = async (loan) => {
+  const { customer_id, amount, term_weeks, interest_amount, total_amount, created_by } = loan;
+  // Get processing fee from pricing rules
+  const rule = await pool.query(
+    'SELECT processing_fee FROM loan_pricing_rules WHERE loan_amount=$1 AND term_weeks=$2',
+    [amount, term_weeks]
+  );
+  const processing_fee = rule.rows[0]?.processing_fee || 0;
+  const r = await pool.query(
+    'INSERT INTO loans (customer_id,amount,term_weeks,interest_amount,total_amount,balance,status,created_by,processing_fee) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
+    [customer_id, amount, term_weeks, interest_amount, total_amount, total_amount, 'pending', created_by || null, processing_fee]
+  );
+  return r.rows[0];
+};
+
+const getAll = async (status) => {
+  let q = 'SELECT loans.*,customers.name as customer_name FROM loans LEFT JOIN customers ON loans.customer_id=customers.id';
+  const p = [];
+  if (status) { q += ' WHERE loans.status=$1'; p.push(status); }
+  q += ' ORDER BY loans.id DESC';
+  return (await pool.query(q, p)).rows;
+};
+
+const getById = async (id) => {
+  const r = await pool.query(
+    'SELECT loans.*,customers.name as customer_name FROM loans LEFT JOIN customers ON loans.customer_id=customers.id WHERE loans.id=$1',
+    [id]
+  );
+  return r.rows[0];
+};
+
+const approve = async (id, approved_by) => {
+  const r = await pool.query(
+    'UPDATE loans SET status=$1,approved_by=$2,approved_at=NOW() WHERE id=$3 AND status=$4 RETURNING *',
+    ['approved', approved_by, id, 'pending']
+  );
+  return r.rows[0];
+};
+
+const reject = async (id, rejected_by, reason) => {
+  const r = await pool.query(
+    'UPDATE loans SET status=$1,approved_by=$2,approved_at=NOW(),rejection_reason=$3 WHERE id=$4 AND status=$5 RETURNING *',
+    ['rejected', rejected_by, reason, id, 'pending']
+  );
+  return r.rows[0];
+};
+
+const markProcessingFeePaid = async (id, transaction_code) => {
+  const loan = await pool.query('SELECT * FROM loans WHERE id=$1', [id]);
+  if (loan.rows.length === 0) throw new Error('Loan not found');
+  if (loan.rows[0].processing_fee_paid) throw new Error('Processing fee already paid');
+  const r = await pool.query(
+    'UPDATE loans SET processing_fee_paid=true, processing_fee_paid_at=NOW(), processing_fee_transaction=$1 WHERE id=$2 RETURNING *',
+    [transaction_code || 'MANUAL', id]
+  );
+  return r.rows[0];
+};
+
+const disburse = async (id, disbursed_by) => {
+  const loan = await pool.query('SELECT * FROM loans WHERE id=$1', [id]);
+  if (loan.rows.length === 0) return null;
+  if (!loan.rows[0].processing_fee_paid) {
+    throw new Error('Processing fee of KSh ' + loan.rows[0].processing_fee + ' must be paid before disbursement');
+  }
+  if (loan.rows[0].status !== 'approved') return null;
+  const r = await pool.query(
+    'UPDATE loans SET status=$1,disbursed_by=$2,disbursed_at=NOW(),balance=amount WHERE id=$3 RETURNING *',
+    ['active', disbursed_by, id]
+  );
+  return r.rows[0];
+};
+
+const updateStatus = async (id, status) => {
+  const r = await pool.query('UPDATE loans SET status=$1 WHERE id=$2 RETURNING *', [status, id]);
+  return r.rows[0];
+};
+
+module.exports = { create, getAll, getById, approve, reject, disburse, updateStatus, markProcessingFeePaid };
+`);
+console.log('✅ loanRepository.js updated');
+
+// ── 2. Update loanService.js to export approveLoan + markProcessingFeePaid ──
+fs.writeFileSync('src/services/loanService.js', `const loanRepository = require('../repositories/loanRepository');
+const createLoan             = async (loanData)        => await loanRepository.create(loanData);
+const getAllLoans             = async (status)          => await loanRepository.getAll(status);
+const getLoanById            = async (id)              => await loanRepository.getById(id);
+const approveLoan            = async (id, approved_by) => await loanRepository.approve(id, approved_by);
+const rejectLoan             = async (id, rejected_by, reason) => await loanRepository.reject(id, rejected_by, reason);
+const disburseLoan           = async (id, disbursed_by) => await loanRepository.disburse(id, disbursed_by);
+const updateLoanStatus       = async (id, status)      => await loanRepository.updateStatus(id, status);
+const markProcessingFeePaid  = async (id, transaction_code) => await loanRepository.markProcessingFeePaid(id, transaction_code);
+module.exports = { createLoan, getAllLoans, getLoanById, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, markProcessingFeePaid };
+`);
+console.log('✅ loanService.js updated');
+
+// ── 3. Add markProcessingFeePaid route to loans router ───────────────────────
+const loansRoute = fs.readFileSync('src/routes/loans.js', 'utf8');
+if (!loansRoute.includes('processing-fee-paid')) {
+  const updated = loansRoute.replace(
+    "module.exports = router;",
+    `// Mark processing fee as paid
+router.patch('/:id/processing-fee-paid', async (req, res) => {
+  try {
+    const loanService = require('../services/loanService');
+    const loan = await loanService.markProcessingFeePaid(req.params.id, req.body.transaction_code);
+    res.json(loan);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+module.exports = router;`
+  );
+  fs.writeFileSync('src/routes/loans.js', updated);
+  console.log('✅ loans route: PATCH /:id/processing-fee-paid added');
+} else {
+  console.log('ℹ️  processing-fee-paid route already exists');
+}
+
+// ── 4. Updated loans page ────────────────────────────────────────────────────
+fs.writeFileSync('loan-frontend/app/loans/page.tsx', `"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getLoans, createLoan, getCustomers, getPricingRules } from "@/lib/api";
@@ -315,3 +440,8 @@ export default function LoansPage() {
     </div>
   );
 }
+`);
+console.log('✅ loans/page.tsx updated with processing fee UI');
+
+console.log('\n🎉 All done! Push to deploy:');
+console.log('   git add . && git commit -m "Add processing fee to loans" && git push');
