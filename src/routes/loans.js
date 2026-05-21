@@ -23,4 +23,15 @@ router.patch('/:id/processing-fee-paid', async (req, res) => {
   }
 });
 
+// GET repayment schedule for a loan
+router.get('/:id/schedule', async (req, res) => {
+  try {
+    const loanService = require('../services/loanService');
+    const schedule = await loanService.getSchedule(req.params.id);
+    res.json(schedule);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

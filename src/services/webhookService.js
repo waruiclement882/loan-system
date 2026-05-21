@@ -89,6 +89,7 @@ const reconcileLoan = async (normalized, bankTransactionId) => {
     );
 
     await client.query('COMMIT');
+    applyPaymentToSchedule(loan.id, normalized.amount).catch(e => console.error('[Schedule] Update error:', e.message));
     console.log(`[WebhookService] Loan ${loan.id} - KSh ${normalized.amount} received. Balance: KSh ${newBalance}. Status: ${newStatus}`);
 
     // Send payment notifications async

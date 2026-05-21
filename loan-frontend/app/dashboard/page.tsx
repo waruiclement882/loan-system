@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { label: "Slip",       path: "/slip",        roles: ["admin", "loan_officer", "cashier"] },
   { label: "Export",     path: "/export",      roles: ["admin"] },
   { label: "Users",      path: "/users",       roles: ["admin"] },
+  { label: "Schedule",   path: "/schedule",    roles: ["admin","loan_officer"] },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
