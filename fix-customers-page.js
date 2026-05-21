@@ -1,4 +1,6 @@
-"use client";
+const fs = require('fs');
+
+fs.writeFileSync('loan-frontend/app/customers/page.tsx', `"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCustomers, createCustomer } from "@/lib/api";
@@ -182,3 +184,6 @@ export default function CustomersPage() {
     </div>
   );
 }
+`);
+
+console.log('✅ customers/page.tsx fixed — now uses correct API with auth token');
