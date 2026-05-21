@@ -1,4 +1,6 @@
-"use client";
+const fs = require('fs');
+
+fs.writeFileSync('loan-frontend/app/approvals/page.tsx', `"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -211,3 +213,12 @@ export default function ApprovalsPage() {
     </div>
   );
 }
+`);
+
+console.log('✅ approvals/page.tsx updated');
+console.log('');
+console.log('Changes:');
+console.log('  - Processing fee column shown on approved loans');
+console.log('  - Disburse button disabled + shows "Fee Required" if fee unpaid');
+console.log('  - Clear error message if someone tries to disburse without fee');
+console.log('  - Success message after disbursement');
