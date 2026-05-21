@@ -6,8 +6,7 @@ const { getProvider } = require('./providers/providerFactory');
 const logWebhook = async ({ provider, endpoint, method, headers, body, signatureValid, responseCode, responseBody, processingTimeMs, ipAddress }) => {
   try {
     await pool.query(
-      `INSERT INTO webhook_logs
-        (provider, endpoint, method, headers, body, signature_valid, response_code, response_body, processing_time_ms, ip_address)
+      `INSERT INTO webhook_logs (provider, endpoint, method, headers, body, signature_valid, response_code, response_body, processing_time_ms, ip_address)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [provider, endpoint, method, JSON.stringify(headers), JSON.stringify(body), signatureValid, responseCode, JSON.stringify(responseBody), processingTimeMs, ipAddress]
     );
@@ -48,7 +47,6 @@ const reconcileLoan = async (normalized, bankTransactionId) => {
   try {
     await client.query('BEGIN');
 
-    // Simple query with FOR UPDATE — no JOIN
     const loanResult = await client.query(
       `SELECT * FROM loans WHERE id = $1 FOR UPDATE`,
       [normalized.customerReference]
@@ -64,35 +62,76 @@ const reconcileLoan = async (normalized, bankTransactionId) => {
     }
 
     const loan = loanResult.rows[0];
+    const processingFee = parseFloat(loan.processing_fee) || 700;
+
+    // ── PROCESSING FEE PAYMENT ──
+    // If loan is approved, fee not yet paid, and amount matches fee
+    if (loan.status === 'approved' && !loan.processing_fee_paid && normalized.amount >= processingFee) {
+      await client.query(
+        `UPDATE loans SET processing_fee_paid = TRUE, processing_fee_transaction = $1 WHERE id = $2`,
+        [normalized.transactionReference, loan.id]
+      );
+
+      // Record fee payment
+      await client.query(
+        `INSERT INTO payments (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, account_number, payment_date)
+         VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, $6, NOW())`,
+        [loan.id, normalized.amount, normalized.transactionReference, normalized.transactionReference, normalized.customerPhone, normalized.customerReference]
+      );
+
+      await client.query(
+        `UPDATE bank_transactions SET loan_id = $1, customer_id = $2, status = 'processed', processed_at = NOW() WHERE id = $3`,
+        [loan.id, loan.customer_id, bankTransactionId]
+      );
+
+      await client.query('COMMIT');
+      console.log(`[WebhookService] Loan ${loan.id} - Processing fee KSh ${normalized.amount} received. Awaiting cashier disbursement.`);
+
+      // Notify customer
+      const customerResult = await pool.query('SELECT * FROM customers WHERE id = $1', [loan.customer_id]);
+      const customer = customerResult.rows[0];
+      if (customer && customer.phone) {
+        smsService.sendPaymentReceivedSms(customer.phone, normalized.amount, loan.id, 0)
+          .catch(e => console.error('[Notify] SMS error:', e.message));
+      }
+
+      return { success: true, loanId: loan.id, type: 'processing_fee', message: 'Processing fee received. Awaiting cashier disbursement.' };
+    }
+
+    // ── REGULAR LOAN REPAYMENT ──
+    // Only process repayments if loan is active
+    if (loan.status !== 'active') {
+      await client.query('ROLLBACK');
+      await pool.query(
+        `UPDATE bank_transactions SET status = 'failed', error_message = $1, processed_at = NOW() WHERE id = $2`,
+        [`Loan ${loan.id} is not active (status: ${loan.status})`, bankTransactionId]
+      );
+      return { success: false, reason: 'loan_not_active' };
+    }
+
     const currentBalance = parseFloat(loan.balance) || parseFloat(loan.total_amount) || 0;
     const newBalance = Math.max(0, currentBalance - normalized.amount);
     const newStatus = newBalance === 0 ? 'paid' : 'active';
 
-    // Update loan balance and status
     await client.query(
       `UPDATE loans SET balance = $1, status = $2 WHERE id = $3`,
       [newBalance, newStatus, loan.id]
     );
 
-    // Record in payments table
     await client.query(
-      `INSERT INTO payments
-        (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, account_number, payment_date)
+      `INSERT INTO payments (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, account_number, payment_date)
        VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, $6, NOW())`,
       [loan.id, normalized.amount, normalized.transactionReference, normalized.transactionReference, normalized.customerPhone, normalized.customerReference]
     );
 
-    // Update bank_transaction with loan info
     await client.query(
       `UPDATE bank_transactions SET loan_id = $1, customer_id = $2, status = 'processed', processed_at = NOW() WHERE id = $3`,
       [loan.id, loan.customer_id, bankTransactionId]
     );
 
     await client.query('COMMIT');
-    applyPaymentToSchedule(loan.id, normalized.amount).catch(e => console.error('[Schedule] Update error:', e.message));
     console.log(`[WebhookService] Loan ${loan.id} - KSh ${normalized.amount} received. Balance: KSh ${newBalance}. Status: ${newStatus}`);
 
-    // Send payment notifications async
     const customerResult = await pool.query('SELECT * FROM customers WHERE id = $1', [loan.customer_id]);
     const customer = customerResult.rows[0];
     const paymentRecord = { amount: normalized.amount, transaction_code: normalized.transactionReference, kcb_transaction_id: normalized.transactionReference };
@@ -101,7 +140,7 @@ const reconcileLoan = async (normalized, bankTransactionId) => {
       emailService.sendPaymentReceivedEmail(customer, paymentRecord, updatedLoan).catch(e => console.error('[Notify] Email error:', e.message));
       smsService.sendPaymentReceivedSms(customer.phone, normalized.amount, loan.id, newBalance).catch(e => console.error('[Notify] SMS error:', e.message));
     }
-    return { success: true, loanId: loan.id, newBalance, newStatus };
+    return { success: true, loanId: loan.id, newBalance, newStatus, type: 'repayment' };
 
   } catch (err) {
     await client.query('ROLLBACK');
