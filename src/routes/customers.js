@@ -5,5 +5,8 @@ const { verifyToken } = require('../middlewares/authMiddleware');
 
 router.get('/', verifyToken, customerController.getAllCustomers);
 router.post('/', verifyToken, customerController.createCustomer);
+router.get('/:id', verifyToken, customerController.getCustomerById);
+router.put('/:id', verifyToken, customerController.updateCustomer);
+router.get('/:id/profile', verifyToken, customerController.getCustomerProfile);
 
 module.exports = router;

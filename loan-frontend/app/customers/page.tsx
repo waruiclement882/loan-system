@@ -121,7 +121,7 @@ export default function CustomersPage() {
               </thead>
               <tbody>
                 {filtered.map((c: Customer) => (
-                  <tr key={c.id} className="border-b hover:bg-gray-50">
+                  <tr key={c.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => router.push("/customers/" + c.id)}>
                     <td className="px-6 py-4 text-gray-400">{c.id}</td>
                     <td className="px-6 py-4 font-medium">{c.name}</td>
                     <td className="px-6 py-4">{c.phone}</td>
