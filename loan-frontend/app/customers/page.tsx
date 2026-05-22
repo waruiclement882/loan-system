@@ -22,6 +22,13 @@ export default function CustomersPage() {
   const [error, setError]         = useState("");
   const [success, setSuccess]     = useState("");
   const [form, setForm]           = useState({ name: "", email: "", phone: "", national_id: "" });
+  const [deleteId, setDeleteId]   = useState<number | null>(null);
+  const [deleting, setDeleting]   = useState(false);
+
+  const getHeaders = () => {
+    const token = localStorage.getItem("token");
+    return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -52,6 +59,26 @@ export default function CustomersPage() {
       }
     } catch { setError("Failed to create customer"); }
     setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com"}/api/customers/${deleteId}`,
+        { method: "DELETE", headers: getHeaders() }
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Failed to delete customer");
+      } else {
+        setSuccess("Customer deleted successfully!");
+        setDeleteId(null);
+        fetchCustomers();
+      }
+    } catch { setError("Failed to delete customer"); }
+    setDeleting(false);
   };
 
   const filtered = customers.filter(c =>
@@ -117,18 +144,33 @@ export default function CustomersPage() {
                   <th className="text-left px-6 py-3 text-gray-500 font-medium">Email</th>
                   <th className="text-left px-6 py-3 text-gray-500 font-medium">National ID</th>
                   <th className="text-left px-6 py-3 text-gray-500 font-medium">Joined</th>
+                  <th className="text-left px-6 py-3 text-gray-500 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((c: Customer) => (
-                  <tr key={c.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => router.push("/customers/" + c.id)}>
+                  <tr key={c.id} className="border-b hover:bg-gray-50">
                     <td className="px-6 py-4 text-gray-400">{c.id}</td>
-                    <td className="px-6 py-4 font-medium">{c.name}</td>
+                    <td className="px-6 py-4 font-medium cursor-pointer hover:text-blue-600" onClick={() => router.push("/customers/" + c.id)}>{c.name}</td>
                     <td className="px-6 py-4">{c.phone}</td>
                     <td className="px-6 py-4 text-gray-600">{c.email || "—"}</td>
                     <td className="px-6 py-4 text-gray-600">{c.national_id || "—"}</td>
                     <td className="px-6 py-4 text-gray-400 text-xs">
                       {c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => router.push("/customers/" + c.id)}
+                          className="text-blue-600 hover:text-blue-800 text-xs px-3 py-1 border border-blue-200 rounded-lg hover:bg-blue-50">
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => { setDeleteId(c.id); setError(""); setSuccess(""); }}
+                          className="text-red-600 hover:text-red-800 text-xs px-3 py-1 border border-red-200 rounded-lg hover:bg-red-50">
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -174,6 +216,28 @@ export default function CustomersPage() {
               <button onClick={handleCreate} disabled={saving}
                 className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50">
                 {saving ? "Saving..." : "Create Customer"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="px-6 py-4 border-b">
+              <h3 className="font-bold text-lg text-red-600">Delete Customer</h3>
+            </div>
+            <div className="p-6">
+              <p className="text-gray-600 text-sm">Are you sure you want to delete this customer? This action cannot be undone.</p>
+              {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mt-3">{error}</div>}
+            </div>
+            <div className="px-6 py-4 border-t flex gap-3 justify-end">
+              <button onClick={() => setDeleteId(null)} className="px-4 py-2 text-gray-600 border rounded-lg hover:bg-gray-50 text-sm">Cancel</button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium disabled:opacity-50">
+                {deleting ? "Deleting..." : "Yes, Delete"}
               </button>
             </div>
           </div>
