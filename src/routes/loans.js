@@ -13,7 +13,7 @@ router.patch('/:id/status', verifyToken, loanController.updateLoanStatus);
 router.delete('/:id', verifyToken, loanController.deleteLoan);
 
 // Mark processing fee as paid
-router.patch('/:id/processing-fee-paid', async (req, res) => {
+router.patch('/:id/processing-fee-paid', verifyToken, async (req, res) => {
   try {
     const loanService = require('../services/loanService');
     const loan = await loanService.markProcessingFeePaid(req.params.id, req.body.transaction_code);
@@ -24,14 +24,6 @@ router.patch('/:id/processing-fee-paid', async (req, res) => {
 });
 
 // GET repayment schedule for a loan
-router.get('/:id/schedule', async (req, res) => {
-  try {
-    const loanService = require('../services/loanService');
-    const schedule = await loanService.getSchedule(req.params.id);
-    res.json(schedule);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.get('/:id/schedule', verifyToken, loanController.getLoanSchedule);
 
 module.exports = router;

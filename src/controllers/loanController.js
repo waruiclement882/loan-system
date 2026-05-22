@@ -38,7 +38,6 @@ const approveLoan = async (req, res) => {
     if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
 
-    // Send SMS notification
     const phone = await getCustomerPhone(loan.customer_id);
     if (phone) {
       smsService.sendLoanApprovedSms(phone, loan.id, loan.amount, loan.processing_fee)
@@ -55,7 +54,6 @@ const rejectLoan = async (req, res) => {
     if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
 
-    // Send SMS notification
     const phone = await getCustomerPhone(loan.customer_id);
     if (phone) {
       smsService.sendLoanRejectedSms(phone, loan.id, reason)
@@ -71,7 +69,10 @@ const disburseLoan = async (req, res) => {
     if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
 
-    // Send SMS notification
+    const scheduleService = require('../services/scheduleService');
+    scheduleService.generateSchedule(loan.id)
+      .catch(e => console.error('[Schedule] Generate error:', e.message));
+
     const phone = await getCustomerPhone(loan.customer_id);
     if (phone) {
       smsService.sendLoanDisbursedSms(phone, loan.id, loan.amount, loan.total_amount)
@@ -102,4 +103,12 @@ const getPendingLoans = async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan, getPendingLoans };
+const getLoanSchedule = async (req, res) => {
+  try {
+    const scheduleService = require('../services/scheduleService');
+    const schedule = await scheduleService.getSchedule(req.params.id);
+    res.json(schedule);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+};
+
+module.exports = { getLoanSchedule, getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan, getPendingLoans };
