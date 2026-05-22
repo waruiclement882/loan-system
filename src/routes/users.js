@@ -1,28 +1,26 @@
-const express  = require('express');
-const router   = express.Router();
-const bcrypt   = require('bcryptjs');
-const pool     = require('../db/pool');
-const { verifyToken: protect, adminOnly } = require('../middlewares/authMiddleware');
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcryptjs');
+const pool = require('../db/pool');
+const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 
-// GET all users (admin only)
-router.get('/users', protect, adminOnly, async (req, res) => {
+router.get('/users', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     const result = await pool.query('SELECT id, name, email, role, created_at FROM users ORDER BY id');
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PUT update user (admin only)
-router.put('/users/:id', protect, adminOnly, async (req, res) => {
+router.put('/users/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     let query, params;
     if (password) {
       const hash = await bcrypt.hash(password, 10);
-      query  = 'UPDATE users SET name=$1, email=$2, password=$3, role=$4 WHERE id=$5 RETURNING id, name, email, role';
+      query = 'UPDATE users SET name=$1, email=$2, password=$3, role=$4 WHERE id=$5 RETURNING id, name, email, role';
       params = [name, email, hash, role, req.params.id];
     } else {
-      query  = 'UPDATE users SET name=$1, email=$2, role=$3 WHERE id=$4 RETURNING id, name, email, role';
+      query = 'UPDATE users SET name=$1, email=$2, role=$3 WHERE id=$4 RETURNING id, name, email, role';
       params = [name, email, role, req.params.id];
     }
     const result = await pool.query(query, params);
@@ -31,8 +29,7 @@ router.put('/users/:id', protect, adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// PATCH update role only (admin only)
-router.patch('/users/:id/role', protect, adminOnly, async (req, res) => {
+router.patch('/users/:id/role', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     const { role } = req.body;
     const result = await pool.query(
@@ -44,8 +41,7 @@ router.patch('/users/:id/role', protect, adminOnly, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// DELETE user (admin only)
-router.delete('/users/:id', protect, adminOnly, async (req, res) => {
+router.delete('/users/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]);
     res.json({ success: true });
