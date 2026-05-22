@@ -4,20 +4,17 @@ const sendSms = async (phone, message) => {
       console.warn('[SMSService] Africa\'s Talking credentials not set — skipping SMS');
       return;
     }
-
     const AfricasTalking = require('africastalking');
     const at = AfricasTalking({
       apiKey: process.env.AT_API_KEY,
       username: process.env.AT_USERNAME,
     });
-
     const sms = at.SMS;
     const result = await sms.send({
       to: [phone.startsWith('+') ? phone : '+254' + phone.replace(/^0/, '')],
       message,
       from: process.env.AT_SENDER_ID || undefined,
     });
-
     console.log('[SMSService] SMS sent:', JSON.stringify(result));
     return result;
   } catch (err) {
@@ -25,16 +22,27 @@ const sendSms = async (phone, message) => {
   }
 };
 
-const sendLoanApprovedSms = async (phone, loanId, amount) => {
-  await sendSms(phone, `Your loan of KSh ${parseFloat(amount).toLocaleString()} (ID: #${loanId}) has been approved. Disbursement is being processed.`);
+const sendLoanApprovedSms = async (phone, loanId, amount, processingFee) => {
+  const fee = processingFee || 700;
+  await sendSms(phone,
+    `Loan #${loanId} of KSh ${parseFloat(amount).toLocaleString()} APPROVED. ` +
+    `Pay processing fee KSh ${fee} via KCB Paybill 522522, Account: 8086860 to activate disbursement.`
+  );
 };
 
-const sendLoanDisbursedSms = async (phone, loanId, amount, paybill) => {
-  await sendSms(phone, `Loan #${loanId} of KSh ${parseFloat(amount).toLocaleString()} disbursed. Repay via KCB Paybill ${paybill || ''}, Account: ${loanId}.`);
+const sendLoanDisbursedSms = async (phone, loanId, amount, totalRepayment) => {
+  await sendSms(phone,
+    `Loan #${loanId} of KSh ${parseFloat(amount).toLocaleString()} DISBURSED. ` +
+    `Total repayment: KSh ${parseFloat(totalRepayment).toLocaleString()}. ` +
+    `Repay via KCB Paybill 522522, Account: 8086860.`
+  );
 };
 
-const sendLoanRejectedSms = async (phone, loanId) => {
-  await sendSms(phone, `Your loan application #${loanId} was not approved. Please contact us for more information.`);
+const sendLoanRejectedSms = async (phone, loanId, reason) => {
+  const msg = reason
+    ? `Loan #${loanId} not approved. Reason: ${reason}. Contact us for more info.`
+    : `Your loan application #${loanId} was not approved. Please contact us for more information.`;
+  await sendSms(phone, msg);
 };
 
 const sendPaymentReceivedSms = async (phone, amount, loanId, balance) => {
@@ -44,4 +52,18 @@ const sendPaymentReceivedSms = async (phone, amount, loanId, balance) => {
   await sendSms(phone, msg);
 };
 
-module.exports = { sendSms, sendLoanApprovedSms, sendLoanDisbursedSms, sendLoanRejectedSms, sendPaymentReceivedSms };
+const sendPaymentReminderSms = async (phone, loanId, balance, dueDate) => {
+  await sendSms(phone,
+    `Reminder: Loan #${loanId} balance KSh ${parseFloat(balance).toLocaleString()} due ${dueDate}. ` +
+    `Pay via KCB Paybill 522522, Account: 8086860.`
+  );
+};
+
+module.exports = {
+  sendSms,
+  sendLoanApprovedSms,
+  sendLoanDisbursedSms,
+  sendLoanRejectedSms,
+  sendPaymentReceivedSms,
+  sendPaymentReminderSms
+};

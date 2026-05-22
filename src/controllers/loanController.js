@@ -1,11 +1,10 @@
 const loanService = require('../services/loanService');
-const emailService = require('../services/emailService');
+const pool = require('../db/pool');
 const smsService = require('../services/smsService');
-const pool = require('../db/connection');
 
-const getCustomer = async (customerId) => {
-  const r = await pool.query('SELECT * FROM customers WHERE id = $1', [customerId]);
-  return r.rows[0];
+const getCustomerPhone = async (customerId) => {
+  const r = await pool.query('SELECT phone FROM customers WHERE id = $1', [customerId]);
+  return r.rows[0]?.phone || null;
 };
 
 const getAllLoans = async (req, res) => {
@@ -13,9 +12,7 @@ const getAllLoans = async (req, res) => {
     const { status } = req.query;
     const loans = await loanService.getAllLoans(status);
     res.json(loans);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
 const getLoanById = async (req, res) => {
@@ -23,71 +20,64 @@ const getLoanById = async (req, res) => {
     const loan = await loanService.getLoanById(req.params.id);
     if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
 const createLoan = async (req, res) => {
   try {
-    const loan = await loanService.createLoan({ ...req.body, created_by: req.user?.user_id || req.user?.id });
+    const created_by = req.user?.id || req.user?.user_id;
+    const loan = await loanService.createLoan({ ...req.body, created_by });
     res.status(201).json(loan);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
+  } catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 const approveLoan = async (req, res) => {
   try {
-    const loan = await loanService.approveLoan(req.params.id, req.user?.user_id || req.user?.id);
-    if (!loan) return res.status(404).json({ error: 'Loan not found or not pending' });
-
-    // Send notifications async — don't block response
-    const customer = await getCustomer(loan.customer_id);
-    if (customer) {
-      emailService.sendLoanApprovedEmail(customer, loan).catch(e => console.error('[Notify] Email error:', e.message));
-      smsService.sendLoanApprovedSms(customer.phone, loan.id, loan.amount).catch(e => console.error('[Notify] SMS error:', e.message));
-    }
-
+    const approved_by = req.user?.id || req.user?.user_id;
+    const loan = await loanService.approveLoan(req.params.id, approved_by);
+    if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
+
+    // Send SMS notification
+    const phone = await getCustomerPhone(loan.customer_id);
+    if (phone) {
+      smsService.sendLoanApprovedSms(phone, loan.id, loan.amount, loan.processing_fee)
+        .catch(e => console.error('[SMS] Approve error:', e.message));
+    }
+  } catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 const rejectLoan = async (req, res) => {
   try {
     const { reason } = req.body;
-    const loan = await loanService.rejectLoan(req.params.id, req.user?.user_id || req.user?.id, reason);
-    if (!loan) return res.status(404).json({ error: 'Loan not found or not pending' });
-
-    const customer = await getCustomer(loan.customer_id);
-    if (customer) {
-      emailService.sendLoanRejectedEmail(customer, loan).catch(e => console.error('[Notify] Email error:', e.message));
-      smsService.sendLoanRejectedSms(customer.phone, loan.id).catch(e => console.error('[Notify] SMS error:', e.message));
-    }
-
+    const rejected_by = req.user?.id || req.user?.user_id;
+    const loan = await loanService.rejectLoan(req.params.id, rejected_by, reason);
+    if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
+
+    // Send SMS notification
+    const phone = await getCustomerPhone(loan.customer_id);
+    if (phone) {
+      smsService.sendLoanRejectedSms(phone, loan.id, reason)
+        .catch(e => console.error('[SMS] Reject error:', e.message));
+    }
+  } catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 const disburseLoan = async (req, res) => {
   try {
-    const loan = await loanService.disburseLoan(req.params.id, req.user?.user_id || req.user?.id);
-    if (!loan) return res.status(404).json({ error: 'Loan not found or not approved' });
-
-    const customer = await getCustomer(loan.customer_id);
-    if (customer) {
-      emailService.sendLoanDisbursedEmail(customer, loan).catch(e => console.error('[Notify] Email error:', e.message));
-      smsService.sendLoanDisbursedSms(customer.phone, loan.id, loan.amount, process.env.KCB_PAYBILL).catch(e => console.error('[Notify] SMS error:', e.message));
-    }
-
+    const disbursed_by = req.user?.id || req.user?.user_id;
+    const loan = await loanService.disburseLoan(req.params.id, disbursed_by);
+    if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
+
+    // Send SMS notification
+    const phone = await getCustomerPhone(loan.customer_id);
+    if (phone) {
+      smsService.sendLoanDisbursedSms(phone, loan.id, loan.amount, loan.total_amount)
+        .catch(e => console.error('[SMS] Disburse error:', e.message));
+    }
+  } catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 const updateLoanStatus = async (req, res) => {
@@ -95,17 +85,21 @@ const updateLoanStatus = async (req, res) => {
     const loan = await loanService.updateLoanStatus(req.params.id, req.body.status);
     if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
+  } catch (error) { res.status(400).json({ error: error.message }); }
 };
 
 const deleteLoan = async (req, res) => {
   try {
+    await pool.query('DELETE FROM loans WHERE id = $1', [req.params.id]);
     res.json({ message: 'Loan deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan };
+const getPendingLoans = async (req, res) => {
+  try {
+    const loans = await loanService.getAllLoans('pending');
+    res.json(loans);
+  } catch (error) { res.status(500).json({ error: error.message }); }
+};
+
+module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan, getPendingLoans };
