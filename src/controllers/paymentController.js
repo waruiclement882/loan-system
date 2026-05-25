@@ -20,7 +20,6 @@ class PaymentController {
     }
   }
 
-  // Get all unmatched KCB transactions
   async getUnmatched(req, res) {
     try {
       const result = await pool.query(`
@@ -36,16 +35,11 @@ class PaymentController {
     }
   }
 
-  // Cashier matches a transaction to a loan
   async matchTransaction(req, res) {
     const client = await pool.connect();
     try {
       const { transaction_id, loan_id, type } = req.body;
-      // type = 'processing_fee' or 'repayment'
-
       await client.query('BEGIN');
-
-      // Get transaction
       const txResult = await client.query(
         'SELECT * FROM bank_transactions WHERE id = $1 AND status = $2',
         [transaction_id, 'received']
@@ -55,8 +49,57 @@ class PaymentController {
         return res.status(404).json({ error: 'Transaction not found or already matched' });
       }
       const tx = txResult.rows[0];
+      const loanResult = await client.query('SELECT * FROM loans WHERE id = $1', [loan_id]);
+      if (loanResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Loan not found' });
+      }
+      const loan = loanResult.rows[0];
+      if (type === 'processing_fee') {
+        await client.query(
+          `UPDATE loans SET processing_fee_paid = TRUE, processing_fee_transaction = $1 WHERE id = $2`,
+          [tx.transaction_reference, loan_id]
+        );
+      } else {
+        const currentBalance = parseFloat(loan.balance) || 0;
+        const newBalance = Math.max(0, currentBalance - parseFloat(tx.amount));
+        const newStatus = newBalance === 0 ? 'paid' : 'active';
+        await client.query(
+          'UPDATE loans SET balance = $1, status = $2 WHERE id = $3',
+          [newBalance, newStatus, loan_id]
+        );
+      }
+      await client.query(
+        `INSERT INTO payments (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, payment_date)
+         VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, NOW())`,
+        [loan_id, tx.amount, tx.transaction_reference, tx.transaction_reference, tx.customer_phone]
+      );
+      await client.query(
+        `UPDATE bank_transactions SET status = 'processed', loan_id = $1, processed_at = NOW() WHERE id = $2`,
+        [loan_id, transaction_id]
+      );
+      await client.query('COMMIT');
+      res.json({ message: 'Payment matched successfully' });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      res.status(500).json({ error: error.message });
+    } finally {
+      client.release();
+    }
+  }
 
-      // Get loan
+  async manualPayment(req, res) {
+    const client = await pool.connect();
+    try {
+      const { loan_id, amount, source, transaction_code, notes } = req.body;
+      const recorded_by = req.user?.id || req.user?.user_id;
+
+      if (!loan_id || !amount) {
+        return res.status(400).json({ error: 'loan_id and amount are required' });
+      }
+
+      await client.query('BEGIN');
+
       const loanResult = await client.query('SELECT * FROM loans WHERE id = $1', [loan_id]);
       if (loanResult.rows.length === 0) {
         await client.query('ROLLBACK');
@@ -64,16 +107,23 @@ class PaymentController {
       }
       const loan = loanResult.rows[0];
 
-      if (type === 'processing_fee') {
-        // Mark processing fee as paid
+      if (!['active', 'approved'].includes(loan.status)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `Loan is ${loan.status} — cannot record payment` });
+      }
+
+      const txCode = transaction_code || `MANUAL-${Date.now()}`;
+
+      // Check if processing fee payment
+      if (loan.status === 'approved' && !loan.processing_fee_paid) {
         await client.query(
           `UPDATE loans SET processing_fee_paid = TRUE, processing_fee_transaction = $1 WHERE id = $2`,
-          [tx.transaction_reference, loan_id]
+          [txCode, loan_id]
         );
       } else {
-        // Repayment — reduce balance
+        // Regular repayment
         const currentBalance = parseFloat(loan.balance) || 0;
-        const newBalance = Math.max(0, currentBalance - parseFloat(tx.amount));
+        const newBalance = Math.max(0, currentBalance - parseFloat(amount));
         const newStatus = newBalance === 0 ? 'paid' : 'active';
         await client.query(
           'UPDATE loans SET balance = $1, status = $2 WHERE id = $3',
@@ -83,19 +133,30 @@ class PaymentController {
 
       // Record payment
       await client.query(
-        `INSERT INTO payments (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, payment_date)
-         VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, NOW())`,
-        [loan_id, tx.amount, tx.transaction_reference, tx.transaction_reference, tx.customer_phone]
-      );
-
-      // Mark transaction as processed
-      await client.query(
-        `UPDATE bank_transactions SET status = 'processed', loan_id = $1, processed_at = NOW() WHERE id = $2`,
-        [loan_id, transaction_id]
+        `INSERT INTO payments (loan_id, amount, transaction_code, source, payment_date)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [loan_id, amount, txCode, source || 'cash']
       );
 
       await client.query('COMMIT');
-      res.json({ message: 'Payment matched successfully' });
+
+      // Send SMS notification
+      try {
+        const smsService = require('../services/smsService');
+        const customerRes = await pool.query(
+          'SELECT customers.phone FROM customers JOIN loans ON loans.customer_id = customers.id WHERE loans.id = $1',
+          [loan_id]
+        );
+        if (customerRes.rows[0]?.phone) {
+          const updatedLoan = await pool.query('SELECT balance FROM loans WHERE id = $1', [loan_id]);
+          smsService.sendPaymentReceivedSms(
+            customerRes.rows[0].phone, amount, loan_id,
+            updatedLoan.rows[0]?.balance || 0
+          ).catch(e => console.error('[SMS]', e.message));
+        }
+      } catch {}
+
+      res.json({ message: 'Payment recorded successfully' });
     } catch (error) {
       await client.query('ROLLBACK');
       res.status(500).json({ error: error.message });
