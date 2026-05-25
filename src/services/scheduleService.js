@@ -3,15 +3,12 @@ const pool = require('../db/connection');
 const generateSchedule = async (loanId) => {
   const loanResult = await pool.query('SELECT * FROM loans WHERE id = $1', [loanId]);
   if (loanResult.rows.length === 0) throw new Error('Loan not found');
-
   const loan = loanResult.rows[0];
   const termWeeks = parseInt(loan.term_weeks) || 6;
   const totalAmount = parseFloat(loan.total_amount) || 0;
   const weeklyAmount = Math.round((totalAmount / termWeeks) * 100) / 100;
   const disbursedAt = loan.disbursed_at || new Date();
-
   await pool.query('DELETE FROM repayment_schedule WHERE loan_id = $1', [loanId]);
-
   for (let week = 1; week <= termWeeks; week++) {
     const dueDate = new Date(disbursedAt);
     dueDate.setDate(dueDate.getDate() + (week * 7));
