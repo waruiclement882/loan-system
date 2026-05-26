@@ -1,4 +1,6 @@
-const express = require("express");
+const fs = require('fs');
+
+fs.writeFileSync('src/app.js', `const express = require("express");
 const cors = require("cors");
 
 const customerRoutes = require("./routes/customers");
@@ -33,3 +35,6 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/auth", passwordResetRoutes);
 
 module.exports = app;
+`);
+
+console.log('app.js fixed!');
