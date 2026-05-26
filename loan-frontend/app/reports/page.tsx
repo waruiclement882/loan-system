@@ -63,6 +63,15 @@ export default function ReportsPage() {
   }).length;
 
   // Recent payments
+  // Quick access tools
+  const quickTools = [
+    { label: 'PAR Report', desc: 'Portfolio at Risk analysis', path: '/par', color: 'bg-red-500' },
+    { label: 'Collection Sheet', desc: 'Daily collection by date', path: '/collection', color: 'bg-green-600' },
+    { label: 'Loan Statement', desc: 'Printable per-loan statement', path: '/statement', color: 'bg-blue-600' },
+    { label: 'Audit Logs', desc: 'Activity & audit trail', path: '/audit', color: 'bg-purple-600' },
+    { label: 'Export Data', desc: 'Export to Excel', path: '/export', color: 'bg-orange-500' },
+  ];
+
   const recentPayments = [...payments].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()).slice(0, 10);
 
   return (
