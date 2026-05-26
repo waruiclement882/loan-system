@@ -11,6 +11,9 @@ export default function DashboardPage() {
   const [userRole, setUserRole] = useState("");
   const [userName, setUserName] = useState("");
   const [unmatched, setUnmatched] = useState(0);
+  const [companyName, setCompanyName] = useState("Microfinance System");
+
+  const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
   const getHeaders = () => {
     const token = localStorage.getItem("token");
@@ -32,9 +35,14 @@ export default function DashboardPage() {
     setLoans(Array.isArray(l) ? l : []);
     setPayments(Array.isArray(p) ? p : []);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com"}/api/payments/unmatched`, { headers: getHeaders() });
-      const data = await res.json();
-      setUnmatched(Array.isArray(data) ? data.length : 0);
+      const [unmatchedRes, settingsRes] = await Promise.all([
+        fetch(`${API}/api/payments/unmatched`, { headers: getHeaders() }),
+        fetch(`${API}/api/settings`)
+      ]);
+      const unmatchedData = await unmatchedRes.json();
+      const settingsData = await settingsRes.json();
+      setUnmatched(Array.isArray(unmatchedData) ? unmatchedData.length : 0);
+      if (settingsData.company_name) setCompanyName(settingsData.company_name);
     } catch {}
   };
 
@@ -54,8 +62,8 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4 items-center">
+        <h1 className="text-xl font-bold text-blue-600">{companyName}</h1>
+        <div className="flex gap-4 items-center flex-wrap">
           <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600">Customers</button>
           <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
           <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600">Payments</button>
@@ -67,12 +75,14 @@ export default function DashboardPage() {
           )}
           {isAdmin && (
             <button onClick={() => router.push("/matching")} className="text-gray-600 hover:text-blue-600 relative">
-              💳 Match Payments
+              💳 Match
               {unmatched > 0 && <span className="absolute -top-1 -right-2 bg-orange-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{unmatched}</span>}
             </button>
           )}
           {isAdmin && <button onClick={() => router.push("/reports")} className="text-gray-600 hover:text-blue-600">Reports</button>}
           {userRole === "admin" && <button onClick={() => router.push("/users")} className="text-gray-600 hover:text-blue-600">Users</button>}
+          {userRole === "admin" && <button onClick={() => router.push("/audit")} className="text-gray-600 hover:text-blue-600">Audit</button>}
+          {userRole === "admin" && <button onClick={() => router.push("/settings")} className="text-gray-600 hover:text-blue-600">⚙️</button>}
           <div className="flex items-center gap-2 ml-2 pl-2 border-l">
             <span className="text-sm text-gray-500">{userName}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full ${userRole === "admin" ? "bg-red-100 text-red-700" : userRole === "cashier" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>{userRole}</span>
@@ -87,17 +97,18 @@ export default function DashboardPage() {
           <div className="flex gap-3">
             {pendingLoans > 0 && isAdmin && (
               <button onClick={() => router.push("/approvals")} className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 text-sm font-medium">
-                ⚠ {pendingLoans} Pending Approval{pendingLoans > 1 ? "s" : ""}
+                ⚠ {pendingLoans} Pending
               </button>
             )}
             {unmatched > 0 && isAdmin && (
               <button onClick={() => router.push("/matching")} className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 text-sm font-medium">
-                💳 {unmatched} Unmatched Payment{unmatched > 1 ? "s" : ""}
+                💳 {unmatched} Unmatched
               </button>
             )}
           </div>
         </div>
 
+        {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Total Customers</p>
@@ -150,13 +161,13 @@ export default function DashboardPage() {
           {isAdmin && (
             <button onClick={() => router.push("/matching")} className="bg-orange-500 text-white p-4 rounded-lg hover:bg-orange-600 text-left">
               <p className="text-lg font-bold">💳 Match Payments</p>
-              <p className="text-sm opacity-80">{unmatched} unmatched payments</p>
+              <p className="text-sm opacity-80">{unmatched} unmatched</p>
             </button>
           )}
           {isAdmin && (
-            <button onClick={() => router.push("/approvals")} className="bg-yellow-500 text-white p-4 rounded-lg hover:bg-yellow-600 text-left">
-              <p className="text-lg font-bold">Approvals</p>
-              <p className="text-sm opacity-80">{pendingLoans} pending review</p>
+            <button onClick={() => router.push("/reports")} className="bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700 text-left">
+              <p className="text-lg font-bold">📊 Reports</p>
+              <p className="text-sm opacity-80">Analytics & exports</p>
             </button>
           )}
         </div>
@@ -183,7 +194,7 @@ export default function DashboardPage() {
                 const total = parseFloat(loan.total_amount || 0);
                 const progress = total > 0 ? Math.max(0, 100 - (balance / total) * 100) : 0;
                 return (
-                  <tr key={loan.id} className="border-b hover:bg-gray-50">
+                  <tr key={loan.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => router.push("/loans/" + loan.id)}>
                     <td className="py-2 font-medium">{loan.customer_name}</td>
                     <td className="py-2">KSh {parseFloat(loan.amount).toLocaleString()}</td>
                     <td className="py-2 text-red-600">KSh {balance.toLocaleString()}</td>
@@ -228,7 +239,7 @@ export default function DashboardPage() {
                   <td className="py-2 text-green-600 font-medium">KSh {parseFloat(p.amount).toLocaleString()}</td>
                   <td className="py-2 font-mono text-xs">{p.transaction_code || p.kcb_transaction_id || "-"}</td>
                   <td className="py-2">
-                    <span className={`px-2 py-1 rounded-full text-xs ${p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" : p.source === "mpesa" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
+                    <span className={`px-2 py-1 rounded-full text-xs ${p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" : p.source === "cash" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}>
                       {p.source === "kcb_paybill" ? "KCB Paybill" : p.source}
                     </span>
                   </td>

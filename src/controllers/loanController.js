@@ -3,9 +3,23 @@ const pool = require('../db/pool');
 const smsService = require('../services/smsService');
 const scheduleService = require('../services/scheduleService');
 
+const audit = async (userId, userName, action, entity, entityId, details) => {
+  try {
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, user_name, action, entity, entity_id, details) VALUES ($1,$2,$3,$4,$5,$6)',
+      [userId, userName, action, entity, entityId, details]
+    );
+  } catch (e) { console.error('[Audit]', e.message); }
+};
+
 const getCustomerPhone = async (customerId) => {
   const r = await pool.query('SELECT phone FROM customers WHERE id = $1', [customerId]);
   return r.rows[0]?.phone || null;
+};
+
+const getUserName = async (userId) => {
+  const r = await pool.query('SELECT name FROM users WHERE id = $1', [userId]);
+  return r.rows[0]?.name || 'Unknown';
 };
 
 const getAllLoans = async (req, res) => {
@@ -27,8 +41,34 @@ const getLoanById = async (req, res) => {
 const createLoan = async (req, res) => {
   try {
     const created_by = req.user?.id || req.user?.user_id;
+    const { customer_id, amount } = req.body;
+
+    // Check loan limits from settings
+    const settingsResult = await pool.query('SELECT * FROM company_settings LIMIT 1');
+    const settings = settingsResult.rows[0];
+
+    if (settings) {
+      const activeLoanCount = await pool.query(
+        `SELECT COUNT(*) FROM loans WHERE customer_id = $1 AND status IN ('pending','approved','active')`,
+        [customer_id]
+      );
+      const activeCount = parseInt(activeLoanCount.rows[0].count);
+      if (activeCount >= settings.max_loans_per_customer) {
+        return res.status(400).json({
+          error: `Customer already has ${activeCount} active loan(s). Maximum allowed is ${settings.max_loans_per_customer}.`
+        });
+      }
+      if (parseFloat(amount) > parseFloat(settings.max_loan_amount)) {
+        return res.status(400).json({
+          error: `Loan amount KSh ${parseFloat(amount).toLocaleString()} exceeds maximum allowed KSh ${parseFloat(settings.max_loan_amount).toLocaleString()}.`
+        });
+      }
+    }
+
     const loan = await loanService.createLoan({ ...req.body, created_by });
     res.status(201).json(loan);
+    const userName = await getUserName(created_by);
+    audit(created_by, userName, 'CREATE_LOAN', 'loans', loan.id, `Loan of KSh ${loan.amount} for customer ${loan.customer_id}`);
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
 
@@ -38,6 +78,8 @@ const approveLoan = async (req, res) => {
     const loan = await loanService.approveLoan(req.params.id, approved_by);
     if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
+    const userName = await getUserName(approved_by);
+    audit(approved_by, userName, 'APPROVE_LOAN', 'loans', loan.id, `Loan #${loan.id} approved`);
     const phone = await getCustomerPhone(loan.customer_id);
     if (phone) smsService.sendLoanApprovedSms(phone, loan.id, loan.amount, loan.processing_fee).catch(e => console.error('[SMS]', e.message));
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -50,6 +92,8 @@ const rejectLoan = async (req, res) => {
     const loan = await loanService.rejectLoan(req.params.id, rejected_by, reason);
     if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
+    const userName = await getUserName(rejected_by);
+    audit(rejected_by, userName, 'REJECT_LOAN', 'loans', loan.id, `Loan #${loan.id} rejected. Reason: ${reason}`);
     const phone = await getCustomerPhone(loan.customer_id);
     if (phone) smsService.sendLoanRejectedSms(phone, loan.id, reason).catch(e => console.error('[SMS]', e.message));
   } catch (error) { res.status(400).json({ error: error.message }); }
@@ -61,6 +105,8 @@ const disburseLoan = async (req, res) => {
     const loan = await loanService.disburseLoan(req.params.id, disbursed_by);
     if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
+    const userName = await getUserName(disbursed_by);
+    audit(disbursed_by, userName, 'DISBURSE_LOAN', 'loans', loan.id, `Loan #${loan.id} KSh ${loan.amount} disbursed`);
     scheduleService.generateSchedule(loan.id).catch(e => console.error('[Schedule]', e.message));
     const phone = await getCustomerPhone(loan.customer_id);
     if (phone) smsService.sendLoanDisbursedSms(phone, loan.id, loan.amount, loan.total_amount).catch(e => console.error('[SMS]', e.message));
