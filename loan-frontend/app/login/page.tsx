@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://loan-system-h794.onrender.com';
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -10,98 +12,60 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
-      const res = await fetch('https://loan-system-h794.onrender.com/api/auth/login', {
+      const res = await fetch(`${API}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password })
       });
       const data = await res.json();
       if (data.token) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         router.push('/dashboard');
-      } else {
-        setError(data.error || 'Login failed');
-      }
-    } catch (err) {
-      setError('Connection failed');
-    }
+      } else { setError(data.error || 'Login failed'); }
+    } catch { setError('Connection failed'); }
     setLoading(false);
   };
 
-  const roleColors: Record<string, string> = {
-    admin: '#7c3aed',
-    loan_officer: '#2563eb',
-    cashier: '#059669',
-  };
-
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #0ea5e9 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div style={{ background: 'white', borderRadius: '16px', width: '100%', maxWidth: '420px', overflow: 'hidden', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
-
-        {/* Header */}
-        <div style={{ background: 'linear-gradient(135deg, #1e3a8a, #2563eb)', padding: '2rem', textAlign: 'center' }}>
-          <div style={{ width: '64px', height: '64px', background: 'rgba(255,255,255,0.2)', borderRadius: '50%', margin: '0 auto 1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px' }}>
-            🏦
-          </div>
-          <h1 style={{ color: 'white', fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Microfinance System</h1>
-          <p style={{ color: 'rgba(255,255,255,0.75)', margin: '0.5rem 0 0', fontSize: '0.875rem' }}>Sign in to your account</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-8">
+        <div className="text-center mb-8">
+          <div className="text-4xl mb-3">🏦</div>
+          <h1 className="text-2xl font-bold text-gray-800">Microfinance System</h1>
+          <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
         </div>
 
-        {/* Role badges */}
-        <div style={{ display: 'flex', gap: '8px', padding: '1rem 2rem 0', justifyContent: 'center' }}>
-          {['Admin', 'Loan Officer', 'Cashier'].map((role) => (
-            <span key={role} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '999px', background: role === 'Admin' ? '#ede9fe' : role === 'Loan Officer' ? '#dbeafe' : '#d1fae5', color: role === 'Admin' ? '#7c3aed' : role === 'Loan Officer' ? '#1d4ed8' : '#065f46', fontWeight: 600 }}>
-              {role}
-            </span>
-          ))}
+        {error && <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleLogin()}
+            placeholder="john@example.com"
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
 
-        {/* Form */}
-        <div style={{ padding: '1.5rem 2rem 2rem' }}>
-          {error && (
-            <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#dc2626', padding: '10px 14px', borderRadius: '8px', marginBottom: '1rem', fontSize: '14px', textAlign: 'center' }}>
-              {error}
-            </div>
-          )}
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-              placeholder="you@example.com"
-              style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', outline: 'none' }}
-            />
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-1">
+            <label className="block text-sm font-medium text-gray-700">Password</label>
+            <button onClick={() => router.push('/forgot-password')} className="text-xs text-blue-600 hover:underline">
+              Forgot password?
+            </button>
           </div>
-
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-              placeholder="••••••••"
-              style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', outline: 'none' }}
-            />
-          </div>
-
-          <button
-            onClick={handleLogin}
-            disabled={loading}
-            style={{ width: '100%', padding: '12px', background: loading ? '#93c5fd' : 'linear-gradient(135deg, #1e3a8a, #2563eb)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}
-          >
-            {loading ? 'Signing in...' : 'Sign In →'}
-          </button>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleLogin()}
+            placeholder="••••••••"
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
+
+        <button onClick={handleLogin} disabled={loading}
+          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium">
+          {loading ? 'Signing in...' : 'Sign In'}
+        </button>
       </div>
-      <button onClick={() => router.push("/forgot-password")} className="w-full mt-2 text-sm text-gray-500 hover:text-blue-600">Forgot password?</button>
-  </div>
+    </div>
   );
 }
