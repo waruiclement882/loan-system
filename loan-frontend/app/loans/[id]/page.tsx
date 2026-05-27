@@ -61,41 +61,42 @@ export default function LoanDetailPage() {
 
   const balance = parseFloat(loan.balance || 0);
   const total = parseFloat(loan.total_amount || 0);
-  const collected = total - balance;
-  const progress = total > 0 ? Math.max(0, Math.min(100, (collected / total) * 100)) : 0;
+  const collected = Math.max(0, total - balance);
+  const progress = total > 0 ? Math.min(100, (collected / total) * 100) : 0;
   const paidWeeks = schedule.filter(s => s.status === "paid").length;
   const overdueWeeks = schedule.filter(s => isOverdue(s.due_date, s.status)).length;
 
-  // Calculate running balance for schedule
+  // Calculate running balance correctly
   let runningBalance = total;
   const scheduleWithBalance = schedule.map(s => {
-    const paid = parseFloat(s.amount_paid || 0);
-    const due = parseFloat(s.amount_due || 0);
-    const balanceAfter = runningBalance - paid;
-    runningBalance = balanceAfter;
-    return { ...s, balanceAfter: Math.max(0, balanceAfter), due };
+    const amountDue = parseFloat(s.amount_due || 0);
+    const amountPaid = parseFloat(s.amount_paid || 0);
+    if (s.status === "paid") {
+      runningBalance = Math.max(0, runningBalance - amountDue);
+    }
+    return { ...s, balanceAfter: runningBalance, amountDueNum: amountDue, amountPaidNum: amountPaid };
   });
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
+      <nav className="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600">Dashboard</button>
-          <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
-          <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600">Approvals</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700">Logout</button>
+        <div className="flex gap-3 flex-wrap">
+          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</button>
+          <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600 text-sm">Loans</button>
+          <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600 text-sm">Approvals</button>
+          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700 text-sm">Logout</button>
         </div>
       </nav>
 
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-4 md:p-6 max-w-5xl mx-auto">
         <button onClick={() => router.push("/loans")} className="text-blue-600 hover:underline text-sm mb-4 flex items-center gap-1">
           ← Back to Loans
         </button>
 
         {/* Loan Summary */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex justify-between items-start mb-4">
+        <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
+          <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
             <div>
               <h2 className="text-2xl font-bold">Loan #{loan.id}</h2>
               <p className="text-gray-500">{loan.customer_name} · {loan.customer_phone}</p>
@@ -110,7 +111,7 @@ export default function LoanDetailPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-xs text-gray-500">Loan Amount</p>
               <p className="text-lg font-bold text-blue-600">KSh {parseFloat(loan.amount || 0).toLocaleString()}</p>
@@ -121,7 +122,7 @@ export default function LoanDetailPage() {
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-xs text-gray-500">Total Collected</p>
-              <p className="text-lg font-bold text-green-600">KSh {Math.max(0, collected).toLocaleString()}</p>
+              <p className="text-lg font-bold text-green-600">KSh {collected.toLocaleString()}</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-xs text-gray-500">Balance Remaining</p>
@@ -140,16 +141,16 @@ export default function LoanDetailPage() {
             </div>
           </div>
 
-          <div className="flex gap-6 text-sm mt-3">
+          <div className="flex flex-wrap gap-4 text-sm mt-3">
             <span className="text-gray-500">📅 Term: <strong>{loan.term_weeks} weeks</strong></span>
             <span className="text-gray-500">✅ <strong>{paidWeeks}/{schedule.length}</strong> weeks paid</span>
             {overdueWeeks > 0 && <span className="text-red-500">⚠ <strong>{overdueWeeks}</strong> overdue</span>}
-            <span className="text-gray-500">📱 Pay: Paybill <strong>522522</strong> A/C <strong>8086860</strong></span>
+            <span className="text-gray-500">📱 Paybill <strong>522522</strong> A/C <strong>8086860</strong></span>
           </div>
         </div>
 
         {/* Repayment Schedule */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6 overflow-x-auto">
           <h3 className="font-bold text-lg mb-4">📅 Weekly Repayment Schedule</h3>
           {schedule.length === 0 ? (
             <div className="text-center py-8 text-gray-400">
@@ -157,21 +158,20 @@ export default function LoanDetailPage() {
               <p className="text-sm mt-1">Schedule is created when loan is disbursed.</p>
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[500px]">
               <thead className="bg-gray-50">
                 <tr className="text-left text-gray-500 border-b">
                   <th className="p-3">Week</th>
                   <th className="p-3">Due Date</th>
                   <th className="p-3">Amount Due</th>
                   <th className="p-3">Amount Paid</th>
+                  <th className="p-3">Balance After</th>
                   <th className="p-3">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {scheduleWithBalance.map((s: any) => {
                   const overdue = isOverdue(s.due_date, s.status);
-                  const amountPaid = parseFloat(s.amount_paid || 0);
-                  const amountDue = parseFloat(s.amount_due || 0);
                   return (
                     <tr key={s.id} className={`border-b ${overdue ? "bg-red-50" : "hover:bg-gray-50"}`}>
                       <td className="p-3 font-medium text-gray-700">Week {s.week_number}</td>
@@ -179,9 +179,12 @@ export default function LoanDetailPage() {
                         {new Date(s.due_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
                         {overdue && <span className="ml-2 text-xs text-red-500 font-medium">OVERDUE</span>}
                       </td>
-                      <td className="p-3 font-medium">KSh {amountDue.toLocaleString()}</td>
+                      <td className="p-3 font-medium">KSh {s.amountDueNum.toLocaleString()}</td>
                       <td className="p-3 text-green-600">
-                        {amountPaid > 0 ? `KSh ${amountPaid.toLocaleString()}` : "—"}
+                        {s.amountPaidNum > 0 ? `KSh ${s.amountPaidNum.toLocaleString()}` : "—"}
+                      </td>
+                      <td className="p-3 text-red-600">
+                        KSh {s.balanceAfter.toLocaleString()}
                       </td>
                       <td className="p-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(s.status, overdue)}`}>
@@ -194,8 +197,9 @@ export default function LoanDetailPage() {
                 <tr className="bg-gray-50 font-bold">
                   <td className="p-3" colSpan={2}>Total</td>
                   <td className="p-3">KSh {total.toLocaleString()}</td>
-                  <td className="p-3 text-green-600">KSh {Math.max(0, collected).toLocaleString()}</td>
-                  <td className="p-3 text-red-600">KSh {balance.toLocaleString()} remaining</td>
+                  <td className="p-3 text-green-600">KSh {collected.toLocaleString()}</td>
+                  <td className="p-3 text-red-600">KSh {balance.toLocaleString()}</td>
+                  <td className="p-3"></td>
                 </tr>
               </tbody>
             </table>
@@ -203,12 +207,12 @@ export default function LoanDetailPage() {
         </div>
 
         {/* Payment History */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 md:p-6 overflow-x-auto">
           <h3 className="font-bold text-lg mb-4">💳 Payment History ({payments.length})</h3>
           {payments.length === 0 ? (
             <div className="text-center py-8 text-gray-400">No payments recorded yet</div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[400px]">
               <thead className="bg-gray-50">
                 <tr className="text-left text-gray-500 border-b">
                   <th className="p-3">Date</th>
@@ -226,8 +230,8 @@ export default function LoanDetailPage() {
                     <td className="p-3">
                       <span className={`px-2 py-1 rounded-full text-xs ${
                         p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" :
-                        p.source === "mpesa" ? "bg-green-100 text-green-700" :
                         p.source === "cash" ? "bg-yellow-100 text-yellow-700" :
+                        p.source === "mpesa" ? "bg-green-100 text-green-700" :
                         "bg-gray-100 text-gray-600"}`}>
                         {p.source === "kcb_paybill" ? "KCB Paybill" : p.source}
                       </span>

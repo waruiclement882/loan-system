@@ -144,4 +144,4 @@ const sendPaymentReceivedEmail = async (customer, payment, loan) => {
   });
 };
 
-module.exports = { sendLoanApprovedEmail, sendLoanDisbursedEmail, sendLoanRejectedEmail, sendPaymentReceivedEmail };
+module.exports = { sendEmail, sendLoanApprovedEmail, sendLoanDisbursedEmail, sendLoanRejectedEmail, sendPaymentReceivedEmail };

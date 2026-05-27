@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://loan-system-h794.onrender.com';
@@ -10,6 +10,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [companyName, setCompanyName] = useState('Microfinance System');
+  const [tagline, setTagline] = useState('Sign in to your account');
+  const [logoUrl, setLogoUrl] = useState('');
+
+  useEffect(() => {
+    fetch(`${API}/api/settings`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.company_name) setCompanyName(d.company_name);
+        if (d.tagline) setTagline(d.tagline);
+        if (d.logo_url) setLogoUrl(d.logo_url);
+      }).catch(() => {});
+  }, []);
 
   const handleLogin = async () => {
     setLoading(true); setError('');
@@ -33,9 +46,13 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="text-4xl mb-3">🏦</div>
-          <h1 className="text-2xl font-bold text-gray-800">Microfinance System</h1>
-          <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="h-16 object-contain mx-auto mb-3" />
+          ) : (
+            <div className="text-4xl mb-3">🏦</div>
+          )}
+          <h1 className="text-2xl font-bold text-gray-800">{companyName}</h1>
+          <p className="text-gray-500 text-sm mt-1">{tagline}</p>
         </div>
 
         {error && <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>}
