@@ -1,4 +1,7 @@
-const paymentService = require('../services/paymentService');
+const fs = require('fs');
+
+// Fix paymentController to update schedule on manual payment and match
+fs.writeFileSync('src/controllers/paymentController.js', `const paymentService = require('../services/paymentService');
 const pool = require('../db/connection');
 const loanRepository = require('../repositories/loanRepository');
 
@@ -23,13 +26,13 @@ class PaymentController {
 
   async getUnmatched(req, res) {
     try {
-      const result = await pool.query(`
+      const result = await pool.query(\`
         SELECT id, transaction_reference, amount, customer_name, customer_phone,
                narration, created_at, status
         FROM bank_transactions
         WHERE status = 'received' AND loan_id IS NULL
         ORDER BY created_at DESC
-      `);
+      \`);
       res.json(result.rows);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -81,8 +84,8 @@ class PaymentController {
       }
 
       await client.query(
-        `INSERT INTO payments (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, payment_date)
-         VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, NOW())`,
+        \`INSERT INTO payments (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, payment_date)
+         VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, NOW())\`,
         [loan_id, tx.amount, tx.transaction_reference, tx.transaction_reference, tx.customer_phone]
       );
       await client.query(
@@ -186,3 +189,15 @@ class PaymentController {
 }
 
 module.exports = new PaymentController();
+`);
+
+console.log('Payment controller fixed!');
+
+// Now fix the users route issue - check if users route exists
+const usersRouteExists = require('fs').existsSync('src/routes/users.js');
+console.log('Users route exists:', usersRouteExists);
+
+if (usersRouteExists) {
+  const usersRoute = fs.readFileSync('src/routes/users.js', 'utf8');
+  console.log('Users route preview:', usersRoute.substring(0, 100));
+}

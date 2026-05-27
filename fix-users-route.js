@@ -1,4 +1,7 @@
-const express = require('express');
+const fs = require('fs');
+
+// Fix users route - replace pool with connection
+fs.writeFileSync('src/routes/users.js', `const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const pool = require('../db/connection');
@@ -70,3 +73,10 @@ router.delete('/users/:id', verifyToken, async (req, res) => {
 });
 
 module.exports = router;
+`);
+
+console.log('Users route fixed!');
+
+// Also check authMiddleware for requireRole
+const auth = fs.readFileSync('src/middlewares/authMiddleware.js', 'utf8');
+console.log('Auth middleware preview:', auth.substring(0, 300));
