@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -15,7 +15,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!token) { setError("Invalid reset link"); }
+    if (!token) setError("Invalid reset link");
   }, [token]);
 
   const handleReset = async () => {
@@ -41,7 +41,6 @@ export default function ResetPasswordPage() {
       <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-8">
         <h1 className="text-2xl font-bold text-center text-blue-600 mb-2">Reset Password</h1>
         <p className="text-center text-gray-500 text-sm mb-6">Enter your new password</p>
-
         {message ? (
           <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-lg text-center">
             <p className="text-2xl mb-2">✅</p>
@@ -73,5 +72,13 @@ export default function ResetPasswordPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
