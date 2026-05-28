@@ -1,4 +1,9 @@
-"use client";
+const fs = require('fs');
+const path = require('path');
+
+const filePath = path.join(__dirname, 'loan-frontend', 'app', 'loans', '[id]', 'page.tsx');
+
+const content = `"use client";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 
@@ -15,7 +20,7 @@ export default function LoanDetailPage() {
 
   const getHeaders = () => {
     const token = localStorage.getItem("token");
-    return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+    return { "Content-Type": "application/json", Authorization: \`Bearer \${token}\` };
   };
 
   useEffect(() => {
@@ -28,9 +33,9 @@ export default function LoanDetailPage() {
     setLoading(true);
     try {
       const [loanRes, scheduleRes, paymentsRes] = await Promise.all([
-        fetch(`${API}/api/loans/${id}`, { headers: getHeaders() }),
-        fetch(`${API}/api/loans/${id}/schedule`, { headers: getHeaders() }),
-        fetch(`${API}/api/payments`, { headers: getHeaders() })
+        fetch(\`\${API}/api/loans/\${id}\`, { headers: getHeaders() }),
+        fetch(\`\${API}/api/loans/\${id}/schedule\`, { headers: getHeaders() }),
+        fetch(\`\${API}/api/payments\`, { headers: getHeaders() })
       ]);
       const loanData = await loanRes.json();
       const scheduleData = await scheduleRes.json();
@@ -88,21 +93,21 @@ export default function LoanDetailPage() {
 
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
         <button onClick={() => router.push("/loans")} className="text-blue-600 hover:underline text-sm mb-4 flex items-center gap-1">
-          ← Back to Loans
+          \u2190 Back to Loans
         </button>
 
         <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
           <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
             <div>
               <h2 className="text-2xl font-bold">Loan #{loan.id}</h2>
-              <p className="text-gray-500">{loan.customer_name} · {loan.customer_phone}</p>
+              <p className="text-gray-500">{loan.customer_name} \u00b7 {loan.customer_phone}</p>
             </div>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+            <span className={\`px-3 py-1 rounded-full text-sm font-medium \${
               loan.status === "paid" ? "bg-green-100 text-green-700" :
               loan.status === "active" ? "bg-blue-100 text-blue-700" :
               loan.status === "approved" ? "bg-indigo-100 text-indigo-700" :
               loan.status === "rejected" ? "bg-red-100 text-red-700" :
-              "bg-yellow-100 text-yellow-700"}`}>
+              "bg-yellow-100 text-yellow-700"}\`}>
               {loan.status?.toUpperCase()}
             </span>
           </div>
@@ -164,17 +169,17 @@ export default function LoanDetailPage() {
                 {scheduleWithBalance.map((s: any) => {
                   const overdue = isOverdue(s.due_date, s.status);
                   return (
-                    <tr key={s.id} className={`border-b ${overdue ? "bg-red-50" : "hover:bg-gray-50"}`}>
+                    <tr key={s.id} className={\`border-b \${overdue ? "bg-red-50" : "hover:bg-gray-50"}\`}>
                       <td className="p-3 font-medium">Week {s.week_number}</td>
                       <td className="p-3">
                         {new Date(s.due_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
                         {overdue && <span className="ml-2 text-xs text-red-500 font-medium">OVERDUE</span>}
                       </td>
                       <td className="p-3 font-medium">KSh {s.amountDueNum.toLocaleString()}</td>
-                      <td className="p-3 text-green-600">{s.amountPaidNum > 0 ? `KSh ${s.amountPaidNum.toLocaleString()}` : "—"}</td>
+                      <td className="p-3 text-green-600">{s.amountPaidNum > 0 ? \`KSh \${s.amountPaidNum.toLocaleString()}\` : "\u2014"}</td>
                       <td className="p-3 text-red-600 font-medium">KSh {s.balanceAfter.toLocaleString()}</td>
                       <td className="p-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(s.status, overdue)}`}>
+                        <span className={\`px-2 py-1 rounded-full text-xs font-medium \${statusColor(s.status, overdue)}\`}>
                           {overdue ? "overdue" : s.status}
                         </span>
                       </td>
@@ -212,13 +217,13 @@ export default function LoanDetailPage() {
                   <tr key={p.id} className="border-b hover:bg-gray-50">
                     <td className="p-3">{new Date(p.payment_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
                     <td className="p-3 text-green-600 font-bold">KSh {parseFloat(p.amount).toLocaleString()}</td>
-                    <td className="p-3 font-mono text-xs">{p.transaction_code || p.kcb_transaction_id || "—"}</td>
+                    <td className="p-3 font-mono text-xs">{p.transaction_code || p.kcb_transaction_id || "\u2014"}</td>
                     <td className="p-3">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
+                      <span className={\`px-2 py-1 rounded-full text-xs \${
                         p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" :
                         p.source === "cash" ? "bg-yellow-100 text-yellow-700" :
                         p.source === "mpesa" ? "bg-green-100 text-green-700" :
-                        "bg-gray-100 text-gray-600"}`}>
+                        "bg-gray-100 text-gray-600"}\`}>
                         {p.source === "kcb_paybill" ? "KCB Paybill" : p.source}
                       </span>
                     </td>
@@ -231,4 +236,8 @@ export default function LoanDetailPage() {
       </div>
     </div>
   );
-}
+}`;
+
+fs.writeFileSync(filePath, content, 'utf8');
+console.log('✅ File written successfully!');
+console.log('Path:', filePath);
