@@ -191,7 +191,7 @@ class PaymentController {
 // Standalone schedule updater using correct column names
 const applyPaymentToSchedule = async (loanId, amountPaid) => {
   const installments = await pool.query(
-    `SELECT * FROM repayment_schedules WHERE loan_id=$1 AND status != 'paid' ORDER BY week_number ASC`,
+    `SELECT * FROM repayment_schedules WHERE loan_id=$1 AND status != 'paid' ORDER BY installment_no ASC`,
     [loanId]
   );
 

@@ -72,7 +72,7 @@ const markProcessingFeePaid = async (id, transaction_code) => {
 
 const getSchedule = async (loanId) => {
   const r = await pool.query(
-    'SELECT * FROM repayment_schedules WHERE loan_id=$1 ORDER BY week_number ASC',
+    'SELECT * FROM repayment_schedules WHERE loan_id=$1 ORDER BY installment_no ASC',
     [loanId]
   );
   return r.rows;
@@ -80,7 +80,7 @@ const getSchedule = async (loanId) => {
 
 const applyPaymentToSchedule = async (loanId, amountPaid) => {
   const installments = await pool.query(
-    "SELECT * FROM repayment_schedules WHERE loan_id=$1 AND status != 'paid' ORDER BY week_number ASC",
+    "SELECT * FROM repayment_schedules WHERE loan_id=$1 AND status != 'paid' ORDER BY installment_no ASC",
     [loanId]
   );
 
