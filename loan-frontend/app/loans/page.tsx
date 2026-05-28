@@ -9,7 +9,7 @@ export default function LoansPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [pricingRules, setPricingRules] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ customer_id: "", amount: "", term_weeks: "", interest_amount: "", total_amount: "" });
+  const [form, setForm] = useState({ customer_id: "", amount: "", term_weeks: "", interest_amount: "", total_amount: "", weekly_installment: "" });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -31,8 +31,15 @@ export default function LoansPage() {
     const term = field === "term_weeks" ? value : form.term_weeks;
     if (amount && term) {
       const match = pricingRules.find((r: any) => Number(r.loan_amount) === Number(amount) && Number(r.term_weeks) === Number(term));
-      if (match) { updated.interest_amount = match.interest_amount; updated.total_amount = match.total_amount; }
-      else { updated.interest_amount = ""; updated.total_amount = ""; }
+      if (match) {
+        updated.interest_amount = match.interest_amount;
+        updated.total_amount = match.total_amount;
+        updated.weekly_installment = match.weekly_installment;
+      } else {
+        updated.interest_amount = "";
+        updated.total_amount = "";
+        updated.weekly_installment = "";
+      }
     }
     setForm(updated);
   };
@@ -40,7 +47,7 @@ export default function LoansPage() {
   const handleSubmit = async () => {
     setLoading(true);
     await createLoan(form);
-    setForm({ customer_id: "", amount: "", term_weeks: "", interest_amount: "", total_amount: "" });
+    setForm({ customer_id: "", amount: "", term_weeks: "", interest_amount: "", total_amount: "", weekly_installment: "" });
     setShowForm(false);
     loadData();
     setLoading(false);
@@ -78,6 +85,7 @@ export default function LoansPage() {
           <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700">Logout</button>
         </div>
       </nav>
+
       <div className="p-6">
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">
@@ -129,7 +137,11 @@ export default function LoansPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Interest Amount (KSh)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Weekly Installment (KSh)</label>
+                <input type="text" value={form.weekly_installment ? "KSh " + Number(form.weekly_installment).toLocaleString() : ""} readOnly className="w-full border rounded-lg px-3 py-2 bg-gray-50" placeholder="Auto-filled" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Total Interest (KSh)</label>
                 <input type="text" value={form.interest_amount ? "KSh " + Number(form.interest_amount).toLocaleString() : ""} readOnly className="w-full border rounded-lg px-3 py-2 bg-gray-50" placeholder="Auto-filled" />
               </div>
               <div>
@@ -139,6 +151,16 @@ export default function LoansPage() {
             </div>
             {form.amount && form.term_weeks && !form.interest_amount && (
               <p className="mt-3 text-sm text-red-500">No pricing rule found for this combination.</p>
+            )}
+            {form.weekly_installment && (
+              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-blue-800 text-sm font-medium">📋 Loan Summary</p>
+                <div className="grid grid-cols-3 gap-3 mt-2 text-sm">
+                  <div><span className="text-gray-500">Weekly:</span> <span className="font-bold">KSh {Number(form.weekly_installment).toLocaleString()}</span></div>
+                  <div><span className="text-gray-500">Total Interest:</span> <span className="font-bold">KSh {Number(form.interest_amount).toLocaleString()}</span></div>
+                  <div><span className="text-gray-500">Total Repayment:</span> <span className="font-bold">KSh {Number(form.total_amount).toLocaleString()}</span></div>
+                </div>
+              </div>
             )}
             <div className="flex gap-3 mt-4">
               <button onClick={handleSubmit} disabled={loading || !form.customer_id || !form.amount || !form.term_weeks || !form.interest_amount}
@@ -157,6 +179,7 @@ export default function LoansPage() {
                 <th className="p-4">Customer</th>
                 <th className="p-4">Amount</th>
                 <th className="p-4">Term</th>
+                <th className="p-4">Weekly</th>
                 <th className="p-4">Interest</th>
                 <th className="p-4">Total</th>
                 <th className="p-4">Balance</th>
@@ -167,7 +190,7 @@ export default function LoansPage() {
             </thead>
             <tbody>
               {loans.length === 0 ? (
-                <tr><td colSpan={9} className="p-4 text-center text-gray-400">No loans found</td></tr>
+                <tr><td colSpan={10} className="p-4 text-center text-gray-400">No loans found</td></tr>
               ) : (
                 loans.map((loan: any) => {
                   const balance = parseFloat(loan.balance || 0);
@@ -179,6 +202,7 @@ export default function LoansPage() {
                       <td className="p-4 font-medium">{loan.customer_name}</td>
                       <td className="p-4">KSh {parseFloat(loan.amount).toLocaleString()}</td>
                       <td className="p-4">{loan.term_weeks} wks</td>
+                      <td className="p-4">KSh {parseFloat(loan.weekly_installment || 0).toLocaleString()}</td>
                       <td className="p-4">KSh {parseFloat(loan.interest_amount || 0).toLocaleString()}</td>
                       <td className="p-4">KSh {parseFloat(loan.total_amount || 0).toLocaleString()}</td>
                       <td className={"p-4 font-medium " + getBalanceColor(balance, total)}>KSh {balance.toLocaleString()}</td>
