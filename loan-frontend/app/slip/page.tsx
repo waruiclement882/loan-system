@@ -25,7 +25,6 @@ export default function SlipPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Hide nav when printing */}
       <div className="print:hidden">
         <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
@@ -38,7 +37,6 @@ export default function SlipPage() {
 
         <div className="p-6">
           <h2 className="text-2xl font-bold mb-6">Payment Instruction Slip</h2>
-
           <div className="bg-white rounded-lg shadow p-6 mb-6 max-w-md">
             <label className="block text-sm font-medium text-gray-700 mb-2">Select Loan</label>
             <select
@@ -55,7 +53,6 @@ export default function SlipPage() {
                 </option>
               ))}
             </select>
-
             {selectedLoan && (
               <button onClick={printSlip} className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                 Print Slip
@@ -89,16 +86,24 @@ export default function SlipPage() {
                   <td style={{padding: '6px 0'}}>KSh {parseFloat(selectedLoan.amount).toLocaleString()}</td>
                 </tr>
                 <tr>
+                  <td style={{padding: '6px 0', fontWeight: 'bold'}}>Term:</td>
+                  <td style={{padding: '6px 0'}}>{selectedLoan.term_weeks} weeks</td>
+                </tr>
+                <tr>
+                  <td style={{padding: '6px 0', fontWeight: 'bold'}}>Weekly Installment:</td>
+                  <td style={{padding: '6px 0', color: '#1d4ed8', fontWeight: 'bold'}}>KSh {parseFloat(selectedLoan.weekly_installment || 0).toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td style={{padding: '6px 0', fontWeight: 'bold'}}>Total Interest:</td>
+                  <td style={{padding: '6px 0'}}>KSh {parseFloat(selectedLoan.interest_amount || 0).toLocaleString()}</td>
+                </tr>
+                <tr>
                   <td style={{padding: '6px 0', fontWeight: 'bold'}}>Total to Repay:</td>
                   <td style={{padding: '6px 0'}}>KSh {parseFloat(selectedLoan.total_amount || 0).toLocaleString()}</td>
                 </tr>
                 <tr>
                   <td style={{padding: '6px 0', fontWeight: 'bold'}}>Balance:</td>
                   <td style={{padding: '6px 0', color: '#dc2626'}}>KSh {parseFloat(selectedLoan.balance || 0).toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td style={{padding: '6px 0', fontWeight: 'bold'}}>Term:</td>
-                  <td style={{padding: '6px 0'}}>{selectedLoan.term_weeks} weeks</td>
                 </tr>
               </tbody>
             </table>
@@ -120,7 +125,7 @@ export default function SlipPage() {
         </div>
       )}
 
-      {/* Also show slip preview on screen when selected */}
+      {/* Screen preview */}
       {selectedLoan && (
         <div className="print:hidden p-6">
           <div className="bg-white border-2 border-gray-300 rounded-lg p-6 max-w-md mx-auto">
@@ -133,6 +138,9 @@ export default function SlipPage() {
               <div className="flex justify-between"><span className="font-bold">Customer:</span><span>{selectedLoan.customer_name}</span></div>
               <div className="flex justify-between"><span className="font-bold">Loan ID:</span><span className="text-blue-600 text-lg font-bold">#{selectedLoan.id}</span></div>
               <div className="flex justify-between"><span className="font-bold">Loan Amount:</span><span>KSh {parseFloat(selectedLoan.amount).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="font-bold">Term:</span><span>{selectedLoan.term_weeks} weeks</span></div>
+              <div className="flex justify-between"><span className="font-bold">Weekly Installment:</span><span className="text-blue-600 font-bold">KSh {parseFloat(selectedLoan.weekly_installment || 0).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="font-bold">Total Interest:</span><span>KSh {parseFloat(selectedLoan.interest_amount || 0).toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="font-bold">Total to Repay:</span><span>KSh {parseFloat(selectedLoan.total_amount || 0).toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="font-bold">Balance:</span><span className="text-red-600">KSh {parseFloat(selectedLoan.balance || 0).toLocaleString()}</span></div>
             </div>
@@ -140,7 +148,7 @@ export default function SlipPage() {
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <h3 className="font-bold text-green-700 mb-2 text-sm">HOW TO PAY via KCB Paybill</h3>
               <p className="text-xs">Business No: <strong className="text-blue-600 text-base">{PAYBILL}</strong></p>
-              <p className="text-xs">Account No: <strong className="text-red-600 text-base">#{selectedLoan.id}</strong></p>
+              <p className="text-xs">Account No: <strong className="text-red-600 text-base">8086860</strong></p>
             </div>
             <button onClick={printSlip} className="w-full mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
               Print Slip

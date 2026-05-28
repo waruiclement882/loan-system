@@ -1,10 +1,10 @@
 const pool = require('../db/connection');
 
 const create = async (loan) => {
-  const { customer_id, amount, term_weeks, interest_amount, total_amount, created_by } = loan;
+  const { customer_id, amount, term_weeks, interest_amount, total_amount, weekly_installment, created_by } = loan;
   const r = await pool.query(
-    'INSERT INTO loans (customer_id,amount,term_weeks,interest_amount,total_amount,balance,status,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-    [customer_id, amount, term_weeks, interest_amount, total_amount, total_amount, 'pending', created_by || null]
+    'INSERT INTO loans (customer_id,amount,term_weeks,interest_amount,total_amount,weekly_installment,balance,status,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
+    [customer_id, amount, term_weeks, interest_amount, total_amount, weekly_installment || 0, total_amount, 'pending', created_by || null]
   );
   return r.rows[0];
 };
@@ -62,7 +62,6 @@ const updateStatus = async (id, status) => {
   return r.rows[0];
 };
 
-
 const markProcessingFeePaid = async (id, transaction_code) => {
   const r = await pool.query(
     'UPDATE loans SET processing_fee_paid=true, processing_fee_paid_at=NOW(), processing_fee_transaction=$1 WHERE id=$2 RETURNING *',
@@ -107,7 +106,6 @@ const applyPaymentToSchedule = async (loanId, amountPaid) => {
     }
   }
 
-  // Mark overdue
   await pool.query(
     "UPDATE repayment_schedules SET status='overdue' WHERE loan_id=$1 AND due_date < NOW() AND status='pending'",
     [loanId]
