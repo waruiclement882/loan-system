@@ -62,4 +62,4 @@ const updateStatus = async (id, status) => {
   return r.rows[0];
 };
 
-module.exports = { create, getAll, getById, approve, reject, disburse, updateStatus };
+module.exports = { create, getAll, getById, approve, reject, disburse, updateStatus, markProcessingFeePaid, getSchedule, applyPaymentToSchedule };
