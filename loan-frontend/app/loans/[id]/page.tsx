@@ -66,15 +66,18 @@ export default function LoanDetailPage() {
   const paidWeeks = schedule.filter(s => s.status === "paid").length;
   const overdueWeeks = schedule.filter(s => isOverdue(s.due_date, s.status)).length;
 
-  // Calculate running balance correctly
+  // Calculate running balance - deduct each week's amount due regardless of paid status
   let runningBalance = total;
   const scheduleWithBalance = schedule.map(s => {
     const amountDue = parseFloat(s.amount_due || 0);
     const amountPaid = parseFloat(s.amount_paid || 0);
-    if (s.status === "paid") {
-      runningBalance = Math.max(0, runningBalance - amountDue);
-    }
-    return { ...s, balanceAfter: runningBalance, amountDueNum: amountDue, amountPaidNum: amountPaid };
+    runningBalance = Math.max(0, runningBalance - amountDue);
+    return {
+      ...s,
+      balanceAfter: runningBalance,
+      amountDueNum: amountDue,
+      amountPaidNum: amountPaid
+    };
   });
 
   return (
@@ -183,7 +186,7 @@ export default function LoanDetailPage() {
                       <td className="p-3 text-green-600">
                         {s.amountPaidNum > 0 ? `KSh ${s.amountPaidNum.toLocaleString()}` : "—"}
                       </td>
-                      <td className="p-3 text-red-600">
+                      <td className="p-3 text-red-600 font-medium">
                         KSh {s.balanceAfter.toLocaleString()}
                       </td>
                       <td className="p-3">
@@ -194,11 +197,11 @@ export default function LoanDetailPage() {
                     </tr>
                   );
                 })}
-                <tr className="bg-gray-50 font-bold">
+                <tr className="bg-gray-50 font-bold border-t-2">
                   <td className="p-3" colSpan={2}>Total</td>
                   <td className="p-3">KSh {total.toLocaleString()}</td>
                   <td className="p-3 text-green-600">KSh {collected.toLocaleString()}</td>
-                  <td className="p-3 text-red-600">KSh {balance.toLocaleString()}</td>
+                  <td className="p-3 text-red-600">KSh {balance.toLocaleString()} remaining</td>
                   <td className="p-3"></td>
                 </tr>
               </tbody>
