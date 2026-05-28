@@ -159,7 +159,7 @@ function ScheduleContent() {
                         <td className="px-6 py-3 text-green-600">
                           {parseFloat(inst.amount_paid) > 0 ? "KSh " + parseFloat(inst.amount_paid).toLocaleString() : "—"}
                         </td>
-                        <td className="px-6 py-3 text-red-600">KSh {parseFloat(inst.balance).toLocaleString()}</td>
+                        <td className="px-6 py-3 text-red-600">KSh {(parseFloat(inst.balance)||0).toLocaleString()}</td>
                         <td className="px-6 py-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(inst.status)}`}>
                             {inst.status.charAt(0).toUpperCase() + inst.status.slice(1)}
