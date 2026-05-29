@@ -9,6 +9,8 @@ const audit = async (userId, userName, action, entity, entityId, details) => {
       'INSERT INTO audit_logs (user_id, user_name, action, entity, entity_id, details) VALUES ($1,$2,$3,$4,$5,$6)',
       [userId, userName, action, entity, entityId, JSON.stringify({ message: details })]
     );
+  } catch (e) { console.error('[Audit]', e.message); }
+};
 
 const getCustomerPhone = async (customerId) => {
   const r = await pool.query('SELECT phone FROM customers WHERE id = $1', [customerId]);
@@ -41,7 +43,6 @@ const createLoan = async (req, res) => {
     const created_by = req.user?.id || req.user?.user_id;
     const { customer_id, amount } = req.body;
 
-    // Check loan limits from settings
     const settingsResult = await pool.query('SELECT * FROM company_settings LIMIT 1');
     const settings = settingsResult.rows[0];
 
@@ -140,4 +141,23 @@ const getLoanSchedule = async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan, getPendingLoans, getLoanSchedule };
+const getOverdueLoans = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT loans.*, customers.name as customer_name, customers.phone as customer_phone,
+        u1.name as created_by_name
+      FROM loans
+      JOIN repayment_schedules ON repayment_schedules.loan_id = loans.id
+      LEFT JOIN customers ON loans.customer_id = customers.id
+      LEFT JOIN users u1 ON loans.created_by = u1.id
+      WHERE repayment_schedules.status = 'overdue'
+      AND loans.status = 'active'
+      ORDER BY loans.id
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan, getPendingLoans, getLoanSchedule, getOverdueLoans };
