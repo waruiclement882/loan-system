@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState("");
   const [unmatched, setUnmatched] = useState(0);
   const [companyName, setCompanyName] = useState("Microfinance System");
+  const [showOverdue, setShowOverdue] = useState(true);
 
   const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
@@ -48,6 +49,7 @@ export default function DashboardPage() {
 
   const logout = () => { localStorage.clear(); router.push("/login"); };
 
+  const today = new Date();
   const totalDisbursed = loans.reduce((s, l) => s + parseFloat(l.amount || 0), 0);
   const totalOutstanding = loans.reduce((s, l) => s + parseFloat(l.balance || 0), 0);
   const totalCollected = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
@@ -58,6 +60,10 @@ export default function DashboardPage() {
   const approvedLoans = loans.filter(l => l.status === "approved").length;
   const collectionRate = totalDisbursed > 0 ? Math.round((totalCollected / totalDisbursed) * 100) : 0;
   const isAdmin = ["admin", "cashier"].includes(userRole);
+
+  // Overdue loans — active loans past due date
+  const overdueLoans = loans.filter(l => l.status === "active" && l.due_date && new Date(l.due_date) < today);
+  const overdueAmount = overdueLoans.reduce((s, l) => s + parseFloat(l.balance || 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -92,7 +98,7 @@ export default function DashboardPage() {
       </nav>
 
       <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Dashboard</h2>
           <div className="flex gap-3">
             {pendingLoans > 0 && isAdmin && (
@@ -107,6 +113,42 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+
+        {/* Overdue Alert Banner */}
+        {overdueLoans.length > 0 && showOverdue && (
+          <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-red-700 font-bold text-lg">🚨 {overdueLoans.length} Overdue Loan{overdueLoans.length > 1 ? "s" : ""} — KSh {overdueAmount.toLocaleString()} Outstanding</p>
+                <p className="text-red-600 text-sm mt-1">The following customers have missed payments and require immediate follow-up:</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {overdueLoans.map((loan: any) => {
+                    const daysOverdue = Math.floor((today.getTime() - new Date(loan.due_date).getTime()) / (1000 * 60 * 60 * 24));
+                    return (
+                      <div key={loan.id} onClick={() => router.push("/loans/" + loan.id)}
+                        className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-red-200 flex justify-between items-center">
+                        <div>
+                          <p className="font-medium text-red-800 text-sm">{loan.customer_name}</p>
+                          <p className="text-red-600 text-xs">Balance: KSh {parseFloat(loan.balance).toLocaleString()}</p>
+                        </div>
+                        <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full">{daysOverdue}d overdue</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <button onClick={() => setShowOverdue(false)} className="text-red-400 hover:text-red-600 text-xl ml-4">✕</button>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => router.push("/reports")} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium">
+                View Full Report
+              </button>
+              <button onClick={() => router.push("/loans")} className="bg-white text-red-600 border border-red-300 px-4 py-2 rounded-lg hover:bg-red-50 text-sm font-medium">
+                View All Loans
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-6">
@@ -142,9 +184,9 @@ export default function DashboardPage() {
             <p className="text-xs text-gray-400 mt-1">{payments.filter(p => p.source === "kcb_paybill").length} transactions</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Total Payments</p>
-            <p className="text-3xl font-bold text-teal-600">{payments.length}</p>
-            <p className="text-xs text-gray-400 mt-1">All payment sources</p>
+            <p className="text-gray-500 text-sm">Overdue Loans</p>
+            <p className="text-3xl font-bold text-red-600">{overdueLoans.length}</p>
+            <p className="text-xs text-gray-400 mt-1">KSh {overdueAmount.toLocaleString()} outstanding</p>
           </div>
         </div>
 
@@ -193,14 +235,18 @@ export default function DashboardPage() {
                 const balance = parseFloat(loan.balance || 0);
                 const total = parseFloat(loan.total_amount || 0);
                 const progress = total > 0 ? Math.max(0, 100 - (balance / total) * 100) : 0;
+                const isOverdue = loan.status === "active" && loan.due_date && new Date(loan.due_date) < today;
                 return (
-                  <tr key={loan.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => router.push("/loans/" + loan.id)}>
-                    <td className="py-2 font-medium">{loan.customer_name}</td>
+                  <tr key={loan.id} className={`border-b hover:bg-gray-50 cursor-pointer ${isOverdue ? "bg-red-50" : ""}`} onClick={() => router.push("/loans/" + loan.id)}>
+                    <td className="py-2 font-medium">
+                      {loan.customer_name}
+                      {isOverdue && <span className="ml-2 text-xs bg-red-100 text-red-600 px-1 rounded">Overdue</span>}
+                    </td>
                     <td className="py-2">KSh {parseFloat(loan.amount).toLocaleString()}</td>
                     <td className="py-2 text-red-600">KSh {balance.toLocaleString()}</td>
                     <td className="py-2 w-32">
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-green-500 h-2 rounded-full" style={{ width: progress + "%" }} />
+                        <div className={`h-2 rounded-full ${isOverdue ? "bg-red-500" : "bg-green-500"}`} style={{ width: progress + "%" }} />
                       </div>
                       <p className="text-xs text-gray-400 mt-1">{Math.round(progress)}% paid</p>
                     </td>
