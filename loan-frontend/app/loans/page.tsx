@@ -11,6 +11,8 @@ export default function LoansPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ customer_id: "", amount: "", term_weeks: "", interest_amount: "", total_amount: "", weekly_installment: "" });
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -60,6 +62,18 @@ export default function LoansPage() {
   const paidLoans = loans.filter(l => l.status === "paid").length;
   const activeLoans = loans.filter(l => l.status === "active").length;
 
+  // Filter loans by search and status
+  const filtered = loans.filter((loan: any) => {
+    const matchSearch = search === "" ||
+      loan.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
+      loan.id?.toString().includes(search) ||
+      loan.amount?.toString().includes(search) ||
+      loan.status?.toLowerCase().includes(search.toLowerCase()) ||
+      loan.created_by_name?.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || loan.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
   const getBalanceColor = (balance: number, total: number) => {
     if (total === 0) return "text-gray-500";
     const percent = (balance / total) * 100;
@@ -106,10 +120,45 @@ export default function LoansPage() {
           </div>
         </div>
 
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Loans</h2>
           <button onClick={() => setShowForm(!showForm)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">+ New Loan</button>
         </div>
+
+        {/* Search and Filter */}
+        <div className="flex gap-3 mb-4">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by customer, amount, status, officer..."
+            className="flex-1 border rounded-lg px-4 py-2 text-sm"
+          />
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="border rounded-lg px-4 py-2 text-sm"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="active">Active</option>
+            <option value="paid">Paid</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          {(search || statusFilter !== "all") && (
+            <button onClick={() => { setSearch(""); setStatusFilter("all"); }}
+              className="border rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* Results count */}
+        {(search || statusFilter !== "all") && (
+          <p className="text-sm text-gray-500 mb-3">
+            Showing {filtered.length} of {loans.length} loans
+          </p>
+        )}
 
         {showForm && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -154,7 +203,7 @@ export default function LoansPage() {
             )}
             {form.weekly_installment && (
               <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-blue-800 text-sm font-medium">📋 Loan Summary</p>
+                <p className="text-blue-800 text-sm font-medium">Loan Summary</p>
                 <div className="grid grid-cols-3 gap-3 mt-2 text-sm">
                   <div><span className="text-gray-500">Weekly:</span> <span className="font-bold">KSh {Number(form.weekly_installment).toLocaleString()}</span></div>
                   <div><span className="text-gray-500">Total Interest:</span> <span className="font-bold">KSh {Number(form.interest_amount).toLocaleString()}</span></div>
@@ -189,10 +238,12 @@ export default function LoansPage() {
               </tr>
             </thead>
             <tbody>
-              {loans.length === 0 ? (
-                <tr><td colSpan={10} className="p-4 text-center text-gray-400">No loans found</td></tr>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={10} className="p-4 text-center text-gray-400">
+                  {search || statusFilter !== "all" ? "No loans match your search" : "No loans found"}
+                </td></tr>
               ) : (
-                loans.map((loan: any) => {
+                filtered.map((loan: any) => {
                   const balance = parseFloat(loan.balance || 0);
                   const total = parseFloat(loan.total_amount || 0);
                   const progress = getProgressWidth(balance, total);
@@ -217,7 +268,7 @@ export default function LoansPage() {
                           {loan.status}
                         </span>
                       </td>
-                      <td className="p-4 text-gray-500 text-xs">{loan.created_by_name || "—"}</td>
+                      <td className="p-4 text-gray-500 text-xs">{loan.created_by_name || "-"}</td>
                     </tr>
                   );
                 })
