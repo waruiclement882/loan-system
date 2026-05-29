@@ -7,10 +7,8 @@ const audit = async (userId, userName, action, entity, entityId, details) => {
   try {
     await pool.query(
       'INSERT INTO audit_logs (user_id, user_name, action, entity, entity_id, details) VALUES ($1,$2,$3,$4,$5,$6)',
-      [userId, userName, action, entity, entityId, details]
+      [userId, userName, action, entity, entityId, JSON.stringify({ message: details })]
     );
-  } catch (e) { console.error('[Audit]', e.message); }
-};
 
 const getCustomerPhone = async (customerId) => {
   const r = await pool.query('SELECT phone FROM customers WHERE id = $1', [customerId]);

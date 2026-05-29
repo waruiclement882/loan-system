@@ -32,6 +32,12 @@ const login = async (req, res) => {
     const user = result.rows[0];
     const token = jwt.sign({ id: user.id, user_id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ user: { id: user.id, name: user.name, full_name: user.full_name, email: user.email, role: user.role }, token });
+
+    // Log login
+    pool.query(
+      'INSERT INTO audit_logs (user_id, user_name, action, entity, entity_id, details) VALUES ($1,$2,$3,$4,$5,$6)',
+      [user.id, user.name, 'LOGIN', 'users', user.id, JSON.stringify({ message: user.name + ' logged in' })]
+    ).catch(e => console.error('[Audit]', e.message));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -42,15 +48,13 @@ const forgotPassword = async (req, res) => {
     const { email } = req.body;
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
-      // Don't reveal if email exists
       return res.json({ message: 'If this email exists, a reset link has been sent.' });
     }
     const user = result.rows[0];
     const resetToken = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    // Save reset token
     await pool.query(
-      'UPDATE users SET reset_token = $1, reset_token_expiry = NOW() + INTERVAL \'1 hour\' WHERE id = $2',
+      "UPDATE users SET reset_token = $1, reset_token_expiry = NOW() + INTERVAL '1 hour' WHERE id = $2",
       [resetToken, user.id]
     );
 
