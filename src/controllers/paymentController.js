@@ -191,7 +191,7 @@ class PaymentController {
 // Standalone schedule updater using correct column names
 const applyPaymentToSchedule = async (loanId, amountPaid) => {
   const installments = await pool.query(
-    `SELECT * FROM repayment_schedules WHERE loan_id=$1 AND status != 'paid' ORDER BY installment_no ASC`,
+    "SELECT * FROM repayment_schedules WHERE loan_id=$1 AND status != 'paid' ORDER BY installment_no ASC",
     [loanId]
   );
 
@@ -204,13 +204,13 @@ const applyPaymentToSchedule = async (loanId, amountPaid) => {
 
     if (remaining >= owed) {
       await pool.query(
-        `UPDATE repayment_schedules SET amount_paid=$1, status='paid', paid_at=NOW() WHERE id=$2`,
+        "UPDATE repayment_schedules SET amount_paid=$1, status='paid', paid_at=NOW() WHERE id=$2",
         [due, inst.id]
       );
       remaining -= owed;
     } else {
       await pool.query(
-        `UPDATE repayment_schedules SET amount_paid=$1, status='partial' WHERE id=$2`,
+        "UPDATE repayment_schedules SET amount_paid=$1, status='partial' WHERE id=$2",
         [already + remaining, inst.id]
       );
       remaining = 0;
@@ -219,7 +219,7 @@ const applyPaymentToSchedule = async (loanId, amountPaid) => {
 
   // Mark overdue
   await pool.query(
-    `UPDATE repayment_schedules SET status='overdue' WHERE loan_id=$1 AND due_date < NOW() AND status='pending'`,
+    "UPDATE repayment_schedules SET status='overdue' WHERE loan_id=$1 AND due_date < NOW() AND status='pending'",
     [loanId]
   );
 };
