@@ -1,22 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SessionTimeout from "./components/SessionTimeout";
+import Keepalive from "./components/Keepalive";
 
 export const metadata: Metadata = {
   title: "Blessed Ventures LTD",
   description: "Loan Management System",
   manifest: "/manifest.json",
-  themeColor: "#2563eb",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Blessed Ventures LTD",
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -31,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body>
+        <Keepalive />
         <SessionTimeout />
         {children}
       </body>

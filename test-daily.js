@@ -1,0 +1,1 @@
+require('dotenv').config(); const { sendDailySummary } = require('./src/services/cronService'); sendDailySummary().then(() => { console.log('Done!'); process.exit(); }).catch(e => { console.error(e.message); process.exit(); });

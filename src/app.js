@@ -15,6 +15,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Keepalive endpoint
+app.get('/ping', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
+
 app.get('/', (req, res) => res.send('Microfinance server is running'));
 
 app.use('/api/customers', customerRoutes);
