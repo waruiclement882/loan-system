@@ -173,9 +173,9 @@ class PaymentController {
 
       // Record payment
       await client.query(
-        `INSERT INTO payments (loan_id, amount, transaction_code, source, payment_date)
-         VALUES ($1, $2, $3, $4, NOW())`,
-        [loan_id, amount, txCode, source || 'cash']
+        `INSERT INTO payments (loan_id, amount, transaction_code, source, notes, payment_date)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [loan_id, amount, txCode, source || 'cash', notes || null]
       );
 
       // Audit log
