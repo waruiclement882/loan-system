@@ -3,6 +3,10 @@ const { Pool } = require('pg');
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
 const markPaid = async (loanId, weeksCount) => {
+  if (weeksCount === 0) {
+    console.log(`✅ Loan ${loanId} — 0 weeks paid (skipped)`);
+    return;
+  }
   const schedule = await pool.query(
     'SELECT * FROM repayment_schedule WHERE loan_id = $1 ORDER BY week_number ASC',
     [loanId]
@@ -19,15 +23,23 @@ const markPaid = async (loanId, weeksCount) => {
 
 const run = async () => {
   try {
-    await markPaid(1, 3); // Siscar — 3 paid
-    await markPaid(2, 2); // Vincent — 2 paid
-    await markPaid(3, 3); // Lucy — 3 paid
-    await markPaid(4, 4); // Salome — 4 paid
-    await markPaid(5, 2); // Irene — 2 paid
-    await markPaid(6, 1); // Rahab — 1 paid
-    await markPaid(7, 0); // Ruth — 0 paid
-    await markPaid(8, 0); // Joseph loan#8 — 0 paid
-    await markPaid(9, 4); // Joseph loan#9 — fully paid
+    // Get all active/paid loans with payment counts
+    const loans = await pool.query(`
+      SELECT l.id, l.status, COUNT(p.id) as payment_count,
+             COALESCE(SUM(p.amount),0) as total_paid,
+             l.total_amount, l.term_weeks
+      FROM loans l
+      LEFT JOIN payments p ON p.loan_id = l.id
+      GROUP BY l.id, l.status, l.total_amount, l.term_weeks
+      ORDER BY l.id
+    `);
+
+    for (const loan of loans.rows) {
+      const weeklyAmount = parseFloat(loan.total_amount) / parseInt(loan.term_weeks);
+      const weeksPaid = Math.floor(parseFloat(loan.total_paid) / weeklyAmount);
+      await markPaid(loan.id, weeksPaid);
+    }
+
     console.log('\n🎉 All schedule payments updated!');
   } catch (err) {
     console.error('Error:', err.message);
