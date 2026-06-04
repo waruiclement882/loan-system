@@ -1,4 +1,9 @@
-"use client";
+const fs = require('fs');
+const path = require('path');
+
+const filePath = path.join(__dirname, 'loan-frontend', 'app', 'reports', 'page.tsx');
+
+const content = `"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCustomers, getLoans, getPayments } from "@/lib/api";
@@ -22,7 +27,7 @@ export default function ReportsPage() {
 
   const getHeaders = () => {
     const token = localStorage.getItem("token");
-    return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+    return { "Content-Type": "application/json", Authorization: \`Bearer \${token}\` };
   };
 
   useEffect(() => {
@@ -41,8 +46,8 @@ export default function ReportsPage() {
     setPayments(Array.isArray(p) ? p : []);
     try {
       const [unmatchedRes, incomeRes] = await Promise.all([
-        fetch(`${API}/api/payments/unmatched`, { headers: getHeaders() }),
-        fetch(`${API}/api/payments/income`, { headers: getHeaders() })
+        fetch(\`\${API}/api/payments/unmatched\`, { headers: getHeaders() }),
+        fetch(\`\${API}/api/payments/income\`, { headers: getHeaders() })
       ]);
       const unmatchedData = await unmatchedRes.json();
       const incomeData = await incomeRes.json();
@@ -95,7 +100,7 @@ export default function ReportsPage() {
   });
 
   const exportCSV = (data: any[][], filename: string) => {
-    const csv = data.map(row => row.map(cell => `"${cell ?? ""}"`).join(",")).join("\n");
+    const csv = data.map(row => row.map(cell => \`"\${cell ?? ""}"\`).join(",")).join("\\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
@@ -120,7 +125,7 @@ export default function ReportsPage() {
   const exportCollection = () => exportCSV([
     ["Loan ID","Amount","Source","Transaction Code","Date"],
     ...collectionPayments.map(p => [p.loan_id, p.amount, p.source, p.transaction_code||"", new Date(p.payment_date).toLocaleDateString()])
-  ], `collection-${collectionDate}.csv`);
+  ], \`collection-\${collectionDate}.csv\`);
 
   const exportIncome = () => exportCSV([
     ["ID","Loan ID","Customer","Amount","Type","Transaction Code","Date"],
@@ -391,7 +396,7 @@ export default function ReportsPage() {
                     <td className="py-2">#{p.loan_id}</td>
                     <td className="py-2 text-green-600 font-medium">KSh {parseFloat(p.amount).toLocaleString()}</td>
                     <td className="py-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" : p.source === "cash" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-600"}`}>
+                      <span className={\`px-2 py-1 rounded-full text-xs \${p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" : p.source === "cash" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-600"}\`}>
                         {p.source}
                       </span>
                     </td>
@@ -405,4 +410,7 @@ export default function ReportsPage() {
       </div>
     </div>
   );
-}
+}`;
+
+fs.writeFileSync(filePath, content, 'utf8');
+console.log('✅ Reports page written successfully!');
