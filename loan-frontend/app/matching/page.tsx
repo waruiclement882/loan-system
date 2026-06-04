@@ -16,8 +16,7 @@ export default function MatchingPage() {
   const [message, setMessage] = useState("");
   const [showManual, setShowManual] = useState(false);
   const [manualForm, setManualForm] = useState({
-    loan_id: "", amount: "", source: "cash",
-    transaction_code: "", notes: ""
+    loan_id: "", amount: "", source: "cash", transaction_code: "", notes: ""
   });
   const [saving, setSaving] = useState(false);
 
@@ -78,16 +77,17 @@ export default function MatchingPage() {
     if (!manualForm.loan_id || !manualForm.amount) return;
     setSaving(true);
     try {
+      const payload = {
+        loan_id: parseInt(manualForm.loan_id),
+        amount: parseFloat(manualForm.amount),
+        source: manualForm.source || "cash",
+        transaction_code: manualForm.transaction_code || "",
+        notes: manualForm.notes || ""
+      };
       const res = await fetch(`${API}/api/payments/manual`, {
         method: "POST",
         headers: getHeaders(),
-        body: JSON.stringify({
-          loan_id: parseInt(manualForm.loan_id),
-          amount: parseFloat(manualForm.amount),
-          source: manualForm.source,
-          transaction_code: manualForm.transaction_code || `MANUAL-${Date.now()}`,
-          notes: manualForm.notes
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.error) { setMessage("Error: " + data.error); }
@@ -97,35 +97,35 @@ export default function MatchingPage() {
         setManualForm({ loan_id: "", amount: "", source: "cash", transaction_code: "", notes: "" });
         loadData();
       }
-    } catch { setMessage("Failed to record payment"); }
+    } catch (e: any) { setMessage("Failed to record payment: " + e.message); }
     setSaving(false);
   };
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
+      <nav className="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
         <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600">Dashboard</button>
-          <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600">Approvals</button>
-          <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600">Payments</button>
-          <button onClick={() => router.push("/reports")} className="text-gray-600 hover:text-blue-600">Reports</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700">Logout</button>
+        <div className="flex gap-3 flex-wrap">
+          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</button>
+          <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600 text-sm">Approvals</button>
+          <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600 text-sm">Payments</button>
+          <button onClick={() => router.push("/reports")} className="text-gray-600 hover:text-blue-600 text-sm">Reports</button>
+          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 text-sm">Logout</button>
         </div>
       </nav>
 
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-2xl font-bold">Payment Matching</h2>
             <p className="text-gray-500 text-sm mt-1">Match incoming KCB Paybill 522522 payments to loans</p>
           </div>
-          <div className="flex gap-3">
-            <button onClick={() => setShowManual(true)}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-medium">
+          <div className="flex gap-2">
+            <button onClick={() => setShowManual(!showManual)}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-medium">
               + Manual Payment
             </button>
-            <button onClick={loadData} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            <button onClick={loadData} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
               🔄 Refresh
             </button>
           </div>
@@ -152,10 +152,11 @@ export default function MatchingPage() {
         {showManual && (
           <div className="bg-white rounded-lg shadow p-6 mb-6 border-l-4 border-green-500">
             <h3 className="font-bold text-lg mb-4 text-green-700">📝 Record Manual Payment</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Loan *</label>
-                <select value={manualForm.loan_id} onChange={e => setManualForm({...manualForm, loan_id: e.target.value})}
+                <select value={manualForm.loan_id}
+                  onChange={e => setManualForm({...manualForm, loan_id: e.target.value})}
                   className="w-full border rounded-lg px-3 py-2 text-sm">
                   <option value="">-- Select loan --</option>
                   {loans.map((l: any) => (
@@ -173,7 +174,8 @@ export default function MatchingPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Payment Source</label>
-                <select value={manualForm.source} onChange={e => setManualForm({...manualForm, source: e.target.value})}
+                <select value={manualForm.source}
+                  onChange={e => setManualForm({...manualForm, source: e.target.value})}
                   className="w-full border rounded-lg px-3 py-2 text-sm">
                   <option value="cash">💵 Cash</option>
                   <option value="mpesa">📱 M-PESA</option>
@@ -184,14 +186,14 @@ export default function MatchingPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {manualForm.source === "mpesa" ? "M-PESA Code" : manualForm.source === "bank_transfer" ? "Reference No." : "Receipt No."}
+                  {manualForm.source === "mpesa" ? "M-PESA Code" : "Receipt No."}
                 </label>
                 <input type="text" value={manualForm.transaction_code}
                   onChange={e => setManualForm({...manualForm, transaction_code: e.target.value})}
                   className="w-full border rounded-lg px-3 py-2 text-sm"
                   placeholder={manualForm.source === "mpesa" ? "e.g. QA12BC345" : "Optional"} />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
                 <input type="text" value={manualForm.notes}
                   onChange={e => setManualForm({...manualForm, notes: e.target.value})}
@@ -202,64 +204,63 @@ export default function MatchingPage() {
             <div className="flex gap-3 mt-4">
               <button onClick={handleManualPayment}
                 disabled={saving || !manualForm.loan_id || !manualForm.amount}
-                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium">
+                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium text-sm">
                 {saving ? "Saving..." : "✅ Record Payment"}
               </button>
               <button onClick={() => setShowManual(false)}
-                className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200">
+                className="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 text-sm">
                 Cancel
               </button>
             </div>
           </div>
         )}
 
-        {/* Unmatched KCB Transactions */}
+        {/* Unmatched Transactions */}
         <div className="mb-6">
           <h3 className="font-bold text-lg mb-3">📥 Unmatched KCB Paybill Payments</h3>
           {loading ? (
-            <div className="text-center py-12 text-gray-500">Loading transactions...</div>
+            <div className="text-center py-12 text-gray-500">Loading...</div>
           ) : transactions.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-8 text-center">
               <p className="text-4xl mb-4">✅</p>
-              <p className="text-gray-500 font-medium">No unmatched KCB payments</p>
-              <p className="text-gray-400 text-sm mt-1">All payments have been matched or none received yet</p>
+              <p className="text-gray-500 font-medium">No unmatched payments</p>
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow overflow-hidden">
               <div className="p-4 border-b bg-yellow-50">
                 <p className="text-yellow-800 font-medium">⚠ {transactions.length} unmatched payment{transactions.length > 1 ? "s" : ""} waiting</p>
               </div>
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr className="text-left text-gray-500 border-b">
-                    <th className="p-4">Transaction Ref</th>
-                    <th className="p-4">Amount</th>
-                    <th className="p-4">Customer Name</th>
-                    <th className="p-4">Phone</th>
-                    <th className="p-4">Narration</th>
-                    <th className="p-4">Date</th>
-                    <th className="p-4">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((tx: any) => (
-                    <tr key={tx.id} className="border-b hover:bg-gray-50">
-                      <td className="p-4 font-mono text-xs">{tx.transaction_reference}</td>
-                      <td className="p-4 font-bold text-green-600">KSh {parseFloat(tx.amount).toLocaleString()}</td>
-                      <td className="p-4">{tx.customer_name || "—"}</td>
-                      <td className="p-4 text-gray-500">{tx.customer_phone || "—"}</td>
-                      <td className="p-4 text-gray-500 max-w-32 truncate">{tx.narration || "—"}</td>
-                      <td className="p-4 text-gray-400">{new Date(tx.created_at).toLocaleString()}</td>
-                      <td className="p-4">
-                        <button onClick={() => { setMatchModal(tx); setSelectedLoan(""); setMatchType("repayment"); }}
-                          className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
-                          🔗 Match to Loan
-                        </button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[600px]">
+                  <thead className="bg-gray-50">
+                    <tr className="text-left text-gray-500 border-b">
+                      <th className="p-4">Transaction Ref</th>
+                      <th className="p-4">Amount</th>
+                      <th className="p-4">Customer</th>
+                      <th className="p-4">Phone</th>
+                      <th className="p-4">Date</th>
+                      <th className="p-4">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {transactions.map((tx: any) => (
+                      <tr key={tx.id} className="border-b hover:bg-gray-50">
+                        <td className="p-4 font-mono text-xs">{tx.transaction_reference}</td>
+                        <td className="p-4 font-bold text-green-600">KSh {parseFloat(tx.amount).toLocaleString()}</td>
+                        <td className="p-4">{tx.customer_name || "—"}</td>
+                        <td className="p-4 text-gray-500">{tx.customer_phone || "—"}</td>
+                        <td className="p-4 text-gray-400">{new Date(tx.created_at).toLocaleString()}</td>
+                        <td className="p-4">
+                          <button onClick={() => { setMatchModal(tx); setSelectedLoan(""); setMatchType("repayment"); }}
+                            className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+                            🔗 Match
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -267,11 +268,10 @@ export default function MatchingPage() {
 
       {/* Match Modal */}
       {matchModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg">
             <h3 className="text-lg font-bold mb-4 text-blue-600">Match Payment to Loan</h3>
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <p className="text-sm text-gray-500">Transaction</p>
               <p className="font-mono text-sm">{matchModal.transaction_reference}</p>
               <p className="text-2xl font-bold text-green-600 mt-1">KSh {parseFloat(matchModal.amount).toLocaleString()}</p>
               <p className="text-sm text-gray-500 mt-1">{matchModal.customer_name} · {matchModal.customer_phone}</p>
@@ -280,11 +280,11 @@ export default function MatchingPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type</label>
               <div className="flex gap-3">
                 <button onClick={() => setMatchType("repayment")}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-medium ${matchType === "repayment" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300"}`}>
+                  className={`flex-1 py-2 rounded-lg border text-sm font-medium ${matchType === "repayment" ? "bg-blue-600 text-white" : "bg-white text-gray-600 border-gray-300"}`}>
                   💳 Loan Repayment
                 </button>
                 <button onClick={() => setMatchType("processing_fee")}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-medium ${matchType === "processing_fee" ? "bg-orange-500 text-white border-orange-500" : "bg-white text-gray-600 border-gray-300"}`}>
+                  className={`flex-1 py-2 rounded-lg border text-sm font-medium ${matchType === "processing_fee" ? "bg-orange-500 text-white" : "bg-white text-gray-600 border-gray-300"}`}>
                   🏷 Processing Fee
                 </button>
               </div>
