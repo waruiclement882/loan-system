@@ -16,7 +16,7 @@ export default function MatchingPage() {
   const [message, setMessage] = useState("");
   const [showManual, setShowManual] = useState(false);
   const [manualForm, setManualForm] = useState({
-    loan_id: "", amount: "", source: "cash", transaction_code: "", notes: ""
+    loan_id: "", amount: "", source: "cash", transaction_code: "", notes: "", type: "repayment"
   });
   const [saving, setSaving] = useState(false);
 
@@ -82,19 +82,24 @@ export default function MatchingPage() {
         amount: parseFloat(manualForm.amount),
         source: manualForm.source || "cash",
         transaction_code: manualForm.transaction_code || "",
-        notes: manualForm.notes || ""
+        notes: manualForm.notes || "",
+        type: manualForm.type || "repayment"
       };
+
+      // FIXED: Added the missing fetch request execution
       const res = await fetch(`${API}/api/payments/manual`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify(payload)
       });
+
       const data = await res.json();
       if (data.error) { setMessage("Error: " + data.error); }
       else {
         setMessage("✅ Payment recorded successfully!");
         setShowManual(false);
-        setManualForm({ loan_id: "", amount: "", source: "cash", transaction_code: "", notes: "" });
+        // FIXED: Included type reset in form cleanup
+        setManualForm({ loan_id: "", amount: "", source: "cash", transaction_code: "", notes: "", type: "repayment" });
         loadData();
       }
     } catch (e: any) { setMessage("Failed to record payment: " + e.message); }
@@ -166,6 +171,22 @@ export default function MatchingPage() {
                   ))}
                 </select>
               </div>
+
+              {/* Added Payment Type Selectors right here after Loan selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type</label>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setManualForm({...manualForm, type: "repayment"})}
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${manualForm.type === "repayment" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"}`}>
+                    💳 Loan Repayment
+                  </button>
+                  <button type="button" onClick={() => setManualForm({...manualForm, type: "processing_fee"})}
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${manualForm.type === "processing_fee" ? "bg-orange-500 text-white border-orange-500" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"}`}>
+                    🏷 Processing Fee
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Amount (KSh) *</label>
                 <input type="number" value={manualForm.amount}
@@ -215,7 +236,7 @@ export default function MatchingPage() {
           </div>
         )}
 
-        {/* Unmatched Transactions */}
+        {/* Unmatched Transactions Table */}
         <div className="mb-6">
           <h3 className="font-bold text-lg mb-3">📥 Unmatched KCB Paybill Payments</h3>
           {loading ? (
