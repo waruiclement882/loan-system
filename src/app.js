@@ -10,16 +10,18 @@ const webhookRoutes = require('./routes/webhooks');
 const settingsRoutes = require('./routes/settings');
 const auditRoutes = require('./routes/audit');
 const usersRoutes = require('./routes/users');
+const reportsRoutes = require('./routes/reports');
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
 // Keepalive endpoint
 app.get('/ping', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
-
 app.get('/', (req, res) => res.send('Microfinance server is running'));
 
+// Routes
 app.use('/api/customers', customerRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -29,6 +31,7 @@ app.use('/api', pricingRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api', usersRoutes);
+app.use('/api/reports', reportsRoutes);
 app.use('/webhooks', webhookRoutes);
 
 module.exports = app;
