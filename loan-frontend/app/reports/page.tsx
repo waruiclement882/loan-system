@@ -43,7 +43,7 @@ export default function ReportsPage() {
     try {
       const [unmatchedRes, incomeRes] = await Promise.all([
         fetch(`${API}/api/payments/unmatched`, { headers: getHeaders() }),
-        fetch(`${API}/api/payments/income`, { headers: getHeaders() })
+        fetch(`${API}/api/reports/income`, { headers: getHeaders() })
       ]);
       const unmatchedData = await unmatchedRes.json();
       const incomeData = await incomeRes.json();
