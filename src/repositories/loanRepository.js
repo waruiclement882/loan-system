@@ -112,4 +112,43 @@ const applyPaymentToSchedule = async (loanId, amountPaid) => {
   );
 };
 
-module.exports = { create, getAll, getById, approve, reject, disburse, updateStatus, markProcessingFeePaid, getSchedule, applyPaymentToSchedule };
+// ── Step 8: Loan Closure ──────────────────────────────────────────────────────
+const closeLoan = async (loanId) => {
+  // 1. Get total actually paid from payments table
+  const paymentsResult = await pool.query(
+    'SELECT COALESCE(SUM(amount), 0) AS total_paid FROM payments WHERE loan_id = $1',
+    [loanId]
+  );
+  const totalPaid = parseFloat(paymentsResult.rows[0].total_paid);
+
+  // 2. Mark loan as paid with closure timestamp and total_repayment
+  const loanResult = await pool.query(
+    `UPDATE loans
+     SET status = 'paid',
+         balance = 0,
+         total_repayment = $1,
+         closed_at = NOW()
+     WHERE id = $2
+     RETURNING *`,
+    [totalPaid, loanId]
+  );
+
+  // 3. Mark all remaining schedule rows as paid
+  await pool.query(
+    `UPDATE repayment_schedules
+     SET status = 'paid',
+         amount_paid = amount_due,
+         paid_at = NOW()
+     WHERE loan_id = $1 AND status != 'paid'`,
+    [loanId]
+  );
+
+  console.log(`[Closure] Loan #${loanId} closed. Total repaid: KSh ${totalPaid}`);
+  return loanResult.rows[0];
+};
+
+module.exports = {
+  create, getAll, getById, approve, reject, disburse,
+  updateStatus, markProcessingFeePaid, getSchedule,
+  applyPaymentToSchedule, closeLoan
+};
