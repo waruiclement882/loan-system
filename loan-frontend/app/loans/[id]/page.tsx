@@ -59,12 +59,15 @@ export default function LoanDetailPage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>;
   if (!loan || loan.error) return <div className="min-h-screen flex items-center justify-center text-red-500">Loan not found</div>;
 
+  const isClosed = loan.status === "paid";
   const balance = parseFloat(loan.balance || 0);
   const total = parseFloat(loan.total_amount || 0);
+  const totalActuallyPaid = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
   const collected = Math.max(0, total - balance);
   const progress = total > 0 ? Math.min(100, (collected / total) * 100) : 0;
   const paidWeeks = schedule.filter(s => s.status === "paid").length;
   const overdueWeeks = schedule.filter(s => isOverdue(s.due_date, s.status)).length;
+  const closedAt = loan.closed_at ? new Date(loan.closed_at) : null;
 
   let runningBalance = total;
   const scheduleWithBalance = schedule.map(s => {
@@ -91,19 +94,59 @@ export default function LoanDetailPage() {
           ← Back to Loans
         </button>
 
+        {/* ── LOAN CLOSED BANNER ── */}
+        {isClosed && (
+          <div className="bg-green-50 border-2 border-green-400 rounded-xl p-5 mb-6">
+            <div className="flex items-start gap-4">
+              <div className="text-4xl">✅</div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-green-700 mb-1">Loan Fully Repaid & Closed</h2>
+                <p className="text-green-600 text-sm mb-3">
+                  This loan has been fully settled. All instalments have been paid and the account is closed.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                    <p className="text-xs text-gray-500">Closed On</p>
+                    <p className="font-bold text-green-700">
+                      {closedAt
+                        ? closedAt.toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })
+                        : payments.length > 0
+                          ? new Date(payments[payments.length - 1].payment_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })
+                          : "—"}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                    <p className="text-xs text-gray-500">Total Repaid</p>
+                    <p className="font-bold text-green-700">KSh {totalActuallyPaid.toLocaleString()}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                    <p className="text-xs text-gray-500">Instalments</p>
+                    <p className="font-bold text-green-700">{payments.length} payments</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                    <p className="text-xs text-gray-500">Balance</p>
+                    <p className="font-bold text-green-700">KSh 0 — Cleared</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── LOAN SUMMARY CARD ── */}
         <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
           <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
             <div>
-              <h2 className="text-2xl font-bold">Loan #{loan.id}</h2>
-              <p className="text-gray-500">{loan.customer_name} · {loan.customer_phone}</p>
+              <h2 className="text-xl font-bold">Loan #{loan.id} — {loan.customer_name}</h2>
+              <p className="text-gray-500 text-sm">{loan.customer_phone}</p>
             </div>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+            <span className={`px-3 py-1 rounded-full text-sm font-bold ${
               loan.status === "paid" ? "bg-green-100 text-green-700" :
               loan.status === "active" ? "bg-blue-100 text-blue-700" :
               loan.status === "approved" ? "bg-indigo-100 text-indigo-700" :
               loan.status === "rejected" ? "bg-red-100 text-red-700" :
               "bg-yellow-100 text-yellow-700"}`}>
-              {loan.status?.toUpperCase()}
+              {isClosed ? "✅ FULLY PAID" : loan.status?.toUpperCase()}
             </span>
           </div>
 
@@ -118,34 +161,49 @@ export default function LoanDetailPage() {
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-xs text-gray-500">Total Collected</p>
-              <p className="text-lg font-bold text-green-600">KSh {collected.toLocaleString()}</p>
+              <p className="text-lg font-bold text-green-600">KSh {totalActuallyPaid.toLocaleString()}</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3">
+            <div className={`rounded-lg p-3 ${isClosed ? "bg-green-50" : "bg-gray-50"}`}>
               <p className="text-xs text-gray-500">Balance Remaining</p>
-              <p className="text-lg font-bold text-red-600">KSh {balance.toLocaleString()}</p>
+              <p className={`text-lg font-bold ${isClosed ? "text-green-600" : "text-red-600"}`}>
+                {isClosed ? "KSh 0 — Cleared ✅" : `KSh ${balance.toLocaleString()}`}
+              </p>
             </div>
           </div>
 
+          {/* Progress bar */}
           <div className="mb-3">
             <div className="flex justify-between text-sm text-gray-500 mb-1">
               <span>Repayment Progress</span>
-              <span>{Math.round(progress)}% paid</span>
+              <span>{isClosed ? "100% — Fully Paid 🎉" : `${Math.round(progress)}% paid`}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
-              <div className="bg-green-500 h-3 rounded-full transition-all" style={{ width: progress + "%" }} />
+              <div
+                className={`h-3 rounded-full transition-all ${isClosed ? "bg-green-500" : "bg-blue-500"}`}
+                style={{ width: isClosed ? "100%" : progress + "%" }}
+              />
             </div>
           </div>
 
           <div className="flex flex-wrap gap-4 text-sm mt-3">
             <span className="text-gray-500">Term: <strong>{loan.term_weeks} weeks</strong></span>
             <span className="text-gray-500"><strong>{paidWeeks}/{schedule.length}</strong> weeks paid</span>
-            {overdueWeeks > 0 && <span className="text-red-500"><strong>{overdueWeeks}</strong> overdue</span>}
-            <span className="text-gray-500">Paybill <strong>522522</strong> A/C <strong>8086860</strong></span>
+            {overdueWeeks > 0 && !isClosed && <span className="text-red-500"><strong>{overdueWeeks}</strong> overdue</span>}
+            {!isClosed && <span className="text-gray-500">Paybill <strong>522522</strong> A/C <strong>8086860</strong></span>}
+            {isClosed && closedAt && (
+              <span className="text-green-600 font-medium">
+                Closed: {closedAt.toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}
+              </span>
+            )}
           </div>
         </div>
 
+        {/* ── REPAYMENT SCHEDULE ── */}
         <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6 overflow-x-auto">
-          <h3 className="font-bold text-lg mb-4">Weekly Repayment Schedule</h3>
+          <h3 className="font-bold text-lg mb-4">
+            Weekly Repayment Schedule
+            {isClosed && <span className="ml-2 text-sm font-normal text-green-600">— All weeks settled ✅</span>}
+          </h3>
           {schedule.length === 0 ? (
             <div className="text-center py-8 text-gray-400">No schedule generated yet.</div>
           ) : (
@@ -164,8 +222,8 @@ export default function LoanDetailPage() {
                 {scheduleWithBalance.map((s: any) => {
                   const overdue = isOverdue(s.due_date, s.status);
                   return (
-                    <tr key={s.id} className={`border-b ${overdue ? "bg-red-50" : "hover:bg-gray-50"}`}>
-                      <td className="p-3 font-medium">Week {s.week_number}</td>
+                    <tr key={s.id} className={`border-b ${overdue ? "bg-red-50" : s.status === "paid" ? "bg-green-50" : "hover:bg-gray-50"}`}>
+                      <td className="p-3 font-medium">Week {s.installment_no || s.week_number}</td>
                       <td className="p-3">
                         {new Date(s.due_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
                         {overdue && <span className="ml-2 text-xs text-red-500 font-medium">OVERDUE</span>}
@@ -184,8 +242,8 @@ export default function LoanDetailPage() {
                 <tr className="bg-gray-50 font-bold border-t-2">
                   <td className="p-3" colSpan={2}>Total</td>
                   <td className="p-3">KSh {total.toLocaleString()}</td>
-                  <td className="p-3 text-green-600">KSh {collected.toLocaleString()}</td>
-                  <td className="p-3 text-red-600">KSh {balance.toLocaleString()} remaining</td>
+                  <td className="p-3 text-green-600">KSh {totalActuallyPaid.toLocaleString()}</td>
+                  <td className="p-3 text-green-600">{isClosed ? "KSh 0 — Cleared ✅" : `KSh ${balance.toLocaleString()} remaining`}</td>
                   <td className="p-3"></td>
                 </tr>
               </tbody>
@@ -193,6 +251,7 @@ export default function LoanDetailPage() {
           )}
         </div>
 
+        {/* ── PAYMENT HISTORY ── */}
         <div className="bg-white rounded-lg shadow p-4 md:p-6 overflow-x-auto">
           <h3 className="font-bold text-lg mb-4">Payment History ({payments.length})</h3>
           {payments.length === 0 ? (
@@ -225,6 +284,15 @@ export default function LoanDetailPage() {
                   </tr>
                 ))}
               </tbody>
+              {isClosed && (
+                <tfoot>
+                  <tr className="bg-green-50 font-bold border-t-2">
+                    <td className="p-3">Total Paid</td>
+                    <td className="p-3 text-green-600">KSh {totalActuallyPaid.toLocaleString()}</td>
+                    <td className="p-3" colSpan={2}></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           )}
         </div>
