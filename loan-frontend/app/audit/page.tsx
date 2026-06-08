@@ -17,6 +17,23 @@ export default function AuditPage() {
     return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
   };
 
+  // Safely extract details text from JSON or string
+  const getDetailsText = (details: any): string => {
+    if (!details) return "—";
+    if (typeof details === "string") {
+      try {
+        const parsed = JSON.parse(details);
+        return parsed.message || parsed.details || JSON.stringify(parsed);
+      } catch {
+        return details;
+      }
+    }
+    if (typeof details === "object") {
+      return details.message || details.details || JSON.stringify(details);
+    }
+    return String(details);
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) { router.push("/login"); return; }
@@ -31,7 +48,7 @@ export default function AuditPage() {
       result = result.filter(l =>
         l.user_name?.toLowerCase().includes(search.toLowerCase()) ||
         l.action?.toLowerCase().includes(search.toLowerCase()) ||
-        l.details?.toLowerCase().includes(search.toLowerCase())
+        getDetailsText(l.details).toLowerCase().includes(search.toLowerCase())
       );
     }
     if (filterAction) {
@@ -47,7 +64,9 @@ export default function AuditPage() {
       const data = await res.json();
       setLogs(Array.isArray(data) ? data : []);
       setFiltered(Array.isArray(data) ? data : []);
-    } catch {}
+    } catch (e) {
+      console.error("Failed to load audit logs:", e);
+    }
     setLoading(false);
   };
 
@@ -58,7 +77,7 @@ export default function AuditPage() {
         new Date(l.created_at).toLocaleString(),
         l.user_name || "System",
         l.action,
-        `"${l.details || ""}"`,
+        `"${getDetailsText(l.details)}"`,
         `${l.entity || ""} ${l.entity_id ? "#" + l.entity_id : ""}`
       ].join(","))
     ].join("\n");
@@ -72,6 +91,7 @@ export default function AuditPage() {
     if (action?.includes("REJECT") || action?.includes("DELETE")) return "bg-red-100 text-red-700";
     if (action?.includes("CREATE")) return "bg-blue-100 text-blue-700";
     if (action?.includes("LOGIN")) return "bg-purple-100 text-purple-700";
+    if (action?.includes("PAYMENT") || action?.includes("MATCH")) return "bg-orange-100 text-orange-700";
     return "bg-gray-100 text-gray-600";
   };
 
@@ -136,13 +156,21 @@ export default function AuditPage() {
                   <tr><td colSpan={5} className="p-8 text-center text-gray-400">No audit logs found</td></tr>
                 ) : filtered.map((log: any) => (
                   <tr key={log.id} className="border-b hover:bg-gray-50">
-                    <td className="p-4 text-gray-400 text-xs whitespace-nowrap">{new Date(log.created_at).toLocaleString("en-KE")}</td>
+                    <td className="p-4 text-gray-400 text-xs whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleString("en-KE")}
+                    </td>
                     <td className="p-4 font-medium">{log.user_name || "System"}</td>
                     <td className="p-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${actionColor(log.action)}`}>{log.action}</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${actionColor(log.action)}`}>
+                        {log.action}
+                      </span>
                     </td>
-                    <td className="p-4 text-gray-600 max-w-xs truncate">{log.details || "—"}</td>
-                    <td className="p-4 text-gray-400 text-xs">{log.entity} {log.entity_id ? `#${log.entity_id}` : ""}</td>
+                    <td className="p-4 text-gray-600 max-w-xs truncate">
+                      {getDetailsText(log.details)}
+                    </td>
+                    <td className="p-4 text-gray-400 text-xs">
+                      {log.entity} {log.entity_id ? `#${log.entity_id}` : ""}
+                    </td>
                   </tr>
                 ))}
               </tbody>
