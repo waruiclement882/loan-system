@@ -11,6 +11,7 @@ const settingsRoutes = require('./routes/settings');
 const auditRoutes = require('./routes/audit');
 const usersRoutes = require('./routes/users');
 const reportsRoutes = require('./routes/reports');
+const kycRoutes = require('./routes/kyc');
 
 const app = express();
 
@@ -33,5 +34,6 @@ app.use('/api/audit', auditRoutes);
 app.use('/api', usersRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/webhooks', webhookRoutes);
+app.use('/api/kyc', kycRoutes);
 
 module.exports = app;
