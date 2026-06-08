@@ -104,13 +104,7 @@ const disburseLoan = async (req, res) => {
     const loan = await loanService.disburseLoan(req.params.id, disbursed_by);
     if (!loan) return res.status(404).json({ error: 'Loan not found' });
     res.json(loan);
-    // Generate schedule immediately
-    try {
-      await scheduleService.generateSchedule(loan.id);
-      console.log(`[Schedule] Generated for loan ${loan.id}`);
-    } catch (e) {
-      console.error('[Schedule] Generate error:', e.message);
-    }
+
     const userName = await getUserName(disbursed_by);
     audit(disbursed_by, userName, 'DISBURSE_LOAN', 'loans', loan.id, `Loan #${loan.id} KSh ${loan.amount} disbursed`);
     const phone = await getCustomerPhone(loan.customer_id);
