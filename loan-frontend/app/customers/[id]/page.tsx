@@ -221,10 +221,10 @@ export default function CustomerProfilePage() {
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {[
-              { label: "Total Loans", value: stats.total_loans ?? 0 },
-              { label: "Active Loans", value: stats.active_loans ?? 0 },
-              { label: "Total Paid", value: `KES ${(stats.total_paid ?? 0).toLocaleString()}` },
-              { label: "Outstanding", value: `KES ${(stats.total_outstanding ?? 0).toLocaleString()}` },
+              { label: "Total Loans", value: stats.totalLoans ?? 0 },
+{ label: "Active Loans", value: stats.activeLoans ?? 0 },
+{ label: "Total Paid", value: `KES ${(stats.totalPaid ?? 0).toLocaleString()}` },
+{ label: "Outstanding", value: `KES ${(stats.totalOutstanding ?? 0).toLocaleString()}` },
             ].map(s => (
               <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-4">
                 <p className="text-xs text-slate-400 mb-1">{s.label}</p>
