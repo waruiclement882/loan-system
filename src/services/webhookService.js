@@ -1,5 +1,4 @@
 const pool = require('../db/connection');
-const loanRepository = require('../repositories/loanRepository');
 const { getProvider } = require('./providers/providerFactory');
 
 const logWebhook = async ({ provider, endpoint, method, headers, body, signatureValid, responseCode, responseBody, processingTimeMs, ipAddress }) => {
@@ -43,38 +42,61 @@ const recordTransaction = async (normalized, status = 'received') => {
 
 const processKcbWebhook = async ({ headers, body, ip }) => {
   const startTime = Date.now();
+
+  // ── Log raw incoming payload for debugging ────────────────────────────────
+  console.log('[KCB Webhook] Received:', JSON.stringify(body, null, 2));
+
   const provider = getProvider('kcb');
-  const signature = headers['signature'] || headers['Signature'];
+  const signature = headers['signature'] || headers['Signature'] || headers['x-signature'];
   const signatureResult = provider.validateWebhookSignature(signature, body);
   const normalized = provider.normalizePayload(body);
 
+  // ── Validate required fields ──────────────────────────────────────────────
   if (!normalized.transactionReference || !normalized.amount) {
-    return { statusCode: 400, response: { transactionID: '', statusCode: '1', statusMessage: 'Missing required fields' } };
+    console.error('[KCB Webhook] Missing required fields:', { ref: normalized.transactionReference, amount: normalized.amount });
+    const errResponse = {
+      transactionID: normalized.transactionReference || '',
+      statusCode: '1',
+      statusMessage: 'Missing required fields: transactionReference or transactionAmount'
+    };
+    await logWebhook({
+      provider: 'kcb', endpoint: '/webhooks/kcb', method: 'POST',
+      headers, body, signatureValid: false,
+      responseCode: 400, responseBody: errResponse,
+      processingTimeMs: Date.now() - startTime, ipAddress: ip
+    });
+    return { statusCode: 400, response: errResponse };
   }
 
+  // ── Check for duplicate transaction ──────────────────────────────────────
   const existing = await isDuplicate(normalized.transactionReference);
   if (existing) {
-    console.warn(`[WebhookService] Duplicate ignored: ${normalized.transactionReference}`);
-    return {
-      statusCode: 200,
-      response: { transactionID: normalized.transactionReference, statusCode: '0', statusMessage: 'Notification received' },
+    console.warn(`[KCB Webhook] Duplicate ignored: ${normalized.transactionReference}`);
+    const dupResponse = {
+      transactionID: normalized.transactionReference,
+      statusCode: '0',
+      statusMessage: 'Notification received'
     };
+    return { statusCode: 200, response: dupResponse };
   }
 
-  // Just record the transaction — cashier will match manually
+  // ── Record transaction — cashier matches manually ─────────────────────────
   const bankTransactionId = await recordTransaction(normalized, 'received');
+  console.log(`[KCB Webhook] Recorded transaction #${bankTransactionId}: ${normalized.transactionReference} — KES ${normalized.amount}`);
 
+  // ── KCB standard response ─────────────────────────────────────────────────
   const responseBody = {
     transactionID: normalized.transactionReference,
     statusCode: '0',
-    statusMessage: 'Notification received',
+    statusMessage: 'Notification received'
   };
 
+  // ── Log webhook ───────────────────────────────────────────────────────────
   await logWebhook({
     provider: 'kcb', endpoint: '/webhooks/kcb', method: 'POST',
     headers, body, signatureValid: signatureResult.valid,
     responseCode: 200, responseBody,
-    processingTimeMs: Date.now() - startTime, ipAddress: ip,
+    processingTimeMs: Date.now() - startTime, ipAddress: ip
   });
 
   return { statusCode: 200, response: responseBody };

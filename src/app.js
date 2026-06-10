@@ -18,7 +18,7 @@ const kycRoutes = require('./routes/kyc');
 
 const app = express();
 
-// ── 1. Security Headers (helmet) ─────────────────────────────────────────────
+// ── 1. Security Headers ───────────────────────────────────────────────────────
 app.use(helmet());
 
 // ── 2. CORS — only allow your frontend ───────────────────────────────────────
@@ -29,7 +29,6 @@ const allowedOrigins = [
 ];
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, server-to-server)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -39,41 +38,40 @@ app.use(cors({
   credentials: true
 }));
 
-// ── 3. Request size limit — prevent large payload attacks ────────────────────
+// ── 3. Request size limit ─────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// ── 4. Rate limiting — prevent brute force & DDoS ────────────────────────────
-// General API limit
+// ── 4. Rate limiting ──────────────────────────────────────────────────────────
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // 200 requests per 15 min per IP
+  windowMs: 15 * 60 * 1000,
+  max: 200,
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false
 });
 
-// Strict limit for login/register
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // only 10 login attempts per 15 min
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   message: { error: 'Too many login attempts, please try again in 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false
 });
 
-// Keepalive endpoint — no rate limit needed
+// ── 5. Health & ping — no rate limit ─────────────────────────────────────────
 app.get('/ping', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 app.get('/', (req, res) => res.send('Microfinance server is running'));
 
-// Apply general rate limit to all API routes
-app.use('/api', generalLimiter);
+// ── 6. Webhooks — NO rate limit (KCB hits this repeatedly) ───────────────────
+app.use('/webhooks', webhookRoutes);
 
-// Apply strict rate limit to auth routes
+// ── 7. Apply rate limits to API routes ───────────────────────────────────────
+app.use('/api', generalLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
-// ── 5. Routes ─────────────────────────────────────────────────────────────────
+// ── 8. API Routes ─────────────────────────────────────────────────────────────
 app.use('/api/customers', customerRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -85,11 +83,9 @@ app.use('/api/audit', auditRoutes);
 app.use('/api', usersRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/kyc', kycRoutes);
-app.use('/webhooks', webhookRoutes);
 
-// ── 6. Global error handler ───────────────────────────────────────────────────
+// ── 9. Global error handler ───────────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  // Don't leak internal error details in production
   console.error('[Error]', err.message);
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({ error: 'CORS: origin not allowed' });
