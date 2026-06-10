@@ -227,5 +227,38 @@ router.get('/summary', verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// ── Loan Statement ──────────────────────────────────────────────────────────
+router.get('/statement/:loanId', verifyToken, async (req, res) => {
+  try {
+    const { loanId } = req.params;
+
+    const loanRes = await pool.query(`
+      SELECT l.*, c.name AS customer_name, c.phone, c.email, c.national_id
+      FROM loans l
+      LEFT JOIN customers c ON l.customer_id = c.id
+      WHERE l.id = $1
+    `, [loanId]);
+
+    if (!loanRes.rows[0]) return res.status(404).json({ error: 'Loan not found' });
+
+    const scheduleRes = await pool.query(
+      'SELECT * FROM repayment_schedules WHERE loan_id = $1 ORDER BY installment_no ASC',
+      [loanId]
+    );
+
+    const paymentsRes = await pool.query(
+      'SELECT * FROM payments WHERE loan_id = $1 ORDER BY payment_date ASC',
+      [loanId]
+    );
+
+    res.json({
+      loan: loanRes.rows[0],
+      schedule: scheduleRes.rows,
+      payments: paymentsRes.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;
