@@ -17,6 +17,7 @@ const reportsRoutes = require('./routes/reports');
 const kycRoutes = require('./routes/kyc');
 
 const app = express();
+app.set('trust proxy', 1);
 
 // ── 1. Security Headers ───────────────────────────────────────────────────────
 app.use(helmet());
