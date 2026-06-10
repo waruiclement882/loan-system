@@ -260,5 +260,26 @@ router.get('/statement/:loanId', verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// ── Due This Week ──────────────────────────────────────────────────────────
+router.get('/due-this-week', verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT rs.*, l.customer_id, l.balance as loan_balance,
+        c.name AS customer_name, c.phone,
+        l.amount as loan_amount, l.total_amount,
+        l.weekly_installment
+      FROM repayment_schedules rs
+      JOIN loans l ON rs.loan_id = l.id
+      JOIN customers c ON l.customer_id = c.id
+      WHERE rs.due_date::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+        AND rs.status IN ('pending', 'partial', 'overdue')
+        AND l.status = 'active'
+      ORDER BY rs.due_date ASC, c.name ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;
