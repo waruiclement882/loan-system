@@ -263,6 +263,18 @@ router.get('/statement/:loanId', verifyToken, async (req, res) => {
 // ── Due This Week ──────────────────────────────────────────────────────────
 router.get('/due-this-week', verifyToken, async (req, res) => {
   try {
+    const { date, month, year } = req.query;
+
+    let whereClause = `rs.status IN ('pending', 'partial', 'overdue') AND l.status = 'active'`;
+
+    if (date) {
+      whereClause += ` AND rs.due_date::date = '${date}'`;
+    } else if (month && year) {
+      whereClause += ` AND EXTRACT(MONTH FROM rs.due_date) = ${month} AND EXTRACT(YEAR FROM rs.due_date) = ${year}`;
+    } else {
+      whereClause += ` AND rs.due_date::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'`;
+    }
+
     const result = await pool.query(`
       SELECT rs.*, l.customer_id, l.balance as loan_balance,
         c.name AS customer_name, c.phone,
@@ -271,9 +283,7 @@ router.get('/due-this-week', verifyToken, async (req, res) => {
       FROM repayment_schedules rs
       JOIN loans l ON rs.loan_id = l.id
       JOIN customers c ON l.customer_id = c.id
-      WHERE rs.due_date::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
-        AND rs.status IN ('pending', 'partial', 'overdue')
-        AND l.status = 'active'
+      WHERE ${whereClause}
       ORDER BY rs.due_date ASC, c.name ASC
     `);
     res.json(result.rows);
