@@ -10,7 +10,6 @@ export default function PARPage() {
   const [parData, setParData] = useState<any>(null);
   const [dueData, setDueData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState("");
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
   const headers = { Authorization: "Bearer " + token };
 
@@ -40,8 +39,8 @@ export default function PARPage() {
     const d = new Date(dateStr);
     d.setHours(0, 0, 0, 0);
     const diff = Math.round((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff === 0) return { label: "Today", color: "bg-orange-100 text-orange-700 border-orange-200" };
-    if (diff === 1) return { label: "Tomorrow", color: "bg-amber-100 text-amber-700 border-amber-200" };
+    if (diff === 0) return { label: "Today", color: "bg-red-100 text-red-700 border-red-200" };
+    if (diff === 1) return { label: "Tomorrow", color: "bg-orange-100 text-orange-700 border-orange-200" };
     if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: "bg-red-200 text-red-800 border-red-300" };
     return {
       label: d.toLocaleDateString("en-KE", { weekday: "short", day: "numeric", month: "short" }),
@@ -50,31 +49,23 @@ export default function PARPage() {
   };
 
   const overdueLoans = parData?.loans?.filter((l: any) => l.is_overdue) || [];
+  const currentLoans = parData?.loans?.filter((l: any) => !l.is_overdue) || [];
 
-  // Filter by selected date or show all
-  const filteredDue = selectedDate
-    ? dueData.filter(d => new Date(d.due_date).toISOString().split("T")[0] === selectedDate)
-    : dueData;
-
-  const dueToday = filteredDue.filter(d => {
-    const dd = new Date(d.due_date); dd.setHours(0, 0, 0, 0);
+  const dueToday = dueData.filter(d => {
+    const dd = new Date(d.due_date); dd.setHours(0,0,0,0);
     return dd.getTime() === today.getTime();
   });
-  const dueSoon = filteredDue.filter(d => {
-    const dd = new Date(d.due_date); dd.setHours(0, 0, 0, 0);
+  const dueSoon = dueData.filter(d => {
+    const dd = new Date(d.due_date); dd.setHours(0,0,0,0);
     return dd.getTime() > today.getTime();
   });
-  const pastDue = filteredDue.filter(d => {
-    const dd = new Date(d.due_date); dd.setHours(0, 0, 0, 0);
+  const pastDue = dueData.filter(d => {
+    const dd = new Date(d.due_date); dd.setHours(0,0,0,0);
     return dd.getTime() < today.getTime();
   });
 
-  const totalDueAmount = filteredDue.reduce((s, d) => s + parseFloat(d.amount_due || 0), 0);
-  const totalPaidAmount = filteredDue.reduce((s, d) => s + parseFloat(d.amount_paid || 0), 0);
-
-  const parColor = !parData ? "" : parseFloat(parData.par) === 0
-    ? "text-emerald-600" : parseFloat(parData.par) < 5
-    ? "text-amber-600" : "text-red-600";
+  const totalDueAmount = dueData.reduce((s, d) => s + parseFloat(d.amount_due || 0), 0);
+  const totalPaidAmount = dueData.reduce((s, d) => s + parseFloat(d.amount_paid || 0), 0);
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -90,6 +81,10 @@ export default function PARPage() {
     { key: "overdue", label: "🚨 Overdue", count: overdueLoans.length },
     { key: "par", label: "📊 PAR Report", count: null },
   ];
+
+  const parColor = !parData ? "" : parseFloat(parData.par) === 0
+    ? "text-emerald-600" : parseFloat(parData.par) < 5
+    ? "text-amber-600" : "text-red-600";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -124,16 +119,14 @@ export default function PARPage() {
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-xs text-slate-400 mb-1">Due This Week</p>
             <p className="text-2xl font-bold text-blue-600">{dueData.length}</p>
-            <p className="text-xs text-slate-400 mt-0.5">KES {dueData.reduce((s,d) => s + parseFloat(d.amount_due||0),0).toLocaleString()}</p>
+            <p className="text-xs text-slate-400 mt-0.5">KES {totalDueAmount.toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-xs text-slate-400 mb-1">Due Today</p>
-            <p className="text-2xl font-bold text-orange-500">
-              {dueData.filter(d => { const dd = new Date(d.due_date); dd.setHours(0,0,0,0); return dd.getTime() === today.getTime(); }).length}
-            </p>
+            <p className="text-2xl font-bold text-orange-500">{dueToday.length}</p>
             <p className="text-xs text-slate-400 mt-0.5">installments</p>
           </div>
-          <div className="bg-red-50 rounded-xl border border-red-200 p-4">
+          <div className="bg-white rounded-xl border border-red-200 p-4 bg-red-50">
             <p className="text-xs text-red-400 mb-1">Overdue Loans</p>
             <p className="text-2xl font-bold text-red-600">{overdueLoans.length}</p>
             <p className="text-xs text-red-400 mt-0.5">KES {parseFloat(parData?.overdueBalance || 0).toLocaleString()}</p>
@@ -171,38 +164,11 @@ export default function PARPage() {
 
             {/* DUE THIS WEEK TAB */}
             {activeTab === "due" && (
-              <div className="space-y-5">
-
-                {/* Date filter */}
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-slate-500 font-medium">Filter by date:</label>
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={e => setSelectedDate(e.target.value)}
-                      className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                    />
-                  </div>
-                  {selectedDate && (
-                    <button onClick={() => setSelectedDate("")}
-                      className="text-xs text-slate-400 hover:text-slate-600 border border-slate-200 px-3 py-2 rounded-lg transition-colors">
-                      ✕ Clear
-                    </button>
-                  )}
-                  <span className="text-xs text-slate-400">
-                    {selectedDate
-                      ? `${filteredDue.length} installment(s) on ${new Date(selectedDate + "T00:00:00").toLocaleDateString("en-KE", { weekday: "long", day: "numeric", month: "long" })}`
-                      : `Showing all ${dueData.length} due this week`}
-                  </span>
-                </div>
-
-                {filteredDue.length === 0 ? (
+              <div className="space-y-6">
+                {dueData.length === 0 ? (
                   <div className="text-center py-12">
                     <p className="text-4xl mb-3">🎉</p>
-                    <p className="text-slate-500 font-medium">
-                      {selectedDate ? "No installments due on this date" : "No installments due this week"}
-                    </p>
+                    <p className="text-slate-500 font-medium">No installments due in the next 7 days</p>
                   </div>
                 ) : (
                   <>
@@ -223,11 +189,11 @@ export default function PARPage() {
                       </p>
                     </div>
 
-                    {/* Past due */}
+                    {/* Past due in this week range */}
                     {pastDue.length > 0 && (
                       <div>
                         <h4 className="text-sm font-semibold text-red-600 mb-3 flex items-center gap-2">
-                          <span className="w-2 h-2 bg-red-500 rounded-full inline-block"></span>
+                          <span className="w-2 h-2 bg-red-500 rounded-full"></span>
                           Past Due ({pastDue.length})
                         </h4>
                         <div className="space-y-2">
@@ -243,7 +209,7 @@ export default function PARPage() {
                                   </div>
                                   <div>
                                     <p className="text-sm font-medium text-slate-800">{inst.customer_name}</p>
-                                    <p className="text-xs text-slate-400">Loan #{inst.loan_id} · Week {inst.installment_no} · {inst.phone}</p>
+                                    <p className="text-xs text-slate-400">Loan #{inst.loan_id} · Week {inst.installment_no}</p>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-3 text-right">
@@ -266,7 +232,7 @@ export default function PARPage() {
                     {dueToday.length > 0 && (
                       <div>
                         <h4 className="text-sm font-semibold text-orange-600 mb-3 flex items-center gap-2">
-                          <span className="w-2 h-2 bg-orange-500 rounded-full inline-block"></span>
+                          <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
                           Due Today ({dueToday.length})
                         </h4>
                         <div className="space-y-2">
@@ -298,11 +264,11 @@ export default function PARPage() {
                       </div>
                     )}
 
-                    {/* Upcoming */}
+                    {/* Coming up */}
                     {dueSoon.length > 0 && (
                       <div>
                         <h4 className="text-sm font-semibold text-blue-600 mb-3 flex items-center gap-2">
-                          <span className="w-2 h-2 bg-blue-500 rounded-full inline-block"></span>
+                          <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
                           Upcoming ({dueSoon.length})
                         </h4>
                         <div className="space-y-2">
