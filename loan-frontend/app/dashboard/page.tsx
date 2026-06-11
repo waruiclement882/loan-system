@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const [unmatched, setUnmatched] = useState(0);
   const [companyName, setCompanyName] = useState("Microfinance System");
   const [showOverdue, setShowOverdue] = useState(true);
+  const [dueToday, setDueToday] = useState<any[]>([]);
 
   const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
@@ -36,14 +37,23 @@ export default function DashboardPage() {
     setLoans(Array.isArray(l) ? l : []);
     setPayments(Array.isArray(p) ? p : []);
     try {
-      const [unmatchedRes, settingsRes] = await Promise.all([
+      const [unmatchedRes, settingsRes, dueRes] = await Promise.all([
         fetch(`${API}/api/payments/unmatched`, { headers: getHeaders() }),
-        fetch(`${API}/api/settings`)
+        fetch(`${API}/api/settings`),
+        fetch(`${API}/api/reports/due-this-week`, { headers: getHeaders() })
       ]);
       const unmatchedData = await unmatchedRes.json();
       const settingsData = await settingsRes.json();
+      const dueData = await dueRes.json();
+
       setUnmatched(Array.isArray(unmatchedData) ? unmatchedData.length : 0);
       if (settingsData.company_name) setCompanyName(settingsData.company_name);
+
+      const todayStr = new Date().toISOString().split("T")[0];
+      const todayDue = Array.isArray(dueData)
+        ? dueData.filter((r: any) => new Date(r.due_date).toISOString().split("T")[0] === todayStr)
+        : [];
+      setDueToday(todayDue);
     } catch {}
   };
 
@@ -60,6 +70,8 @@ export default function DashboardPage() {
   const approvedLoans = loans.filter(l => l.status === "approved").length;
   const collectionRate = totalDisbursed > 0 ? Math.round((totalCollected / totalDisbursed) * 100) : 0;
   const isAdmin = ["admin", "cashier"].includes(userRole);
+
+  const dueTodayAmount = dueToday.reduce((s: number, r: any) => s + parseFloat(r.amount_due || 0), 0);
 
   // Overdue loans — active loans past due date
   const overdueLoans = loans.filter(l => l.status === "active" && l.due_date && new Date(l.due_date) < today);
@@ -86,8 +98,6 @@ export default function DashboardPage() {
             </button>
           )}
           {isAdmin && <button onClick={() => router.push("/reports")} className="text-gray-600 hover:text-blue-600">Reports</button>}
-{isAdmin && <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>}
-{isAdmin && <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">Overdue</button>}
           {userRole === "admin" && <button onClick={() => router.push("/users")} className="text-gray-600 hover:text-blue-600">Users</button>}
           {userRole === "admin" && <button onClick={() => router.push("/audit")} className="text-gray-600 hover:text-blue-600">Audit</button>}
           {userRole === "admin" && <button onClick={() => router.push("/settings")} className="text-gray-600 hover:text-blue-600">⚙️</button>}
@@ -116,6 +126,20 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Due Today Banner */}
+        {dueToday.length > 0 && (
+          <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6 cursor-pointer hover:bg-amber-100"
+            onClick={() => router.push("/par")}>
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-amber-800 font-bold text-lg">📅 {dueToday.length} Payment{dueToday.length > 1 ? "s" : ""} Due Today — KSh {dueTodayAmount.toLocaleString()} Expected</p>
+                <p className="text-amber-600 text-sm mt-1">Click to view details and follow up with customers</p>
+              </div>
+              <span className="text-amber-600 text-2xl">→</span>
+            </div>
+          </div>
+        )}
+
         {/* Overdue Alert Banner */}
         {overdueLoans.length > 0 && showOverdue && (
           <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-6">
@@ -125,7 +149,7 @@ export default function DashboardPage() {
                 <p className="text-red-600 text-sm mt-1">The following customers have missed payments and require immediate follow-up:</p>
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   {overdueLoans.map((loan: any) => {
-                    const daysOverdue = Math.floor((today.getTime() - new Date(loan.due_date).getTime()) / (1000 * 60 * 60 * 24));
+                    const daysOverdue = Math.floor((today.getTime() - new Date(loan.due_date).getTime()) / (1000 * 60 * 60* 24));
                     return (
                       <div key={loan.id} onClick={() => router.push("/loans/" + loan.id)}
                         className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-red-200 flex justify-between items-center">
@@ -174,7 +198,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => router.push("/par")}>
+            <p className="text-gray-500 text-sm">Due Today</p>
+            <p className="text-3xl font-bold text-amber-600">{dueToday.length}</p>
+            <p className="text-xs text-gray-400 mt-1">KSh {dueTodayAmount.toLocaleString()} expected</p>
+          </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Outstanding Balance</p>
             <p className="text-3xl font-bold text-red-600">KSh {totalOutstanding.toLocaleString()}</p>
