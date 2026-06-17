@@ -97,7 +97,7 @@ export default function CustomersPage() {
           <button onClick={() => router.push("/loans")}     className="text-gray-600 hover:text-blue-600">Loans</button>
           <button onClick={() => router.push("/payments")}  className="text-gray-600 hover:text-blue-600">Payments</button>
           <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600">Approvals</button>
-          <button onClick={() => { router.push("/par"); }
+          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">?? PAR</button>
           <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
           <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700">Logout</button>
         </div>
