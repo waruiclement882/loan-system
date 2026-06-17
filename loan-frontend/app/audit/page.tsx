@@ -107,7 +107,7 @@ export default function AuditPage() {
           <button onClick={() => router.push("/users")} className="text-gray-600 hover:text-blue-600 text-sm">Users</button>
           <button onClick={() => { router.push("/par"); }
           <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600 text-sm">Statement</button>
-          localStorage.clear(); router.push("/login"); }} className="text-red-500 text-sm">Logout</button>
+          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 text-sm">Logout</button>
         </div>
       </nav>
 

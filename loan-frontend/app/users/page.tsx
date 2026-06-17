@@ -116,7 +116,9 @@ export default function UsersPage() {
           <button onClick={() => router.push("/audit")} className="text-gray-600 hover:text-blue-600 text-sm">Audit</button>
           <button onClick={() => { router.push("/par"); }
           <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600 text-sm">Statement</button>
-          localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700 text-sm">Logout</button>
+          localStorage.clear(); router.push("/login"); }} classNa<button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600 text-sm">📅 PAR</button>
+          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600 text-sm">Statement</button>
+          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700 text-sm">Logout</button>me="text-red-500 hover:text-red-700 text-sm">Logout</button>
         </div>
       </nav>
 
