@@ -184,7 +184,9 @@ export default function ReportsPage() {
           {userRole === "admin" && <button onClick={() => router.push("/settings")} className="text-gray-600 hover:text-blue-600 text-sm">⚙️</button>}
           <div className="flex items-center gap-2 ml-2 pl-2 border-l">
             <span className="text-sm text-gray-500">{userName}</span>
-            <button onClick={logout} className="text-red-500 text-sm">Logout</button>
+            <button <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600 text-sm">📅 PAR</button>
+          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600 text-sm">Statement</button>
+          onClick={logout} className="text-red-500 text-sm">Logout</button>
           </div>
         </div>
       </nav>

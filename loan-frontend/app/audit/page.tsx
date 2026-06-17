@@ -105,7 +105,9 @@ export default function AuditPage() {
           <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</button>
           <button onClick={() => router.push("/settings")} className="text-gray-600 hover:text-blue-600 text-sm">Settings</button>
           <button onClick={() => router.push("/users")} className="text-gray-600 hover:text-blue-600 text-sm">Users</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 text-sm">Logout</button>
+          <button onClick={() => { <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600 text-sm">📅 PAR</button>
+          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600 text-sm">Statement</button>
+          localStorage.clear(); router.push("/login"); }} className="text-red-500 text-sm">Logout</button>
         </div>
       </nav>
 

@@ -111,7 +111,9 @@ export default function PARPage() {
               className="text-slate-500 hover:text-blue-600 capitalize transition-colors">{p}</button>
           ))}
           <button onClick={() => router.push("/collection")} className="text-slate-500 hover:text-blue-600">Collection</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-400 hover:text-red-600">Logout</button>
+          <button onClick={() => { <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">📅 PAR</button>
+          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
+          localStorage.clear(); router.push("/login"); }} className="text-red-400 hover:text-red-600">Logout</button>
         </div>
       </nav>
 

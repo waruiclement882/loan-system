@@ -37,6 +37,8 @@ export default function StatementPage() {
             <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600">Dashboard</button>
             <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
             <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600">Customers</button>
+          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">📅 PAR</button>
+          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
           </div>
         </nav>
         <div className="p-6 max-w-4xl mx-auto">
