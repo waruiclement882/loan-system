@@ -48,6 +48,7 @@ class SuspenseController {
       if (!customer_id || !amount || !use_case) {
         return res.status(400).json({ error: 'customer_id, amount and use_case are required' });
       }
+
       if (!['processing_fee', 'installment', 'refund'].includes(use_case)) {
         return res.status(400).json({ error: 'use_case must be processing_fee, installment, or refund' });
       }
@@ -55,15 +56,12 @@ class SuspenseController {
       const result = await suspenseService.applySuspense({
         customer_id, amount, use_case, loan_id, recorded_by, notes
       });
-      
 
-     
       res.json({ message: 'Suspense applied successfully', data: result });
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
   }
-
+}
 
 module.exports = new SuspenseController();
-
