@@ -11,9 +11,9 @@ export default function DashboardPage() {
   const [userRole, setUserRole] = useState("");
   const [userName, setUserName] = useState("");
   const [unmatched, setUnmatched] = useState(0);
-  const [companyName, setCompanyName] = useState("Microfinance System");
-  const [showOverdue, setShowOverdue] = useState(true);
+  const [companyName, setCompanyName] = useState("Blessed Ventures");
   const [dueToday, setDueToday] = useState<any[]>([]);
+  const [navOpen, setNavOpen] = useState(false);
 
   const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
@@ -45,23 +45,23 @@ export default function DashboardPage() {
       const unmatchedData = await unmatchedRes.json();
       const settingsData = await settingsRes.json();
       const dueData = await dueRes.json();
-
       setUnmatched(Array.isArray(unmatchedData) ? unmatchedData.length : 0);
       if (settingsData.company_name) setCompanyName(settingsData.company_name);
-
       const todayStr = new Date().toISOString().split("T")[0];
-      const todayDue = Array.isArray(dueData)
+      setDueToday(Array.isArray(dueData)
         ? dueData.filter((r: any) => new Date(r.due_date).toISOString().split("T")[0] === todayStr)
-        : [];
-      setDueToday(todayDue);
+        : []);
     } catch {}
   };
 
   const logout = () => { localStorage.clear(); router.push("/login"); };
 
   const today = new Date();
-  const totalDisbursed = loans.reduce((s, l) => s + parseFloat(l.amount || 0), 0);
-  const totalOutstanding = loans.reduce((s, l) => s + parseFloat(l.balance || 0), 0);
+  const greeting = today.getHours() < 12 ? "Good morning" : today.getHours() < 17 ? "Good afternoon" : "Good evening";
+  const dateStr = today.toLocaleDateString("en-KE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  const totalDisbursed = loans.filter(l => ["active","paid"].includes(l.status)).reduce((s, l) => s + parseFloat(l.amount || 0), 0);
+  const totalOutstanding = loans.filter(l => l.status === "active").reduce((s, l) => s + parseFloat(l.balance || 0), 0);
   const totalCollected = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
   const kcbCollected = payments.filter(p => p.source === "kcb_paybill").reduce((s, p) => s + parseFloat(p.amount || 0), 0);
   const paidLoans = loans.filter(l => l.status === "paid").length;
@@ -70,266 +70,280 @@ export default function DashboardPage() {
   const approvedLoans = loans.filter(l => l.status === "approved").length;
   const collectionRate = totalDisbursed > 0 ? Math.round((totalCollected / totalDisbursed) * 100) : 0;
   const isAdmin = ["admin", "cashier"].includes(userRole);
-
   const dueTodayAmount = dueToday.reduce((s: number, r: any) => s + parseFloat(r.amount_due || 0), 0);
-
-  // Overdue loans — active loans past due date
   const overdueLoans = loans.filter(l => l.status === "active" && l.due_date && new Date(l.due_date) < today);
   const overdueAmount = overdueLoans.reduce((s, l) => s + parseFloat(l.balance || 0), 0);
 
+  const navLinks = [
+    { label: "Customers", path: "/customers", show: true },
+    { label: "Loans", path: "/loans", show: true },
+    { label: "Payments", path: "/payments", show: true },
+    { label: "Approvals", path: "/approvals", show: isAdmin, badge: pendingLoans },
+    { label: "Match", path: "/matching", show: isAdmin, badge: unmatched },
+    { label: "PAR", path: "/par", show: isAdmin },
+    { label: "Suspense", path: "/suspense", show: isAdmin },
+    { label: "Float", path: "/float", show: isAdmin },
+    { label: "Statement", path: "/statement", show: true },
+    { label: "Reports", path: "/reports", show: isAdmin },
+    { label: "Users", path: "/users", show: userRole === "admin" },
+    { label: "Audit", path: "/audit", show: userRole === "admin" },
+    { label: "Settings", path: "/settings", show: userRole === "admin" },
+  ].filter(l => l.show);
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">{companyName}</h1>
-        <div className="flex gap-4 items-center flex-wrap">
-          <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600">Customers</button>
-          <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
-          <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600">Payments</button>
-          {isAdmin && (
-            <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600 relative">
-              Approvals
-              {pendingLoans > 0 && <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{pendingLoans}</span>}
-            </button>
-          )}
-          {isAdmin && (
-            <button onClick={() => router.push("/matching")} className="text-gray-600 hover:text-blue-600 relative">
-              💳 Match
-              {unmatched > 0 && <span className="absolute -top-1 -right-2 bg-orange-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{unmatched}</span>}
-            </button>
-          )}
-          {isAdmin && <button onClick={() => router.push("/reports")} className="text-gray-600 hover:text-blue-600">Reports</button>}
-          {isAdmin && <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">📅 PAR</button>}
-          {isAdmin && <button onClick={() => router.push("/suspense")} className="text-gray-600 hover:text-blue-600">Suspense</button>}
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
-          {isAdmin && <button onClick={() => router.push("/float")} className="text-gray-600 hover:text-blue-600">💰 Float</button>}
-          {userRole === "admin" && <button onClick={() => router.push("/users")} className="text-gray-600 hover:text-blue-600">Users</button>}
-          {userRole === "admin" && <button onClick={() => router.push("/audit")} className="text-gray-600 hover:text-blue-600">Audit</button>}
-          {userRole === "admin" && <button onClick={() => router.push("/settings")} className="text-gray-600 hover:text-blue-600">⚙️</button>}
-          <div className="flex items-center gap-2 ml-2 pl-2 border-l">
-            <span className="text-sm text-gray-500">{userName}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full ${userRole === "admin" ? "bg-red-100 text-red-700" : userRole === "cashier" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>{userRole}</span>
-            <button onClick={logout} className="text-red-500 hover:text-red-700 text-sm ml-1">Logout</button>
+    <div className="min-h-screen bg-[#F4F7F5]">
+
+      {/* Top Nav — dark green */}
+      <nav className="bg-[#04342C] text-white px-6 py-0 flex justify-between items-center sticky top-0 z-50 shadow-lg">
+        <div className="flex items-center gap-8">
+          <div className="py-4">
+            <span className="text-lg font-bold tracking-tight text-white">{companyName}</span>
+            <span className="ml-2 text-xs text-emerald-300 font-medium uppercase tracking-widest">Microfinance</span>
           </div>
+          <div className="hidden lg:flex gap-1">
+            {navLinks.slice(0, 8).map(link => (
+              <button key={link.path} onClick={() => router.push(link.path)}
+                className="relative px-3 py-5 text-sm text-emerald-100/70 hover:text-white hover:bg-white/10 transition-colors">
+                {link.label}
+                {link.badge ? (
+                  <span className="absolute top-3 right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                    {link.badge > 9 ? "9+" : link.badge}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+            {navLinks.length > 8 && (
+              <div className="relative">
+                <button onClick={() => setNavOpen(!navOpen)}
+                  className="px-3 py-5 text-sm text-emerald-100/70 hover:text-white hover:bg-white/10 transition-colors">
+                  More ▾
+                </button>
+                {navOpen && (
+                  <div className="absolute top-full left-0 bg-[#085041] rounded-xl shadow-2xl py-2 min-w-40 z-50 border border-emerald-800">
+                    {navLinks.slice(8).map(link => (
+                      <button key={link.path} onClick={() => { router.push(link.path); setNavOpen(false); }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-emerald-100/70 hover:text-white hover:bg-white/10 transition-colors">
+                        {link.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right hidden sm:block">
+            <p className="text-xs text-emerald-200/70">{userName}</p>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              userRole === "admin" ? "bg-red-500/20 text-red-200" :
+              userRole === "cashier" ? "bg-purple-500/20 text-purple-200" :
+              "bg-emerald-500/20 text-emerald-200"
+            }`}>{userRole}</span>
+          </div>
+          <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold">
+            {userName?.charAt(0)?.toUpperCase() || "U"}
+          </div>
+          <button onClick={logout}
+            className="text-xs text-emerald-200/70 hover:text-red-300 transition-colors border border-emerald-800 px-3 py-1.5 rounded-lg">
+            Logout
+          </button>
         </div>
       </nav>
 
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Dashboard</h2>
-          <div className="flex gap-3">
-            {pendingLoans > 0 && isAdmin && (
-              <button onClick={() => router.push("/approvals")} className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 text-sm font-medium">
-                ⚠ {pendingLoans} Pending
-              </button>
-            )}
-            {unmatched > 0 && isAdmin && (
-              <button onClick={() => router.push("/matching")} className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 text-sm font-medium">
-                💳 {unmatched} Unmatched
-              </button>
-            )}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+
+        {/* Greeting */}
+        <p className="text-[#0F6E56] text-sm font-medium">{dateStr}</p>
+        <h1 className="text-2xl font-bold mt-1 text-[#04342C]">{greeting}, {userName?.split(" ")[0] || "there"}</h1>
+
+        {/* Hero Card — dark green, 4 stats */}
+        <div className="bg-[#04342C] rounded-2xl px-6 py-5 mt-4">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <p className="text-emerald-300 text-xs font-medium uppercase tracking-wide">Total portfolio</p>
+              <p className="text-3xl font-bold text-white mt-1">KES {totalDisbursed.toLocaleString()}</p>
+              <p className="text-emerald-200/70 text-xs mt-1">{loans.length} loans total</p>
+            </div>
+            <div className="flex gap-2">
+              {pendingLoans > 0 && isAdmin && (
+                <button onClick={() => router.push("/approvals")}
+                  className="bg-amber-500 hover:bg-amber-400 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+                  {pendingLoans} pending
+                </button>
+              )}
+              {unmatched > 0 && isAdmin && (
+                <button onClick={() => router.push("/matching")}
+                  className="bg-orange-500 hover:bg-orange-400 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors">
+                  {unmatched} unmatched
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4 border-t border-emerald-800 pt-4">
+            <div>
+              <p className="text-emerald-300 text-xs">Outstanding</p>
+              <p className="text-base font-bold text-white mt-0.5">KES {totalOutstanding.toLocaleString()}</p>
+              <p className="text-emerald-200/60 text-xs mt-0.5">{activeLoans} active loans</p>
+            </div>
+            <div>
+              <p className="text-emerald-300 text-xs">Total collected</p>
+              <p className="text-base font-bold text-white mt-0.5">KES {totalCollected.toLocaleString()}</p>
+              <p className="text-emerald-200/60 text-xs mt-0.5">{collectionRate}% collection rate</p>
+            </div>
+            <div>
+              <p className="text-emerald-300 text-xs">Customers</p>
+              <p className="text-base font-bold text-white mt-0.5">{customers.length}</p>
+              <p className="text-emerald-200/60 text-xs mt-0.5">{paidLoans} loans fully paid</p>
+            </div>
           </div>
         </div>
 
-        {/* Due Today Banner */}
-        {dueToday.length > 0 && (
-          <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6 cursor-pointer hover:bg-amber-100"
-            onClick={() => router.push("/par")}>
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-amber-800 font-bold text-lg">📅 {dueToday.length} Payment{dueToday.length > 1 ? "s" : ""} Due Today — KSh {dueTodayAmount.toLocaleString()} Expected</p>
-                <p className="text-amber-600 text-sm mt-1">Click to view details and follow up with customers</p>
-              </div>
-              <span className="text-amber-600 text-2xl">→</span>
-            </div>
-          </div>
-        )}
-
-        {/* Overdue Alert Banner */}
-        {overdueLoans.length > 0 && showOverdue && (
-          <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-red-700 font-bold text-lg">🚨 {overdueLoans.length} Overdue Loan{overdueLoans.length > 1 ? "s" : ""} — KSh {overdueAmount.toLocaleString()} Outstanding</p>
-                <p className="text-red-600 text-sm mt-1">The following customers have missed payments and require immediate follow-up:</p>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {overdueLoans.map((loan: any) => {
-                    const daysOverdue = Math.floor((today.getTime() - new Date(loan.due_date).getTime()) / (1000 * 60 * 60* 24));
-                    return (
-                      <div key={loan.id} onClick={() => router.push("/loans/" + loan.id)}
-                        className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-red-200 flex justify-between items-center">
-                        <div>
-                          <p className="font-medium text-red-800 text-sm">{loan.customer_name}</p>
-                          <p className="text-red-600 text-xs">Balance: KSh {parseFloat(loan.balance).toLocaleString()}</p>
-                        </div>
-                        <span className="bg-red-600 text-white text-xs px-2 py-1 rounded-full">{daysOverdue}d overdue</span>
-                      </div>
-                    );
-                  })}
+        {/* Quick Actions — icon row */}
+        <div className="bg-white border border-[#D9E2DC] rounded-2xl p-4 mt-4">
+          <div className="grid grid-cols-4 gap-2 text-center">
+            {[
+              { label: "New loan", icon: "📋", path: "/loans" },
+              { label: "New customer", icon: "👤", path: "/customers" },
+              { label: "Match payments", icon: "💳", path: "/matching", show: isAdmin },
+              { label: "Statement", icon: "📄", path: "/statement" },
+            ].filter(a => a.show !== false).map(a => (
+              <button key={a.label} onClick={() => router.push(a.path)} className="flex flex-col items-center gap-1.5">
+                <div className="w-10 h-10 rounded-full bg-[#EAF3DE] flex items-center justify-center text-base">
+                  {a.icon}
                 </div>
-              </div>
-              <button onClick={() => setShowOverdue(false)} className="text-red-400 hover:text-red-600 text-xl ml-4">✕</button>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button onClick={() => router.push("/reports")} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm font-medium">
-                View Full Report
+                <span className="text-xs text-[#444441] leading-tight">{a.label}</span>
               </button>
-              <button onClick={() => router.push("/loans")} className="bg-white text-red-600 border border-red-300 px-4 py-2 rounded-lg hover:bg-red-50 text-sm font-medium">
-                View All Loans
-              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Due Today / Overdue */}
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          <div onClick={() => router.push("/par")}
+            className="bg-amber-50 border border-amber-200 rounded-2xl p-4 cursor-pointer hover:shadow-sm transition-shadow">
+            <p className="text-amber-700 text-xs font-medium">Due today</p>
+            <p className="text-2xl font-bold text-amber-700 mt-1">{dueToday.length}</p>
+            <p className="text-amber-600 text-xs mt-0.5">KES {dueTodayAmount.toLocaleString()}</p>
+          </div>
+          <div onClick={() => router.push("/par")}
+            className={`rounded-2xl p-4 cursor-pointer hover:shadow-sm transition-shadow ${overdueLoans.length > 0 ? "bg-red-50 border border-red-200" : "bg-[#EAF3DE] border border-[#C0DD97]"}`}>
+            <p className={`text-xs font-medium ${overdueLoans.length > 0 ? "text-red-700" : "text-[#3B6D11]"}`}>Overdue</p>
+            <p className={`text-2xl font-bold mt-1 ${overdueLoans.length > 0 ? "text-red-700" : "text-[#3B6D11]"}`}>{overdueLoans.length}</p>
+            <p className={`text-xs mt-0.5 ${overdueLoans.length > 0 ? "text-red-600" : "text-[#3B6D11]"}`}>KES {overdueAmount.toLocaleString()}</p>
+          </div>
+        </div>
+
+        {overdueLoans.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mt-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {overdueLoans.slice(0, 6).map((loan: any) => {
+                const daysOverdue = Math.floor((today.getTime() - new Date(loan.due_date).getTime()) / (1000 * 60 * 60 * 24));
+                return (
+                  <div key={loan.id} onClick={() => router.push("/loans/" + loan.id)}
+                    className="bg-white border border-red-200 rounded-xl px-3 py-2 cursor-pointer hover:shadow-sm flex justify-between items-center transition-shadow">
+                    <div>
+                      <p className="font-medium text-red-800 text-sm">{loan.customer_name}</p>
+                      <p className="text-red-500 text-xs">KES {parseFloat(loan.balance).toLocaleString()}</p>
+                    </div>
+                    <span className="bg-red-100 text-red-600 text-xs px-2 py-0.5 rounded-full font-medium">{daysOverdue}d</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Total Customers</p>
-            <p className="text-3xl font-bold text-blue-600">{customers.length}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Total Loans</p>
-            <p className="text-3xl font-bold text-green-600">{loans.length}</p>
-            <p className="text-xs text-gray-400 mt-1">{activeLoans} active · {paidLoans} paid · {pendingLoans} pending · {approvedLoans} approved</p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Amount Disbursed</p>
-            <p className="text-3xl font-bold text-purple-600">KSh {totalDisbursed.toLocaleString()}</p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Total Collected</p>
-            <p className="text-3xl font-bold text-orange-600">KSh {totalCollected.toLocaleString()}</p>
-            <p className="text-xs text-gray-400 mt-1">{collectionRate}% collection rate</p>
-          </div>
-        </div>
+        {/* Tables Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
 
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => router.push("/par")}>
-            <p className="text-gray-500 text-sm">Due Today</p>
-            <p className="text-3xl font-bold text-amber-600">{dueToday.length}</p>
-            <p className="text-xs text-gray-400 mt-1">KSh {dueTodayAmount.toLocaleString()} expected</p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Outstanding Balance</p>
-            <p className="text-3xl font-bold text-red-600">KSh {totalOutstanding.toLocaleString()}</p>
-            <p className="text-xs text-gray-400 mt-1">Across all active loans</p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">KCB Paybill Collections</p>
-            <p className="text-3xl font-bold text-indigo-600">KSh {kcbCollected.toLocaleString()}</p>
-            <p className="text-xs text-gray-400 mt-1">{payments.filter(p => p.source === "kcb_paybill").length} transactions</p>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-gray-500 text-sm">Overdue Loans</p>
-            <p className="text-3xl font-bold text-red-600">{overdueLoans.length}</p>
-            <p className="text-xs text-gray-400 mt-1">KSh {overdueAmount.toLocaleString()} outstanding</p>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <button onClick={() => router.push("/loans")} className="bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700 text-left">
-            <p className="text-lg font-bold">+ New Loan</p>
-            <p className="text-sm opacity-80">Apply for a loan</p>
-          </button>
-          <button onClick={() => router.push("/customers")} className="bg-green-600 text-white p-4 rounded-lg hover:bg-green-700 text-left">
-            <p className="text-lg font-bold">+ New Customer</p>
-            <p className="text-sm opacity-80">Register customer</p>
-          </button>
-          {isAdmin && (
-            <button onClick={() => router.push("/matching")} className="bg-orange-500 text-white p-4 rounded-lg hover:bg-orange-600 text-left">
-              <p className="text-lg font-bold">💳 Match Payments</p>
-              <p className="text-sm opacity-80">{unmatched} unmatched</p>
-            </button>
-          )}
-          {isAdmin && (
-            <button onClick={() => router.push("/reports")} className="bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700 text-left">
-              <p className="text-lg font-bold">📊 Reports</p>
-              <p className="text-sm opacity-80">Analytics & exports</p>
-            </button>
-          )}
-        </div>
-
-        {/* Recent Loans */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-lg">Recent Loans</h3>
-            <button onClick={() => router.push("/loans")} className="text-blue-600 text-sm hover:underline">View all</button>
-          </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="pb-2">Customer</th>
-                <th className="pb-2">Amount</th>
-                <th className="pb-2">Balance</th>
-                <th className="pb-2">Progress</th>
-                <th className="pb-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loans.slice(0, 5).map((loan: any) => {
+          {/* Recent Loans */}
+          <div className="bg-white rounded-2xl border border-[#D9E2DC] overflow-hidden">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-[#EDF1EE]">
+              <h3 className="font-semibold text-[#04342C]">Recent loans</h3>
+              <button onClick={() => router.push("/loans")}
+                className="text-xs text-[#0F6E56] hover:text-[#085041] font-medium border border-[#9FE1CB] px-3 py-1 rounded-lg">
+                View all
+              </button>
+            </div>
+            <div className="divide-y divide-[#F4F7F5]">
+              {loans.slice(0, 6).map((loan: any) => {
                 const balance = parseFloat(loan.balance || 0);
                 const total = parseFloat(loan.total_amount || 0);
                 const progress = total > 0 ? Math.max(0, 100 - (balance / total) * 100) : 0;
                 const isOverdue = loan.status === "active" && loan.due_date && new Date(loan.due_date) < today;
                 return (
-                  <tr key={loan.id} className={`border-b hover:bg-gray-50 cursor-pointer ${isOverdue ? "bg-red-50" : ""}`} onClick={() => router.push("/loans/" + loan.id)}>
-                    <td className="py-2 font-medium">
-                      {loan.customer_name}
-                      {isOverdue && <span className="ml-2 text-xs bg-red-100 text-red-600 px-1 rounded">Overdue</span>}
-                    </td>
-                    <td className="py-2">KSh {parseFloat(loan.amount).toLocaleString()}</td>
-                    <td className="py-2 text-red-600">KSh {balance.toLocaleString()}</td>
-                    <td className="py-2 w-32">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className={`h-2 rounded-full ${isOverdue ? "bg-red-500" : "bg-green-500"}`} style={{ width: progress + "%" }} />
+                  <div key={loan.id} onClick={() => router.push("/loans/" + loan.id)}
+                    className="flex items-center justify-between px-5 py-3 hover:bg-[#F4F7F5] cursor-pointer transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${
+                        isOverdue ? "bg-red-100 text-red-600" :
+                        loan.status === "paid" ? "bg-[#EAF3DE] text-[#3B6D11]" :
+                        loan.status === "active" ? "bg-[#E1F5EE] text-[#0F6E56]" :
+                        "bg-amber-100 text-amber-600"
+                      }`}>
+                        {loan.customer_name?.charAt(0)?.toUpperCase()}
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">{Math.round(progress)}% paid</p>
-                    </td>
-                    <td className="py-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${loan.status === "paid" ? "bg-green-100 text-green-700" : loan.status === "active" ? "bg-blue-100 text-blue-700" : loan.status === "approved" ? "bg-indigo-100 text-indigo-700" : loan.status === "rejected" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
-                        {loan.status}
-                      </span>
-                    </td>
-                  </tr>
+                      <div>
+                        <p className="text-sm font-medium text-[#04342C]">{loan.customer_name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <div className="w-20 bg-[#EDF1EE] rounded-full h-1.5">
+                            <div className={`h-1.5 rounded-full ${isOverdue ? "bg-red-500" : "bg-[#1D9E75]"}`}
+                              style={{ width: `${progress}%` }} />
+                          </div>
+                          <span className="text-xs text-[#888780]">{Math.round(progress)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-[#444441]">KES {parseFloat(loan.amount).toLocaleString()}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        loan.status === "paid" ? "bg-[#EAF3DE] text-[#3B6D11]" :
+                        loan.status === "active" ? "bg-[#E1F5EE] text-[#0F6E56]" :
+                        loan.status === "approved" ? "bg-indigo-100 text-indigo-700" :
+                        isOverdue ? "bg-red-100 text-red-700" :
+                        "bg-amber-100 text-amber-700"
+                      }`}>{isOverdue ? "overdue" : loan.status}</span>
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Recent Payments */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-lg">Recent Payments</h3>
-            <button onClick={() => router.push("/payments")} className="text-blue-600 text-sm hover:underline">View all</button>
+            </div>
           </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b">
-                <th className="pb-2">Loan ID</th>
-                <th className="pb-2">Amount</th>
-                <th className="pb-2">Transaction Code</th>
-                <th className="pb-2">Source</th>
-                <th className="pb-2">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.slice(0, 5).map((p: any) => (
-                <tr key={p.id} className="border-b hover:bg-gray-50">
-                  <td className="py-2">#{p.loan_id}</td>
-                  <td className="py-2 text-green-600 font-medium">KSh {parseFloat(p.amount).toLocaleString()}</td>
-                  <td className="py-2 font-mono text-xs">{p.transaction_code || p.kcb_transaction_id || "-"}</td>
-                  <td className="py-2">
-                    <span className={`px-2 py-1 rounded-full text-xs ${p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" : p.source === "cash" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}>
-                      {p.source === "kcb_paybill" ? "KCB Paybill" : p.source}
-                    </span>
-                  </td>
-                  <td className="py-2">{new Date(p.payment_date).toLocaleDateString()}</td>
-                </tr>
+
+          {/* Recent Payments */}
+          <div className="bg-white rounded-2xl border border-[#D9E2DC] overflow-hidden">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-[#EDF1EE]">
+              <h3 className="font-semibold text-[#04342C]">Recent payments</h3>
+              <button onClick={() => router.push("/payments")}
+                className="text-xs text-[#0F6E56] hover:text-[#085041] font-medium border border-[#9FE1CB] px-3 py-1 rounded-lg">
+                View all
+              </button>
+            </div>
+            <div className="divide-y divide-[#F4F7F5]">
+              {payments.slice(0, 6).map((p: any) => (
+                <div key={p.id} className="flex items-center justify-between px-5 py-3 hover:bg-[#F4F7F5] transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm ${
+                      p.source === "kcb_paybill" ? "bg-purple-100 text-purple-600" :
+                      p.source === "suspense" ? "bg-[#E6F1FB] text-[#185FA5]" :
+                      "bg-amber-100 text-amber-600"
+                    }`}>
+                      {p.source === "kcb_paybill" ? "🏦" : p.source === "suspense" ? "💼" : "💵"}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-[#04342C]">Loan #{p.loan_id}</p>
+                      <p className="text-xs text-[#888780] font-mono">{p.transaction_code?.slice(0, 12) || "—"}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-[#1D9E75]">KES {parseFloat(p.amount).toLocaleString()}</p>
+                    <p className="text-xs text-[#888780]">{new Date(p.payment_date).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}</p>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
