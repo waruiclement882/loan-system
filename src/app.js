@@ -15,6 +15,7 @@ const auditRoutes = require('./routes/audit');
 const usersRoutes = require('./routes/users');
 const reportsRoutes = require('./routes/reports');
 const kycRoutes = require('./routes/kyc');
+const suspenseRoutes = require('./routes/suspense');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -84,6 +85,7 @@ app.use('/api/audit', auditRoutes);
 app.use('/api', usersRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/kyc', kycRoutes);
+app.use('/api/suspense', suspenseRoutes);
 
 // ── 9. Global error handler ───────────────────────────────────────────────────
 app.use((err, req, res, next) => {
