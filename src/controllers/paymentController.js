@@ -2,6 +2,7 @@ const paymentService = require('../services/paymentService');
 const pool = require('../db/pool');
 const scheduleService = require('../services/scheduleService');
 const loanRepository = require('../repositories/loanRepository');
+const suspenseService = require('../services/suspenseService');
 
 class PaymentController {
   async getAllPayments(req, res) {
@@ -93,21 +94,43 @@ class PaymentController {
            VALUES ($1, $2, 'processing_fee', $3, $4, 'Processing fee via KCB Paybill')`,
           [loan_id, tx.amount, tx.transaction_reference, recorded_by]
         );
-      } else {
-        const currentBalance = parseFloat(loan.balance) || 0;
-        const newBalance = Math.max(0, currentBalance - parseFloat(tx.amount));
-        await client.query(
-          'UPDATE loans SET balance = $1 WHERE id = $2',
-          [newBalance, loan_id]
-        );
-        await scheduleService.applyPaymentToSchedule(loan_id, parseFloat(tx.amount));
-      }
 
-      await client.query(
-        `INSERT INTO payments (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, payment_date)
-         VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, NOW())`,
-        [loan_id, tx.amount, tx.transaction_reference, tx.transaction_reference, tx.customer_phone]
-      );
+        // Insert payment record for processing fee
+        await client.query(
+          `INSERT INTO payments (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, payment_date)
+           VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, NOW())`,
+          [loan_id, tx.amount, tx.transaction_reference, tx.transaction_reference, tx.customer_phone]
+        );
+      } else {
+        // Regular repayment
+        const currentBalance = parseFloat(loan.balance) || 0;
+        const paymentAmount = parseFloat(tx.amount);
+
+        // Insert payment record first so we have an ID
+        const payRes = await client.query(
+          `INSERT INTO payments (loan_id, amount, transaction_code, source, kcb_transaction_id, phone_number, payment_date)
+           VALUES ($1, $2, $3, 'kcb_paybill', $4, $5, NOW()) RETURNING id`,
+          [loan_id, tx.amount, tx.transaction_reference, tx.transaction_reference, tx.customer_phone]
+        );
+
+        if (paymentAmount > currentBalance) {
+          // Overpayment — flag it for admin review
+          await suspenseService.flagOverpaymentIfAny(client, {
+            loan_id,
+            customer_id: loan.customer_id,
+            payment_id: payRes.rows[0].id,
+            payment_amount: paymentAmount,
+            loan_balance_before: currentBalance
+          });
+          await client.query('UPDATE loans SET balance = 0 WHERE id = $1', [loan_id]);
+          await scheduleService.applyPaymentToSchedule(loan_id, currentBalance);
+          console.log(`[Overpayment] Flagged KSh ${paymentAmount - currentBalance} excess on loan #${loan_id}`);
+        } else {
+          const newBalance = Math.max(0, currentBalance - paymentAmount);
+          await client.query('UPDATE loans SET balance = $1 WHERE id = $2', [newBalance, loan_id]);
+          await scheduleService.applyPaymentToSchedule(loan_id, paymentAmount);
+        }
+      }
 
       await client.query(
         `UPDATE bank_transactions SET status = 'processed', loan_id = $1, processed_at = NOW() WHERE id = $2`,
@@ -128,7 +151,7 @@ class PaymentController {
 
       await client.query('COMMIT');
 
-      // ── Step 8: Check if loan is now fully paid ───────────────────────────
+      // Check if loan is now fully paid
       const updatedLoan = await pool.query('SELECT balance FROM loans WHERE id = $1', [loan_id]);
       if (parseFloat(updatedLoan.rows[0]?.balance) === 0) {
         await loanRepository.closeLoan(loan_id);
@@ -180,23 +203,42 @@ class PaymentController {
            VALUES ($1, $2, 'processing_fee', $3, $4, $5)`,
           [loan_id, amount, txCode, recorded_by, notes || 'Manual processing fee']
         );
+        // Insert payment record
+        await client.query(
+          `INSERT INTO payments (loan_id, amount, transaction_code, source, notes, payment_date)
+           VALUES ($1, $2, $3, $4, $5, NOW())`,
+          [loan_id, amount, txCode, source || 'cash', notes || null]
+        );
       } else {
         // Regular repayment
         const currentBalance = parseFloat(loan.balance) || 0;
-        const newBalance = Math.max(0, currentBalance - parseFloat(amount));
-        await client.query(
-          'UPDATE loans SET balance = $1 WHERE id = $2',
-          [newBalance, loan_id]
-        );
-        await scheduleService.applyPaymentToSchedule(loan_id, parseFloat(amount));
-      }
+        const paymentAmount = parseFloat(amount);
 
-      // Record payment
-      await client.query(
-        `INSERT INTO payments (loan_id, amount, transaction_code, source, notes, payment_date)
-         VALUES ($1, $2, $3, $4, $5, NOW())`,
-        [loan_id, amount, txCode, source || 'cash', notes || null]
-      );
+        // Insert payment record first so we have an ID
+        const payRes = await client.query(
+          `INSERT INTO payments (loan_id, amount, transaction_code, source, notes, payment_date)
+           VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id`,
+          [loan_id, amount, txCode, source || 'cash', notes || null]
+        );
+
+        if (paymentAmount > currentBalance) {
+          // Overpayment — flag for admin review
+          await suspenseService.flagOverpaymentIfAny(client, {
+            loan_id,
+            customer_id: loan.customer_id,
+            payment_id: payRes.rows[0].id,
+            payment_amount: paymentAmount,
+            loan_balance_before: currentBalance
+          });
+          await client.query('UPDATE loans SET balance = 0 WHERE id = $1', [loan_id]);
+          await scheduleService.applyPaymentToSchedule(loan_id, currentBalance);
+          console.log(`[Overpayment] Flagged KSh ${paymentAmount - currentBalance} excess on loan #${loan_id}`);
+        } else {
+          const newBalance = Math.max(0, currentBalance - paymentAmount);
+          await client.query('UPDATE loans SET balance = $1 WHERE id = $2', [newBalance, loan_id]);
+          await scheduleService.applyPaymentToSchedule(loan_id, paymentAmount);
+        }
+      }
 
       // Audit log
       await pool.query(
@@ -212,7 +254,7 @@ class PaymentController {
 
       await client.query('COMMIT');
 
-      // ── Step 8: Check if loan is now fully paid ───────────────────────────
+      // Check if loan is now fully paid
       const updatedLoan = await pool.query('SELECT balance FROM loans WHERE id = $1', [loan_id]);
       if (parseFloat(updatedLoan.rows[0]?.balance) === 0) {
         await loanRepository.closeLoan(loan_id);
