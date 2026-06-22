@@ -66,3 +66,4 @@ class SuspenseController {
 
 
 module.exports = new SuspenseController();
+
