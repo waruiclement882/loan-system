@@ -99,7 +99,8 @@ export default function DashboardPage() {
           )}
           {isAdmin && <button onClick={() => router.push("/reports")} className="text-gray-600 hover:text-blue-600">Reports</button>}
           {isAdmin && <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">📅 PAR</button>}
-<button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
+          {isAdmin && <button onClick={() => router.push("/suspense")} className="text-gray-600 hover:text-blue-600">Suspense</button>}
+          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
           {userRole === "admin" && <button onClick={() => router.push("/users")} className="text-gray-600 hover:text-blue-600">Users</button>}
           {userRole === "admin" && <button onClick={() => router.push("/audit")} className="text-gray-600 hover:text-blue-600">Audit</button>}
           {userRole === "admin" && <button onClick={() => router.push("/settings")} className="text-gray-600 hover:text-blue-600">⚙️</button>}
