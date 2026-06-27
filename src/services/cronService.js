@@ -241,6 +241,17 @@ const sendWeeklySummary = async () => {
 };
 
 const startCronJobs = () => {
+  // Ping self every 14 minutes to prevent sleep
+cron.schedule('*/14 * * * *', async () => {
+  try {
+    const https = require('https');
+    https.get('https://loan-system-h794.onrender.com/ping', () => {
+      console.log('[Keepalive] Pinged self');
+    });
+  } catch (err) {
+    console.error('[Keepalive] Failed:', err.message);
+  }
+});
   // Daily summary at 8PM every day
   cron.schedule('0 20 * * *', async () => {
     console.log('[Cron] Sending daily summary...');
