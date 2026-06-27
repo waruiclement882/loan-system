@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Layout from "../components/Layout";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
@@ -89,26 +90,12 @@ export default function SuspensePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4 items-center">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</button>
-          <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600 text-sm">Loans</button>
-          <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600 text-sm">Payments</button>
-          <button onClick={() => router.push("/matching")} className="text-gray-600 hover:text-blue-600 text-sm">Match</button>
-          <button onClick={() => router.push("/reports")} className="text-gray-600 hover:text-blue-600 text-sm">Reports</button>
-          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600 text-sm">📅 PAR</button>
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600 text-sm">Statement</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 text-sm">Logout</button>
-        </div>
-      </nav>
-
+    <Layout>
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">💼 Suspense Account</h2>
+        <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
+          <h2 className="text-2xl font-bold text-[#04342C]">💼 Suspense Account</h2>
           <div className="flex gap-2">
-            <button onClick={loadData} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">🔄 Refresh</button>
+            <button onClick={loadData} className="bg-[#0F6E56] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#085041]">🔄 Refresh</button>
             {balances.length > 0 && (
               <button onClick={() => setShowApplyForm(true)} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">
                 + Apply Suspense
@@ -117,8 +104,7 @@ export default function SuspensePage() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Pending Overpayments</p>
             <p className="text-3xl font-bold text-orange-600">{pending.length}</p>
@@ -126,7 +112,7 @@ export default function SuspensePage() {
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Customers with Balance</p>
-            <p className="text-3xl font-bold text-blue-600">{balances.length}</p>
+            <p className="text-3xl font-bold text-[#0F6E56]">{balances.length}</p>
             <p className="text-xs text-gray-400 mt-1">Have suspense funds</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
@@ -138,12 +124,11 @@ export default function SuspensePage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-4 border-b">
+        <div className="flex gap-2 mb-4 border-b overflow-x-auto">
           {tabs.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.key ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === tab.key ? "border-[#0F6E56] text-[#0F6E56]" : "border-transparent text-gray-500 hover:text-gray-700"
               }`}>
               {tab.label}
               {tab.count > 0 && (
@@ -157,7 +142,6 @@ export default function SuspensePage() {
           <div className="text-center py-12 text-gray-400">Loading...</div>
         ) : (
           <>
-            {/* Pending Overpayments Tab */}
             {activeTab === "pending" && (
               <div className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="px-6 py-4 border-b">
@@ -170,6 +154,7 @@ export default function SuspensePage() {
                     <p className="text-gray-500">No pending overpayments</p>
                   </div>
                 ) : (
+                  <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b">
                       <tr className="text-left text-gray-500">
@@ -186,7 +171,7 @@ export default function SuspensePage() {
                       {pending.map((op: any) => (
                         <tr key={op.id} className="border-b hover:bg-orange-50">
                           <td className="px-6 py-3 font-medium">{op.customer_name}</td>
-                          <td className="px-6 py-3 text-blue-600">#{op.loan_id}</td>
+                          <td className="px-6 py-3 text-[#0F6E56]">#{op.loan_id}</td>
                           <td className="px-6 py-3">KSh {parseFloat(op.payment_amount).toLocaleString()}</td>
                           <td className="px-6 py-3">KSh {parseFloat(op.loan_balance_before).toLocaleString()}</td>
                           <td className="px-6 py-3 font-bold text-orange-600">KSh {parseFloat(op.excess_amount).toLocaleString()}</td>
@@ -201,11 +186,11 @@ export default function SuspensePage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
             )}
 
-            {/* Suspense Balances Tab */}
             {activeTab === "balances" && (
               <div className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="px-6 py-4 border-b">
@@ -218,6 +203,7 @@ export default function SuspensePage() {
                     <p className="text-gray-500">No suspense balances</p>
                   </div>
                 ) : (
+                  <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b">
                       <tr className="text-left text-gray-500">
@@ -237,7 +223,7 @@ export default function SuspensePage() {
                             <button onClick={() => {
                               setApplyForm({ ...applyForm, customer_id: b.id, amount: b.suspense_balance });
                               setShowApplyForm(true);
-                            }} className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+                            }} className="bg-[#0F6E56] text-white px-3 py-1 rounded text-xs hover:bg-[#085041]">
                               Apply
                             </button>
                             <button onClick={() => loadHistory(b.id, b.name)}
@@ -249,15 +235,15 @@ export default function SuspensePage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
             )}
           </>
         )}
 
-        {/* Apply Suspense Modal */}
         {showApplyForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
               <h3 className="font-bold text-lg mb-4">Apply Suspense Balance</h3>
               <div className="space-y-3">
@@ -307,9 +293,8 @@ export default function SuspensePage() {
           </div>
         )}
 
-        {/* History Modal */}
         {showHistory && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-lg">Suspense History — {selectedCustomer}</h3>
@@ -318,6 +303,7 @@ export default function SuspensePage() {
               {history.length === 0 ? (
                 <p className="text-gray-400 text-center py-8">No transactions found</p>
               ) : (
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr className="text-left text-gray-500">
@@ -346,11 +332,12 @@ export default function SuspensePage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 }

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCustomers, getLoans, getPayments } from "@/lib/api";
+import Layout from "../components/Layout";
 
 export default function ReportsPage() {
   const router = useRouter();
@@ -10,8 +11,6 @@ export default function ReportsPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [income, setIncome] = useState<any>({ income: [], total: 0 });
   const [userRole, setUserRole] = useState("");
-  const [userName, setUserName] = useState("");
-  const [unmatched, setUnmatched] = useState(0);
   const [showPar, setShowPar] = useState(false);
   const [showCollection, setShowCollection] = useState(false);
   const [showIncome, setShowIncome] = useState(false);
@@ -31,7 +30,6 @@ export default function ReportsPage() {
     if (!token) { router.push("/login"); return; }
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     setUserRole(user.role || "");
-    setUserName(user.name || user.full_name || "");
     loadData();
   }, []);
 
@@ -41,20 +39,12 @@ export default function ReportsPage() {
     setLoans(Array.isArray(l) ? l : []);
     setPayments(Array.isArray(p) ? p : []);
     try {
-      const [unmatchedRes, incomeRes] = await Promise.all([
-        fetch(`${API}/api/payments/unmatched`, { headers: getHeaders() }),
-        fetch(`${API}/api/reports/income`, { headers: getHeaders() })
-      ]);
-      const unmatchedData = await unmatchedRes.json();
+      const incomeRes = await fetch(`${API}/api/reports/income`, { headers: getHeaders() });
       const incomeData = await incomeRes.json();
-      setUnmatched(Array.isArray(unmatchedData) ? unmatchedData.length : 0);
       setIncome(incomeData || { income: [], total: 0 });
     } catch {}
   };
 
-  const logout = () => { localStorage.clear(); router.push("/login"); };
-  const isAdmin = ["admin", "cashier"].includes(userRole);
-  const pendingLoans = loans.filter(l => l.status === "pending").length;
   const today = new Date();
 
   const totalDisbursed = loans.filter(l => ["active","paid"].includes(l.status)).reduce((s, l) => s + parseFloat(l.amount || 0), 0);
@@ -67,7 +57,6 @@ export default function ReportsPage() {
   const totalIncome = parseFloat(income.total || 0);
   const processingFeeCount = (income.income || []).length;
 
-  // Monthly breakdown
   const getMonthKey = (date: string) => {
     const d = new Date(date);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -79,21 +68,18 @@ export default function ReportsPage() {
 
   const monthlyData = (() => {
     const months: Record<string, any> = {};
-    // Disbursements
     loans.filter(l => l.disbursed_at).forEach(l => {
       const key = getMonthKey(l.disbursed_at);
       if (!months[key]) months[key] = { disbursed: 0, disbursedCount: 0, collected: 0, collectedCount: 0, income: 0 };
       months[key].disbursed += parseFloat(l.amount || 0);
       months[key].disbursedCount += 1;
     });
-    // Collections
     payments.forEach(p => {
       const key = getMonthKey(p.payment_date);
       if (!months[key]) months[key] = { disbursed: 0, disbursedCount: 0, collected: 0, collectedCount: 0, income: 0 };
       months[key].collected += parseFloat(p.amount || 0);
       months[key].collectedCount += 1;
     });
-    // Income
     (income.income || []).forEach((i: any) => {
       const key = getMonthKey(i.created_at);
       if (!months[key]) months[key] = { disbursed: 0, disbursedCount: 0, collected: 0, collectedCount: 0, income: 0 };
@@ -165,36 +151,10 @@ export default function ReportsPage() {
   ], "par-report.csv");
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-3 items-center flex-wrap">
-          <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600 text-sm">Customers</button>
-          <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600 text-sm">Loans</button>
-          <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600 text-sm">Payments</button>
-          {isAdmin && <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600 text-sm relative">
-            Approvals
-            {pendingLoans > 0 && <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{pendingLoans}</span>}
-          </button>}
-          {isAdmin && <button onClick={() => router.push("/matching")} className="text-gray-600 hover:text-blue-600 text-sm relative">
-            Match
-            {unmatched > 0 && <span className="absolute -top-1 -right-2 bg-orange-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">{unmatched}</span>}
-          </button>}
-          {isAdmin && <button onClick={() => router.push("/reports")} className="text-blue-600 font-semibold text-sm">Reports</button>}
-          {userRole === "admin" && <button onClick={() => router.push("/settings")} className="text-gray-600 hover:text-blue-600 text-sm">⚙️</button>}
-          <div className="flex items-center gap-2 ml-2 pl-2 border-l">
-            <span className="text-sm text-gray-500">{userName}</span>
-            <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600 text-sm">📅 PAR</button>
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600 text-sm">Statement</button>
-          <button onClick={logout} className="text-red-500 text-sm">Logout</button>
-          </div>
-        </div>
-      </nav>
-
+    <Layout>
       <div className="p-4 md:p-6">
-        <h2 className="text-2xl font-bold mb-6">Reports & Analytics</h2>
+        <h2 className="text-2xl font-bold mb-6 text-[#04342C]">Reports & Analytics</h2>
 
-        {/* Quick Tools */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
           <button onClick={calculatePAR} className="bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 text-left">
             <p className="font-bold text-sm">📊 PAR</p>
@@ -226,7 +186,6 @@ export default function ReportsPage() {
           </button>
         </div>
 
-        {/* PAR */}
         {showPar && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
@@ -263,7 +222,6 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Collection Sheet */}
         {showCollection && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
@@ -305,7 +263,6 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Monthly Report */}
         {showMonthly && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
@@ -352,7 +309,6 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Company Income */}
         {showIncome && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
@@ -362,7 +318,7 @@ export default function ReportsPage() {
                 <button onClick={() => setShowIncome(false)} className="text-gray-400">✕</button>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div className="bg-indigo-50 rounded-lg p-4">
                 <p className="text-sm text-gray-500">Total Income</p>
                 <p className="text-2xl font-bold text-indigo-600">KSh {totalIncome.toLocaleString()}</p>
@@ -402,7 +358,6 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Total Disbursed</p>
@@ -425,12 +380,11 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Export Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="font-bold mb-1">📊 Loans</p>
             <p className="text-sm text-gray-500 mb-3">{loans.length} loans</p>
-            <button onClick={exportLoans} className="w-full bg-blue-600 text-white py-2 rounded text-sm">⬇ Export CSV</button>
+            <button onClick={exportLoans} className="w-full bg-[#0F6E56] text-white py-2 rounded text-sm">⬇ Export CSV</button>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="font-bold mb-1">💳 Payments</p>
@@ -444,11 +398,10 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Recent Payments */}
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-lg">Recent Payments</h3>
-            <button onClick={() => router.push("/payments")} className="text-blue-600 text-sm hover:underline">View all</button>
+            <button onClick={() => router.push("/payments")} className="text-[#0F6E56] text-sm hover:underline">View all</button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[400px]">
@@ -469,6 +422,6 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }

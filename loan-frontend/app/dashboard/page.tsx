@@ -2,18 +2,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCustomers, getLoans, getPayments } from "@/lib/api";
+import Layout from "../components/Layout";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [customers, setCustomers] = useState<any[]>([]);
   const [loans, setLoans] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
-  const [userRole, setUserRole] = useState("");
   const [userName, setUserName] = useState("");
   const [unmatched, setUnmatched] = useState(0);
-  const [companyName, setCompanyName] = useState("Blessed Ventures");
   const [dueToday, setDueToday] = useState<any[]>([]);
-  const [navOpen, setNavOpen] = useState(false);
+  const [userRole, setUserRole] = useState("");
 
   const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
@@ -26,8 +25,8 @@ export default function DashboardPage() {
     const token = localStorage.getItem("token");
     if (!token) { router.push("/login"); return; }
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    setUserRole(user.role || "");
     setUserName(user.name || user.full_name || "");
+    setUserRole(user.role || "");
     loadData();
   }, []);
 
@@ -37,24 +36,19 @@ export default function DashboardPage() {
     setLoans(Array.isArray(l) ? l : []);
     setPayments(Array.isArray(p) ? p : []);
     try {
-      const [unmatchedRes, settingsRes, dueRes] = await Promise.all([
+      const [unmatchedRes, dueRes] = await Promise.all([
         fetch(`${API}/api/payments/unmatched`, { headers: getHeaders() }),
-        fetch(`${API}/api/settings`),
         fetch(`${API}/api/reports/due-this-week`, { headers: getHeaders() })
       ]);
       const unmatchedData = await unmatchedRes.json();
-      const settingsData = await settingsRes.json();
       const dueData = await dueRes.json();
       setUnmatched(Array.isArray(unmatchedData) ? unmatchedData.length : 0);
-      if (settingsData.company_name) setCompanyName(settingsData.company_name);
       const todayStr = new Date().toISOString().split("T")[0];
       setDueToday(Array.isArray(dueData)
         ? dueData.filter((r: any) => new Date(r.due_date).toISOString().split("T")[0] === todayStr)
         : []);
     } catch {}
   };
-
-  const logout = () => { localStorage.clear(); router.push("/login"); };
 
   const today = new Date();
   const greeting = today.getHours() < 12 ? "Good morning" : today.getHours() < 17 ? "Good afternoon" : "Good evening";
@@ -63,101 +57,22 @@ export default function DashboardPage() {
   const totalDisbursed = loans.filter(l => ["active","paid"].includes(l.status)).reduce((s, l) => s + parseFloat(l.amount || 0), 0);
   const totalOutstanding = loans.filter(l => l.status === "active").reduce((s, l) => s + parseFloat(l.balance || 0), 0);
   const totalCollected = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-  const kcbCollected = payments.filter(p => p.source === "kcb_paybill").reduce((s, p) => s + parseFloat(p.amount || 0), 0);
   const paidLoans = loans.filter(l => l.status === "paid").length;
   const activeLoans = loans.filter(l => l.status === "active").length;
   const pendingLoans = loans.filter(l => l.status === "pending").length;
-  const approvedLoans = loans.filter(l => l.status === "approved").length;
   const collectionRate = totalDisbursed > 0 ? Math.round((totalCollected / totalDisbursed) * 100) : 0;
   const isAdmin = ["admin", "cashier"].includes(userRole);
   const dueTodayAmount = dueToday.reduce((s: number, r: any) => s + parseFloat(r.amount_due || 0), 0);
   const overdueLoans = loans.filter(l => l.status === "active" && l.due_date && new Date(l.due_date) < today);
   const overdueAmount = overdueLoans.reduce((s, l) => s + parseFloat(l.balance || 0), 0);
 
-  const navLinks = [
-    { label: "Customers", path: "/customers", show: true },
-    { label: "Loans", path: "/loans", show: true },
-    { label: "Payments", path: "/payments", show: true },
-    { label: "Approvals", path: "/approvals", show: isAdmin, badge: pendingLoans },
-    { label: "Match", path: "/matching", show: isAdmin, badge: unmatched },
-    { label: "PAR", path: "/par", show: isAdmin },
-    { label: "Suspense", path: "/suspense", show: isAdmin },
-    { label: "Float", path: "/float", show: isAdmin },
-    { label: "Statement", path: "/statement", show: true },
-    { label: "Reports", path: "/reports", show: isAdmin },
-    { label: "Users", path: "/users", show: userRole === "admin" },
-    { label: "Audit", path: "/audit", show: userRole === "admin" },
-    { label: "Settings", path: "/settings", show: userRole === "admin" },
-  ].filter(l => l.show);
-
   return (
-    <div className="min-h-screen bg-[#F4F7F5]">
-
-      {/* Top Nav — dark green */}
-      <nav className="bg-[#04342C] text-white px-6 py-0 flex justify-between items-center sticky top-0 z-50 shadow-lg">
-        <div className="flex items-center gap-8">
-          <div className="py-4">
-            <span className="text-lg font-bold tracking-tight text-white">{companyName}</span>
-            <span className="ml-2 text-xs text-emerald-300 font-medium uppercase tracking-widest">Microfinance</span>
-          </div>
-          <div className="hidden lg:flex gap-1">
-            {navLinks.slice(0, 8).map(link => (
-              <button key={link.path} onClick={() => router.push(link.path)}
-                className="relative px-3 py-5 text-sm text-emerald-100/70 hover:text-white hover:bg-white/10 transition-colors">
-                {link.label}
-                {link.badge ? (
-                  <span className="absolute top-3 right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                    {link.badge > 9 ? "9+" : link.badge}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-            {navLinks.length > 8 && (
-              <div className="relative">
-                <button onClick={() => setNavOpen(!navOpen)}
-                  className="px-3 py-5 text-sm text-emerald-100/70 hover:text-white hover:bg-white/10 transition-colors">
-                  More ▾
-                </button>
-                {navOpen && (
-                  <div className="absolute top-full left-0 bg-[#085041] rounded-xl shadow-2xl py-2 min-w-40 z-50 border border-emerald-800">
-                    {navLinks.slice(8).map(link => (
-                      <button key={link.path} onClick={() => { router.push(link.path); setNavOpen(false); }}
-                        className="w-full text-left px-4 py-2.5 text-sm text-emerald-100/70 hover:text-white hover:bg-white/10 transition-colors">
-                        {link.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="text-right hidden sm:block">
-            <p className="text-xs text-emerald-200/70">{userName}</p>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              userRole === "admin" ? "bg-red-500/20 text-red-200" :
-              userRole === "cashier" ? "bg-purple-500/20 text-purple-200" :
-              "bg-emerald-500/20 text-emerald-200"
-            }`}>{userRole}</span>
-          </div>
-          <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-sm font-bold">
-            {userName?.charAt(0)?.toUpperCase() || "U"}
-          </div>
-          <button onClick={logout}
-            className="text-xs text-emerald-200/70 hover:text-red-300 transition-colors border border-emerald-800 px-3 py-1.5 rounded-lg">
-            Logout
-          </button>
-        </div>
-      </nav>
-
+    <Layout>
       <div className="max-w-7xl mx-auto px-6 py-6">
 
-        {/* Greeting */}
         <p className="text-[#0F6E56] text-sm font-medium">{dateStr}</p>
         <h1 className="text-2xl font-bold mt-1 text-[#04342C]">{greeting}, {userName?.split(" ")[0] || "there"}</h1>
 
-        {/* Hero Card — dark green, 4 stats */}
         <div className="bg-[#04342C] rounded-2xl px-6 py-5 mt-4">
           <div className="flex justify-between items-start mb-4">
             <div>
@@ -199,7 +114,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions — icon row */}
         <div className="bg-white border border-[#D9E2DC] rounded-2xl p-4 mt-4">
           <div className="grid grid-cols-4 gap-2 text-center">
             {[
@@ -218,7 +132,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Due Today / Overdue */}
         <div className="grid grid-cols-2 gap-4 mt-4">
           <div onClick={() => router.push("/par")}
             className="bg-amber-50 border border-amber-200 rounded-2xl p-4 cursor-pointer hover:shadow-sm transition-shadow">
@@ -254,10 +167,8 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Tables Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
 
-          {/* Recent Loans */}
           <div className="bg-white rounded-2xl border border-[#D9E2DC] overflow-hidden">
             <div className="flex justify-between items-center px-5 py-4 border-b border-[#EDF1EE]">
               <h3 className="font-semibold text-[#04342C]">Recent loans</h3>
@@ -311,7 +222,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Recent Payments */}
           <div className="bg-white rounded-2xl border border-[#D9E2DC] overflow-hidden">
             <div className="flex justify-between items-center px-5 py-4 border-b border-[#EDF1EE]">
               <h3 className="font-semibold text-[#04342C]">Recent payments</h3>
@@ -346,6 +256,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }

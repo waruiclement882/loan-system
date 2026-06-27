@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Layout from "../components/Layout";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
@@ -85,20 +86,16 @@ export default function MatchingPage() {
         notes: manualForm.notes || "",
         type: manualForm.type || "repayment"
       };
-
-      // FIXED: Added the missing fetch request execution
       const res = await fetch(`${API}/api/payments/manual`, {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify(payload)
       });
-
       const data = await res.json();
       if (data.error) { setMessage("Error: " + data.error); }
       else {
         setMessage("✅ Payment recorded successfully!");
         setShowManual(false);
-        // FIXED: Included type reset in form cleanup
         setManualForm({ loan_id: "", amount: "", source: "cash", transaction_code: "", notes: "", type: "repayment" });
         loadData();
       }
@@ -107,24 +104,11 @@ export default function MatchingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-3 flex-wrap">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</button>
-          <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600 text-sm">Approvals</button>
-          <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600 text-sm">Payments</button>
-          <button onClick={() => router.push("/reports")} className="text-gray-600 hover:text-blue-600 text-sm">Reports</button>
-          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600 text-sm">📅 PAR</button>
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600 text-sm">Statement</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 text-sm">Logout</button>
-        </div>
-      </nav>
-
+    <Layout>
       <div className="p-4 md:p-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-bold">Payment Matching</h2>
+            <h2 className="text-2xl font-bold text-[#04342C]">Payment Matching</h2>
             <p className="text-gray-500 text-sm mt-1">Match incoming KCB Paybill 522522 payments to loans</p>
           </div>
           <div className="flex gap-2">
@@ -132,7 +116,7 @@ export default function MatchingPage() {
               className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-medium">
               + Manual Payment
             </button>
-            <button onClick={loadData} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+            <button onClick={loadData} className="bg-[#0F6E56] text-white px-4 py-2 rounded-lg hover:bg-[#085041] text-sm">
               🔄 Refresh
             </button>
           </div>
@@ -145,17 +129,15 @@ export default function MatchingPage() {
           </div>
         )}
 
-        {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-blue-800 font-medium">📱 KCB Paybill Payment Instructions for Customers</p>
-          <div className="mt-2 grid grid-cols-3 gap-4 text-sm">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
+          <p className="text-[#0F6E56] font-medium">📱 KCB Paybill Payment Instructions for Customers</p>
+          <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div><span className="text-gray-500">Paybill:</span> <span className="font-bold">522522</span></div>
             <div><span className="text-gray-500">Account:</span> <span className="font-bold">8086860</span></div>
             <div><span className="text-gray-500">Amount:</span> <span className="font-bold">As instructed</span></div>
           </div>
         </div>
 
-        {/* Manual Payment Form */}
         {showManual && (
           <div className="bg-white rounded-lg shadow p-6 mb-6 border-l-4 border-green-500">
             <h3 className="font-bold text-lg mb-4 text-green-700">📝 Record Manual Payment</h3>
@@ -174,12 +156,11 @@ export default function MatchingPage() {
                 </select>
               </div>
 
-              {/* Added Payment Type Selectors right here after Loan selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type</label>
                 <div className="flex gap-3">
                   <button type="button" onClick={() => setManualForm({...manualForm, type: "repayment"})}
-                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${manualForm.type === "repayment" ? "bg-blue-600 text-white border-blue-600" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"}`}>
+                    className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${manualForm.type === "repayment" ? "bg-[#0F6E56] text-white border-[#0F6E56]" : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"}`}>
                     💳 Loan Repayment
                   </button>
                   <button type="button" onClick={() => setManualForm({...manualForm, type: "processing_fee"})}
@@ -238,9 +219,8 @@ export default function MatchingPage() {
           </div>
         )}
 
-        {/* Unmatched Transactions Table */}
         <div className="mb-6">
-          <h3 className="font-bold text-lg mb-3">📥 Unmatched KCB Paybill Payments</h3>
+          <h3 className="font-bold text-lg mb-3 text-[#04342C]">📥 Unmatched KCB Paybill Payments</h3>
           {loading ? (
             <div className="text-center py-12 text-gray-500">Loading...</div>
           ) : transactions.length === 0 ? (
@@ -275,7 +255,7 @@ export default function MatchingPage() {
                         <td className="p-4 text-gray-400">{new Date(tx.created_at).toLocaleString()}</td>
                         <td className="p-4">
                           <button onClick={() => { setMatchModal(tx); setSelectedLoan(""); setMatchType("repayment"); }}
-                            className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+                            className="bg-[#0F6E56] text-white px-3 py-1 rounded text-xs hover:bg-[#085041]">
                             🔗 Match
                           </button>
                         </td>
@@ -289,11 +269,10 @@ export default function MatchingPage() {
         </div>
       </div>
 
-      {/* Match Modal */}
       {matchModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg">
-            <h3 className="text-lg font-bold mb-4 text-blue-600">Match Payment to Loan</h3>
+            <h3 className="text-lg font-bold mb-4 text-[#0F6E56]">Match Payment to Loan</h3>
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
               <p className="font-mono text-sm">{matchModal.transaction_reference}</p>
               <p className="text-2xl font-bold text-green-600 mt-1">KSh {parseFloat(matchModal.amount).toLocaleString()}</p>
@@ -303,7 +282,7 @@ export default function MatchingPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type</label>
               <div className="flex gap-3">
                 <button onClick={() => setMatchType("repayment")}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-medium ${matchType === "repayment" ? "bg-blue-600 text-white" : "bg-white text-gray-600 border-gray-300"}`}>
+                  className={`flex-1 py-2 rounded-lg border text-sm font-medium ${matchType === "repayment" ? "bg-[#0F6E56] text-white" : "bg-white text-gray-600 border-gray-300"}`}>
                   💳 Loan Repayment
                 </button>
                 <button onClick={() => setMatchType("processing_fee")}
@@ -337,6 +316,6 @@ export default function MatchingPage() {
           </div>
         </div>
       )}
-    </div>
+    </Layout>
   );
 }

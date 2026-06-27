@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCustomers, createCustomer } from "@/lib/api";
+import Layout from "../components/Layout";
 
 type Customer = {
   id: number;
@@ -88,29 +89,15 @@ export default function CustomersPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Nav */}
-      <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600">Dashboard</button>
-          <button onClick={() => router.push("/loans")}     className="text-gray-600 hover:text-blue-600">Loans</button>
-          <button onClick={() => router.push("/payments")}  className="text-gray-600 hover:text-blue-600">Payments</button>
-          <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600">Approvals</button>
-          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">?? PAR</button>
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700">Logout</button>
-        </div>
-      </nav>
-
+    <Layout>
       <div className="p-6 max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-2xl font-bold">Customers</h2>
+            <h2 className="text-2xl font-bold text-[#04342C]">Customers</h2>
             <p className="text-gray-500 text-sm mt-1">{customers.length} total customers</p>
           </div>
           <button onClick={() => { setShowForm(true); setError(""); setSuccess(""); }}
-            className="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 font-medium">
+            className="bg-[#0F6E56] text-white px-5 py-2.5 rounded-lg hover:bg-[#085041] font-medium">
             + Add Customer
           </button>
         </div>
@@ -118,7 +105,6 @@ export default function CustomersPage() {
         {error   && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">{error}</div>}
         {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">{success}</div>}
 
-        {/* Search */}
         <div className="mb-4">
           <input
             value={search}
@@ -128,7 +114,6 @@ export default function CustomersPage() {
           />
         </div>
 
-        {/* Table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {loading ? (
             <div className="p-12 text-center text-gray-400">Loading customers...</div>
@@ -137,6 +122,7 @@ export default function CustomersPage() {
               {search ? "No customers match your search" : "No customers yet. Add your first customer!"}
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr>
@@ -153,7 +139,7 @@ export default function CustomersPage() {
                 {filtered.map((c: Customer) => (
                   <tr key={c.id} className="border-b hover:bg-gray-50">
                     <td className="px-6 py-4 text-gray-400">{c.id}</td>
-                    <td className="px-6 py-4 font-medium cursor-pointer hover:text-blue-600" onClick={() => router.push("/customers/" + c.id)}>{c.name}</td>
+                    <td className="px-6 py-4 font-medium cursor-pointer hover:text-[#0F6E56]" onClick={() => router.push("/customers/" + c.id)}>{c.name}</td>
                     <td className="px-6 py-4">{c.phone}</td>
                     <td className="px-6 py-4 text-gray-600">{c.email || "—"}</td>
                     <td className="px-6 py-4 text-gray-600">{c.national_id || "—"}</td>
@@ -164,8 +150,8 @@ export default function CustomersPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => router.push("/customers/" + c.id)}
-                          className="text-blue-600 hover:text-blue-800 text-xs px-3 py-1 border border-blue-200 rounded-lg hover:bg-blue-50">
-                          Edit
+                          className="text-[#0F6E56] hover:text-[#085041] text-xs px-3 py-1 border border-[#9FE1CB] rounded-lg hover:bg-emerald-50">
+                          View
                         </button>
                         <button
                           onClick={() => { setDeleteId(c.id); setError(""); setSuccess(""); }}
@@ -178,11 +164,11 @@ export default function CustomersPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Add Customer Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
@@ -216,7 +202,7 @@ export default function CustomersPage() {
             <div className="px-6 py-4 border-t flex gap-3 justify-end">
               <button onClick={() => setShowForm(false)} className="px-4 py-2 text-gray-600 border rounded-lg hover:bg-gray-50 text-sm">Cancel</button>
               <button onClick={handleCreate} disabled={saving}
-                className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50">
+                className="px-5 py-2 bg-[#0F6E56] text-white rounded-lg hover:bg-[#085041] text-sm font-medium disabled:opacity-50">
                 {saving ? "Saving..." : "Create Customer"}
               </button>
             </div>
@@ -224,7 +210,6 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {deleteId && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
@@ -245,6 +230,6 @@ export default function CustomersPage() {
           </div>
         </div>
       )}
-    </div>
+    </Layout>
   );
 }

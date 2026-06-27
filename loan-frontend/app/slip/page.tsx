@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getLoans } from "@/lib/api";
+import Layout from "../components/Layout";
 
 export default function SlipPage() {
   const router = useRouter();
@@ -24,45 +25,33 @@ export default function SlipPage() {
   const printSlip = () => window.print();
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="print:hidden">
-        <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-          <div className="flex gap-4">
-            <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600">Dashboard</button>
-            <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
-            <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600">Payments</button>
-          </div>
-        </nav>
-
-        <div className="p-6">
-          <h2 className="text-2xl font-bold mb-6">Payment Instruction Slip</h2>
-          <div className="bg-white rounded-lg shadow p-6 mb-6 max-w-md">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Select Loan</label>
-            <select
-              onChange={(e) => {
-                const loan = loans.find((l: any) => l.id === parseInt(e.target.value));
-                setSelectedLoan(loan || null);
-              }}
-              className="w-full border rounded-lg px-3 py-2 mb-4"
-            >
-              <option value="">Select a loan...</option>
-              {loans.map((l: any) => (
-                <option key={l.id} value={l.id}>
-                  #{l.id} - {l.customer_name} (KSh {parseFloat(l.amount).toLocaleString()})
-                </option>
-              ))}
-            </select>
-            {selectedLoan && (
-              <button onClick={printSlip} className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                Print Slip
-              </button>
-            )}
-          </div>
+    <Layout>
+      <div className="print:hidden p-6">
+        <h2 className="text-2xl font-bold mb-6 text-[#04342C]">Payment Instruction Slip</h2>
+        <div className="bg-white rounded-lg shadow p-6 mb-6 max-w-md">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Select Loan</label>
+          <select
+            onChange={(e) => {
+              const loan = loans.find((l: any) => l.id === parseInt(e.target.value));
+              setSelectedLoan(loan || null);
+            }}
+            className="w-full border rounded-lg px-3 py-2 mb-4"
+          >
+            <option value="">Select a loan...</option>
+            {loans.map((l: any) => (
+              <option key={l.id} value={l.id}>
+                #{l.id} - {l.customer_name} (KSh {parseFloat(l.amount).toLocaleString()})
+              </option>
+            ))}
+          </select>
+          {selectedLoan && (
+            <button onClick={printSlip} className="w-full bg-[#0F6E56] text-white px-4 py-2 rounded-lg hover:bg-[#085041]">
+              Print Slip
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Printable Slip */}
       {selectedLoan && (
         <div className="print:block hidden p-8" id="slip">
           <div style={{border: '2px solid #000', padding: '24px', maxWidth: '400px', margin: '0 auto', fontFamily: 'Arial, sans-serif'}}>
@@ -125,7 +114,6 @@ export default function SlipPage() {
         </div>
       )}
 
-      {/* Screen preview */}
       {selectedLoan && (
         <div className="print:hidden p-6">
           <div className="bg-white border-2 border-gray-300 rounded-lg p-6 max-w-md mx-auto">
@@ -136,10 +124,10 @@ export default function SlipPage() {
             <hr className="my-3" />
             <div className="space-y-2 text-sm">
               <div className="flex justify-between"><span className="font-bold">Customer:</span><span>{selectedLoan.customer_name}</span></div>
-              <div className="flex justify-between"><span className="font-bold">Loan ID:</span><span className="text-blue-600 text-lg font-bold">#{selectedLoan.id}</span></div>
+              <div className="flex justify-between"><span className="font-bold">Loan ID:</span><span className="text-[#0F6E56] text-lg font-bold">#{selectedLoan.id}</span></div>
               <div className="flex justify-between"><span className="font-bold">Loan Amount:</span><span>KSh {parseFloat(selectedLoan.amount).toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="font-bold">Term:</span><span>{selectedLoan.term_weeks} weeks</span></div>
-              <div className="flex justify-between"><span className="font-bold">Weekly Installment:</span><span className="text-blue-600 font-bold">KSh {parseFloat(selectedLoan.weekly_installment || 0).toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="font-bold">Weekly Installment:</span><span className="text-[#0F6E56] font-bold">KSh {parseFloat(selectedLoan.weekly_installment || 0).toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="font-bold">Total Interest:</span><span>KSh {parseFloat(selectedLoan.interest_amount || 0).toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="font-bold">Total to Repay:</span><span>KSh {parseFloat(selectedLoan.total_amount || 0).toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="font-bold">Balance:</span><span className="text-red-600">KSh {parseFloat(selectedLoan.balance || 0).toLocaleString()}</span></div>
@@ -147,15 +135,15 @@ export default function SlipPage() {
             <hr className="my-3" />
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <h3 className="font-bold text-green-700 mb-2 text-sm">HOW TO PAY via KCB Paybill</h3>
-              <p className="text-xs">Business No: <strong className="text-blue-600 text-base">{PAYBILL}</strong></p>
+              <p className="text-xs">Business No: <strong className="text-[#0F6E56] text-base">{PAYBILL}</strong></p>
               <p className="text-xs">Account No: <strong className="text-red-600 text-base">8086860</strong></p>
             </div>
-            <button onClick={printSlip} className="w-full mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            <button onClick={printSlip} className="w-full mt-4 bg-[#0F6E56] text-white px-4 py-2 rounded-lg hover:bg-[#085041]">
               Print Slip
             </button>
           </div>
         </div>
       )}
-    </div>
+    </Layout>
   );
 }

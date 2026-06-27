@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Layout from "../components/Layout";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
@@ -17,7 +18,6 @@ export default function AuditPage() {
     return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
   };
 
-  // Safely extract details text from JSON or string
   const getDetailsText = (details: any): string => {
     if (!details) return "—";
     if (typeof details === "string") {
@@ -98,29 +98,16 @@ export default function AuditPage() {
   const uniqueActions = [...new Set(logs.map(l => l.action))].filter(Boolean);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-3 items-center">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</button>
-          <button onClick={() => router.push("/settings")} className="text-gray-600 hover:text-blue-600 text-sm">Settings</button>
-          <button onClick={() => router.push("/users")} className="text-gray-600 hover:text-blue-600 text-sm">Users</button>
-          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600 text-sm">?? PAR</button>
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600 text-sm">Statement</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 text-sm">Logout</button>
-        </div>
-      </nav>
-
+    <Layout>
       <div className="p-4 md:p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">📋 Audit Logs</h2>
+          <h2 className="text-2xl font-bold text-[#04342C]">📋 Audit Logs</h2>
           <div className="flex gap-2">
-            <button onClick={exportCSV} className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700">⬇ Export</button>
-            <button onClick={loadLogs} className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700">🔄 Refresh</button>
+            <button onClick={exportCSV} className="bg-[#0F6E56] text-white px-3 py-2 rounded-lg text-sm hover:bg-[#085041]">⬇ Export</button>
+            <button onClick={loadLogs} className="bg-[#04342C] text-white px-3 py-2 rounded-lg text-sm hover:bg-[#085041]">🔄 Refresh</button>
           </div>
         </div>
 
-        {/* Search & Filter */}
         <div className="bg-white rounded-lg shadow p-4 mb-4">
           <div className="flex flex-col md:flex-row gap-3">
             <input value={search} onChange={e => setSearch(e.target.value)}
@@ -180,7 +167,6 @@ export default function AuditPage() {
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 }
-

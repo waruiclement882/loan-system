@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getLoans } from "@/lib/api";
+import Layout from "../components/Layout";
 
 const API = "https://loan-system-h794.onrender.com";
 
@@ -29,31 +30,19 @@ export default function StatementPage() {
   const printStatement = () => window.print();
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="print:hidden">
-        <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-          <div className="flex gap-4">
-            <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600">Dashboard</button>
-            <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
-            <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600">Customers</button>
-          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">📅 PAR</button>
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
-          </div>
-        </nav>
-        <div className="p-6 max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold mb-6">Loan Statement</h2>
-          <div className="bg-white rounded-lg shadow p-5 mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Select Loan</label>
-            <div className="flex gap-3">
-              <select onChange={e => e.target.value && loadStatement(e.target.value)} className="flex-1 border rounded-lg px-3 py-2 text-sm">
-                <option value="">-- Select a loan --</option>
-                {loans.map((l: any) => (
-                  <option key={l.id} value={l.id}>#{l.id} - {l.customer_name} - KSh {parseFloat(l.amount).toLocaleString()} ({l.status})</option>
-                ))}
-              </select>
-              {statement && <button onClick={printStatement} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">Print Statement</button>}
-            </div>
+    <Layout>
+      <div className="print:hidden p-6 max-w-4xl mx-auto">
+        <h2 className="text-2xl font-bold mb-6 text-[#04342C]">Loan Statement</h2>
+        <div className="bg-white rounded-lg shadow p-5 mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Select Loan</label>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <select onChange={e => e.target.value && loadStatement(e.target.value)} className="flex-1 border rounded-lg px-3 py-2 text-sm">
+              <option value="">-- Select a loan --</option>
+              {loans.map((l: any) => (
+                <option key={l.id} value={l.id}>#{l.id} - {l.customer_name} - KSh {parseFloat(l.amount).toLocaleString()} ({l.status})</option>
+              ))}
+            </select>
+            {statement && <button onClick={printStatement} className="bg-[#0F6E56] text-white px-4 py-2 rounded-lg hover:bg-[#085041] text-sm whitespace-nowrap">Print Statement</button>}
           </div>
         </div>
       </div>
@@ -63,14 +52,12 @@ export default function StatementPage() {
       {statement && !loading && (
         <div className="p-6 max-w-4xl mx-auto print:p-4 print:max-w-full">
           <div className="bg-white rounded-lg shadow p-8 print:shadow-none">
-            {/* Header */}
             <div className="text-center mb-6 border-b pb-6">
               <h1 className="text-2xl font-bold">LOAN STATEMENT</h1>
               <p className="text-gray-500 text-sm mt-1">Generated on {new Date().toLocaleDateString()}</p>
             </div>
 
-            {/* Customer & Loan Info */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
                 <h3 className="font-bold text-gray-700 mb-3">Customer Details</h3>
                 <p className="text-sm"><span className="text-gray-500">Name:</span> <strong>{statement.loan.customer_name}</strong></p>
@@ -89,9 +76,9 @@ export default function StatementPage() {
               </div>
             </div>
 
-            {/* Repayment Schedule */}
             <h3 className="font-bold text-gray-700 mb-3">Repayment Schedule</h3>
-            <table className="w-full text-sm mb-6 border">
+            <div className="overflow-x-auto mb-6">
+            <table className="w-full text-sm border">
               <thead className="bg-gray-50">
                 <tr className="text-left text-gray-500">
                   <th className="px-4 py-2 border">Week</th>
@@ -117,12 +104,13 @@ export default function StatementPage() {
                 ))}
               </tbody>
             </table>
+            </div>
 
-            {/* Payment History */}
             <h3 className="font-bold text-gray-700 mb-3">Payment History</h3>
             {statement.payments.length === 0 ? (
               <p className="text-gray-400 text-sm">No payments recorded yet</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm border">
                 <thead className="bg-gray-50">
                   <tr className="text-left text-gray-500">
@@ -143,6 +131,7 @@ export default function StatementPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
 
             <div className="mt-6 pt-4 border-t text-center text-xs text-gray-400">
@@ -151,6 +140,6 @@ export default function StatementPage() {
           </div>
         </div>
       )}
-    </div>
+    </Layout>
   );
 }

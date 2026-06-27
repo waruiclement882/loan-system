@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getLoans, createLoan, getCustomers, getPricingRules } from "@/lib/api";
+import Layout from "../components/Layout";
 
 export default function LoansPage() {
   const router = useRouter();
@@ -62,7 +63,6 @@ export default function LoansPage() {
   const paidLoans = loans.filter(l => l.status === "paid").length;
   const activeLoans = loans.filter(l => l.status === "active").length;
 
-  // Filter loans by search and status
   const filtered = loans.filter((loan: any) => {
     const matchSearch = search === "" ||
       loan.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -88,25 +88,12 @@ export default function LoansPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600">Dashboard</button>
-          <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600">Customers</button>
-          <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600">Payments</button>
-          <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600">Approvals</button>
-          <button onClick={() => { router.push("/par");
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
-          localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700">Logout</button>
-        </div>
-      </nav>
-
+    <Layout>
       <div className="p-6">
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">Total Loans</p>
-            <p className="text-2xl font-bold text-blue-600">{loans.length}</p>
+            <p className="text-2xl font-bold text-[#0F6E56]">{loans.length}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">Total Disbursed</p>
@@ -123,17 +110,16 @@ export default function LoansPage() {
         </div>
 
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Loans</h2>
-          <button onClick={() => setShowForm(!showForm)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">+ New Loan</button>
+          <h2 className="text-2xl font-bold text-[#04342C]">Loans</h2>
+          <button onClick={() => setShowForm(!showForm)} className="bg-[#0F6E56] text-white px-4 py-2 rounded-lg hover:bg-[#085041]">+ New Loan</button>
         </div>
 
-        {/* Search and Filter */}
-        <div className="flex gap-3 mb-4">
+        <div className="flex flex-wrap gap-3 mb-4">
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by customer, amount, status, officer..."
-            className="flex-1 border rounded-lg px-4 py-2 text-sm"
+            className="flex-1 min-w-[200px] border rounded-lg px-4 py-2 text-sm"
           />
           <select
             value={statusFilter}
@@ -155,7 +141,6 @@ export default function LoansPage() {
           )}
         </div>
 
-        {/* Results count */}
         {(search || statusFilter !== "all") && (
           <p className="text-sm text-gray-500 mb-3">
             Showing {filtered.length} of {loans.length} loans
@@ -165,7 +150,7 @@ export default function LoansPage() {
         {showForm && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h3 className="font-bold text-lg mb-4">New Loan</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
                 <select value={form.customer_id} onChange={(e) => setForm({ ...form, customer_id: e.target.value })} className="w-full border rounded-lg px-3 py-2">
@@ -204,9 +189,9 @@ export default function LoansPage() {
               <p className="mt-3 text-sm text-red-500">No pricing rule found for this combination.</p>
             )}
             {form.weekly_installment && (
-              <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-blue-800 text-sm font-medium">Loan Summary</p>
-                <div className="grid grid-cols-3 gap-3 mt-2 text-sm">
+              <div className="mt-4 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                <p className="text-[#0F6E56] text-sm font-medium">Loan Summary</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2 text-sm">
                   <div><span className="text-gray-500">Weekly:</span> <span className="font-bold">KSh {Number(form.weekly_installment).toLocaleString()}</span></div>
                   <div><span className="text-gray-500">Total Interest:</span> <span className="font-bold">KSh {Number(form.interest_amount).toLocaleString()}</span></div>
                   <div><span className="text-gray-500">Total Repayment:</span> <span className="font-bold">KSh {Number(form.total_amount).toLocaleString()}</span></div>
@@ -223,8 +208,8 @@ export default function LoansPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-lg shadow overflow-hidden overflow-x-auto">
+          <table className="w-full text-sm min-w-[900px]">
             <thead>
               <tr className="text-left text-gray-500 border-b bg-gray-50">
                 <th className="p-4">Customer</th>
@@ -250,7 +235,7 @@ export default function LoansPage() {
                   const total = parseFloat(loan.total_amount || 0);
                   const progress = getProgressWidth(balance, total);
                   return (
-                    <tr key={loan.id} className="border-b hover:bg-blue-50 cursor-pointer"
+                    <tr key={loan.id} className="border-b hover:bg-emerald-50 cursor-pointer"
                       onClick={() => router.push("/loans/" + loan.id)}>
                       <td className="p-4 font-medium">{loan.customer_name}</td>
                       <td className="p-4">KSh {parseFloat(loan.amount).toLocaleString()}</td>
@@ -279,6 +264,6 @@ export default function LoansPage() {
           </table>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }

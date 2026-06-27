@@ -1,302 +1,280 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Layout from "../../components/Layout";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
 export default function LoanDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const id = params.id;
+  const loanId = params?.id as string;
+
   const [loan, setLoan] = useState<any>(null);
   const [schedule, setSchedule] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const getHeaders = () => {
-    const token = localStorage.getItem("token");
-    return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
-  };
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
+  const headers = { Authorization: "Bearer " + token };
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
     if (!token) { router.push("/login"); return; }
-    loadData();
-  }, [id]);
+    if (loanId) loadData();
+  }, [loanId]);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const [loanRes, scheduleRes, paymentsRes] = await Promise.all([
-        fetch(`${API}/api/loans/${id}`, { headers: getHeaders() }),
-        fetch(`${API}/api/loans/${id}/schedule`, { headers: getHeaders() }),
-        fetch(`${API}/api/payments`, { headers: getHeaders() })
+        fetch(`${API}/api/loans/${loanId}`, { headers }),
+        fetch(`${API}/api/loans/${loanId}/schedule`, { headers }),
+        fetch(`${API}/api/payments`, { headers }),
       ]);
       const loanData = await loanRes.json();
       const scheduleData = await scheduleRes.json();
       const paymentsData = await paymentsRes.json();
-      setLoan(loanData);
+      if (loanData.error) { setError(loanData.error); }
+      else { setLoan(loanData); }
       setSchedule(Array.isArray(scheduleData) ? scheduleData : []);
-      const loanPayments = Array.isArray(paymentsData)
-        ? paymentsData.filter((p: any) => p.loan_id === parseInt(id as string))
-        : [];
-      setPayments(loanPayments);
-    } catch {}
+      setPayments(Array.isArray(paymentsData) ? paymentsData.filter((p: any) => String(p.loan_id) === String(loanId)) : []);
+    } catch {
+      setError("Failed to load loan details");
+    }
     setLoading(false);
   };
 
-  const isOverdue = (dueDate: string, status: string) => {
-    return status === "pending" && new Date(dueDate) < new Date();
-  };
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-4 border-[#0F6E56] border-t-transparent rounded-full animate-spin" />
+            <p className="text-slate-400 text-sm">Loading loan details...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
-  const statusColor = (s: string, overdue: boolean) => {
-    if (overdue) return "bg-red-100 text-red-700";
-    if (s === "paid") return "bg-green-100 text-green-700";
-    if (s === "partial") return "bg-yellow-100 text-yellow-700";
-    return "bg-gray-100 text-gray-600";
-  };
+  if (error || !loan) {
+    return (
+      <Layout>
+        <div className="p-6 max-w-2xl mx-auto text-center py-16">
+          <p className="text-4xl mb-3">⚠️</p>
+          <p className="text-gray-600 font-medium mb-4">{error || "Loan not found"}</p>
+          <button onClick={() => router.push("/loans")}
+            className="bg-[#0F6E56] text-white px-5 py-2 rounded-lg hover:bg-[#085041] text-sm">
+            Back to Loans
+          </button>
+        </div>
+      </Layout>
+    );
+  }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500">Loading...</div>;
-  if (!loan || loan.error) return <div className="min-h-screen flex items-center justify-center text-red-500">Loan not found</div>;
-
-  const isClosed = loan.status === "paid";
   const balance = parseFloat(loan.balance || 0);
   const total = parseFloat(loan.total_amount || 0);
-  const totalActuallyPaid = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-  const collected = Math.max(0, total - balance);
-  const progress = total > 0 ? Math.min(100, (collected / total) * 100) : 0;
-  const paidWeeks = schedule.filter(s => s.status === "paid").length;
-  const overdueWeeks = schedule.filter(s => isOverdue(s.due_date, s.status)).length;
-  const closedAt = loan.closed_at ? new Date(loan.closed_at) : null;
+  const totalPaid = payments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+  const progress = total > 0 ? Math.max(0, Math.min(100, 100 - (balance / total) * 100)) : 0;
+  const isClosed = loan.status === "paid";
+  const overpaid = totalPaid > total;
+  const excess = overpaid ? totalPaid - total : 0;
 
-  let runningBalance = total;
-  const scheduleWithBalance = schedule.map(s => {
-    const amountDue = parseFloat(s.amount_due || 0);
-    const amountPaid = parseFloat(s.amount_paid || 0);
-    runningBalance = Math.max(0, runningBalance - amountDue);
-    return { ...s, balanceAfter: runningBalance, amountDueNum: amountDue, amountPaidNum: amountPaid };
-  });
+  const statusBadge = (s: string) => ({
+    paid: "bg-emerald-100 text-emerald-700",
+    active: "bg-blue-100 text-blue-700",
+    approved: "bg-indigo-100 text-indigo-700",
+    rejected: "bg-red-100 text-red-700",
+    pending: "bg-amber-100 text-amber-700",
+  }[s] || "bg-gray-100 text-gray-600");
+
+  const scheduleStatusColor = (s: string) => ({
+    paid: "bg-green-100 text-green-700",
+    partial: "bg-yellow-100 text-yellow-700",
+    overdue: "bg-red-100 text-red-700",
+    pending: "bg-gray-100 text-gray-500",
+  }[s] || "bg-gray-100 text-gray-500");
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-3 flex-wrap">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</button>
-          <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600 text-sm">Loans</button>
-          <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600 text-sm">Approvals</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700 text-sm">Logout</button>
-        </div>
-      </nav>
-
+    <Layout>
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
-        <button onClick={() => router.push("/loans")} className="text-blue-600 hover:underline text-sm mb-4 flex items-center gap-1">
+
+        <button onClick={() => router.push("/loans")} className="text-sm text-[#0F6E56] hover:text-[#085041] mb-4 flex items-center gap-1">
           ← Back to Loans
         </button>
 
-        {/* ── LOAN CLOSED BANNER ── */}
-        {isClosed && (
-          <div className="bg-green-50 border-2 border-green-400 rounded-xl p-5 mb-6">
-            <div className="flex items-start gap-4">
-              <div className="text-4xl">✅</div>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-green-700 mb-1">Loan Fully Repaid & Closed</h2>
-                <p className="text-green-600 text-sm mb-3">
-                  This loan has been fully settled. All instalments have been paid and the account is closed.
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-white rounded-lg p-3 border border-green-200">
-                    <p className="text-xs text-gray-500">Closed On</p>
-                    <p className="font-bold text-green-700">
-                      {closedAt
-                        ? closedAt.toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })
-                        : payments.length > 0
-                          ? new Date(payments[payments.length - 1].payment_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })
-                          : "—"}
-                    </p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-green-200">
-                    <p className="text-xs text-gray-500">Total Repaid</p>
-                    <p className="font-bold text-green-700">KSh {totalActuallyPaid.toLocaleString()}</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-green-200">
-                    <p className="text-xs text-gray-500">Instalments</p>
-                    <p className="font-bold text-green-700">{payments.length} payments</p>
-                  </div>
-                  <div className="bg-white rounded-lg p-3 border border-green-200">
-                    <p className="text-xs text-gray-500">Balance</p>
-                    <p className="font-bold text-green-700">KSh 0 — Cleared</p>
-                  </div>
-                </div>
+        {isClosed ? (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-5">
+            <p className="font-semibold text-emerald-800">Loan Fully Repaid & Closed</p>
+            <p className="text-emerald-600 text-sm mt-0.5">This loan has been fully settled. All instalments have been paid and the account is closed.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+              <div>
+                <p className="text-xs text-emerald-500">Closed On</p>
+                <p className="font-bold text-emerald-800">{loan.closed_at ? new Date(loan.closed_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" }) : "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-emerald-500">Total Repaid</p>
+                <p className="font-bold text-emerald-800">KSh {totalPaid.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-emerald-500">Instalments</p>
+                <p className="font-bold text-emerald-800">{payments.length} payments</p>
               </div>
             </div>
           </div>
+        ) : null}
+
+        {overpaid && (
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-5 flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <p className="font-semibold text-orange-800">Overpayment detected</p>
+              <p className="text-orange-600 text-sm">KSh {excess.toLocaleString()} was paid above the total owed. Review in Suspense.</p>
+            </div>
+            <button onClick={() => router.push("/suspense")} className="bg-orange-500 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-orange-600">
+              Go to Suspense
+            </button>
+          </div>
         )}
 
-        {/* ── LOAN SUMMARY CARD ── */}
-        <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
-          <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
+        <div className="bg-white rounded-2xl border border-[#D9E2DC] p-5 mb-5">
+          <div className="flex justify-between items-start flex-wrap gap-3 mb-4">
             <div>
-              <h2 className="text-xl font-bold">Loan #{loan.id} — {loan.customer_name}</h2>
-              <p className="text-gray-500 text-sm">{loan.customer_phone}</p>
+              <p className="text-xs text-gray-400">Loan #{loan.id}</p>
+              <h2 className="text-xl font-bold text-[#04342C]">{loan.customer_name}</h2>
+              <p className="text-sm text-gray-500">{loan.customer_phone}</p>
             </div>
-            <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-              loan.status === "paid" ? "bg-green-100 text-green-700" :
-              loan.status === "active" ? "bg-blue-100 text-blue-700" :
-              loan.status === "approved" ? "bg-indigo-100 text-indigo-700" :
-              loan.status === "rejected" ? "bg-red-100 text-red-700" :
-              "bg-yellow-100 text-yellow-700"}`}>
-              {isClosed ? "✅ FULLY PAID" : loan.status?.toUpperCase()}
+            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusBadge(loan.status)}`}>
+              {isClosed ? "✅ FULLY PAID" : loan.status.toUpperCase()}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-500">Loan Amount</p>
-              <p className="text-lg font-bold text-blue-600">KSh {parseFloat(loan.amount || 0).toLocaleString()}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-[#EDF1EE] pt-4">
+            <div>
+              <p className="text-xs text-gray-400">Loan Amount</p>
+              <p className="font-bold text-[#04342C]">KSh {parseFloat(loan.amount).toLocaleString()}</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-500">Total Repayment</p>
-              <p className="text-lg font-bold text-purple-600">KSh {total.toLocaleString()}</p>
+            <div>
+              <p className="text-xs text-gray-400">Total Repayment</p>
+              <p className="font-bold text-[#04342C]">KSh {total.toLocaleString()}</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs text-gray-500">Total Collected</p>
-              <p className="text-lg font-bold text-green-600">KSh {totalActuallyPaid.toLocaleString()}</p>
+            <div>
+              <p className="text-xs text-gray-400">Total Collected</p>
+              <p className="font-bold text-emerald-600">KSh {totalPaid.toLocaleString()}</p>
             </div>
-            <div className={`rounded-lg p-3 ${isClosed ? "bg-green-50" : "bg-gray-50"}`}>
-              <p className="text-xs text-gray-500">Balance Remaining</p>
-              <p className={`text-lg font-bold ${isClosed ? "text-green-600" : "text-red-600"}`}>
-                {isClosed ? "KSh 0 — Cleared ✅" : `KSh ${balance.toLocaleString()}`}
+            <div>
+              <p className="text-xs text-gray-400">Balance Remaining</p>
+              <p className={`font-bold ${balance === 0 ? "text-emerald-600" : "text-red-600"}`}>
+                {balance === 0 ? "KSh 0 — Cleared ✅" : `KSh ${balance.toLocaleString()}`}
               </p>
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="mb-3">
-            <div className="flex justify-between text-sm text-gray-500 mb-1">
-              <span>Repayment Progress</span>
-              <span>{isClosed ? "100% — Fully Paid 🎉" : `${Math.round(progress)}% paid`}</span>
+          <div className="mt-5">
+            <div className="flex justify-between text-sm mb-1.5">
+              <span className="text-gray-500">Repayment Progress</span>
+              <span className="font-medium text-[#04342C]">{Math.round(progress)}% {progress === 100 ? "— Fully Paid 🎉" : "paid"}</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div
-                className={`h-3 rounded-full transition-all ${isClosed ? "bg-green-500" : "bg-blue-500"}`}
-                style={{ width: isClosed ? "100%" : progress + "%" }}
-              />
+            <div className="w-full bg-[#EDF1EE] rounded-full h-2.5">
+              <div className="bg-[#1D9E75] h-2.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-4 text-sm mt-3">
-            <span className="text-gray-500">Term: <strong>{loan.term_weeks} weeks</strong></span>
-            <span className="text-gray-500"><strong>{paidWeeks}/{schedule.length}</strong> weeks paid</span>
-            {overdueWeeks > 0 && !isClosed && <span className="text-red-500"><strong>{overdueWeeks}</strong> overdue</span>}
-            {!isClosed && <span className="text-gray-500">Paybill <strong>522522</strong> A/C <strong>8086860</strong></span>}
-            {isClosed && closedAt && (
-              <span className="text-green-600 font-medium">
-                Closed: {closedAt.toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}
-              </span>
-            )}
+            <p className="text-xs text-gray-400 mt-1.5">
+              Term: {loan.term_weeks} weeks · {schedule.filter(s => s.status === "paid").length}/{schedule.length} weeks paid
+              {loan.closed_at ? ` · Closed: ${new Date(loan.closed_at).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}` : ""}
+            </p>
           </div>
         </div>
 
-        {/* ── REPAYMENT SCHEDULE ── */}
-        <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6 overflow-x-auto">
-          <h3 className="font-bold text-lg mb-4">
-            Weekly Repayment Schedule
-            {isClosed && <span className="ml-2 text-sm font-normal text-green-600">— All weeks settled ✅</span>}
-          </h3>
+        <div className="bg-white rounded-2xl border border-[#D9E2DC] overflow-hidden mb-5">
+          <div className="px-5 py-4 border-b border-[#EDF1EE] flex justify-between items-center">
+            <h3 className="font-semibold text-[#04342C]">Weekly Repayment Schedule</h3>
+            <span className="text-xs text-gray-400">{schedule.every(s => s.status === "paid") && schedule.length > 0 ? "All weeks settled ✅" : `${schedule.filter(s => s.status === "paid").length}/${schedule.length} settled`}</span>
+          </div>
           {schedule.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">No schedule generated yet.</div>
+            <p className="p-8 text-center text-gray-400 text-sm">No schedule found. Loan may not be disbursed yet.</p>
           ) : (
-            <table className="w-full text-sm min-w-[500px]">
-              <thead className="bg-gray-50">
-                <tr className="text-left text-gray-500 border-b">
-                  <th className="p-3">Week</th>
-                  <th className="p-3">Due Date</th>
-                  <th className="p-3">Amount Due</th>
-                  <th className="p-3">Amount Paid</th>
-                  <th className="p-3">Balance After</th>
-                  <th className="p-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {scheduleWithBalance.map((s: any) => {
-                  const overdue = isOverdue(s.due_date, s.status);
-                  return (
-                    <tr key={s.id} className={`border-b ${overdue ? "bg-red-50" : s.status === "paid" ? "bg-green-50" : "hover:bg-gray-50"}`}>
-                      <td className="p-3 font-medium">Week {s.installment_no || s.week_number}</td>
-                      <td className="p-3">
-                        {new Date(s.due_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
-                        {overdue && <span className="ml-2 text-xs text-red-500 font-medium">OVERDUE</span>}
-                      </td>
-                      <td className="p-3 font-medium">KSh {s.amountDueNum.toLocaleString()}</td>
-                      <td className="p-3 text-green-600">{s.amountPaidNum > 0 ? `KSh ${s.amountPaidNum.toLocaleString()}` : "—"}</td>
-                      <td className="p-3 text-red-600 font-medium">KSh {s.balanceAfter.toLocaleString()}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor(s.status, overdue)}`}>
-                          {overdue ? "overdue" : s.status}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr className="text-left text-gray-500">
+                    <th className="px-5 py-2.5">Week</th>
+                    <th className="px-5 py-2.5">Due Date</th>
+                    <th className="px-5 py-2.5">Amount Due</th>
+                    <th className="px-5 py-2.5">Amount Paid</th>
+                    <th className="px-5 py-2.5">Balance After</th>
+                    <th className="px-5 py-2.5">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schedule.map((inst: any) => (
+                    <tr key={inst.id} className={`border-b ${inst.status === "overdue" ? "bg-red-50" : ""}`}>
+                      <td className="px-5 py-2.5 text-gray-500">Week {inst.installment_no}</td>
+                      <td className="px-5 py-2.5">{new Date(inst.due_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
+                      <td className="px-5 py-2.5">KSh {parseFloat(inst.amount_due).toLocaleString()}</td>
+                      <td className="px-5 py-2.5 text-emerald-600">{parseFloat(inst.amount_paid) > 0 ? "KSh " + parseFloat(inst.amount_paid).toLocaleString() : "—"}</td>
+                      <td className="px-5 py-2.5">KSh {(parseFloat(inst.balance) || 0).toLocaleString()}</td>
+                      <td className="px-5 py-2.5">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${scheduleStatusColor(inst.status)}`}>
+                          {inst.status}
                         </span>
                       </td>
                     </tr>
-                  );
-                })}
-                <tr className="bg-gray-50 font-bold border-t-2">
-                  <td className="p-3" colSpan={2}>Total</td>
-                  <td className="p-3">KSh {total.toLocaleString()}</td>
-                  <td className="p-3 text-green-600">KSh {totalActuallyPaid.toLocaleString()}</td>
-                  <td className="p-3 text-green-600">{isClosed ? "KSh 0 — Cleared ✅" : `KSh ${balance.toLocaleString()} remaining`}</td>
-                  <td className="p-3"></td>
-                </tr>
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 border-t font-medium">
+                  <tr>
+                    <td colSpan={2} className="px-5 py-2.5">Total</td>
+                    <td className="px-5 py-2.5">KSh {total.toLocaleString()}</td>
+                    <td className="px-5 py-2.5 text-emerald-600">KSh {totalPaid.toLocaleString()}</td>
+                    <td className="px-5 py-2.5">{balance === 0 ? "KSh 0 — Cleared ✅" : `KSh ${balance.toLocaleString()}`}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           )}
         </div>
 
-        {/* ── PAYMENT HISTORY ── */}
-        <div className="bg-white rounded-lg shadow p-4 md:p-6 overflow-x-auto">
-          <h3 className="font-bold text-lg mb-4">Payment History ({payments.length})</h3>
+        <div className="bg-white rounded-2xl border border-[#D9E2DC] overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#EDF1EE]">
+            <h3 className="font-semibold text-[#04342C]">Payment History ({payments.length})</h3>
+          </div>
           {payments.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">No payments recorded yet</div>
+            <p className="p-8 text-center text-gray-400 text-sm">No payments recorded yet</p>
           ) : (
-            <table className="w-full text-sm min-w-[400px]">
-              <thead className="bg-gray-50">
-                <tr className="text-left text-gray-500 border-b">
-                  <th className="p-3">Date</th>
-                  <th className="p-3">Amount</th>
-                  <th className="p-3">Transaction Code</th>
-                  <th className="p-3">Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((p: any) => (
-                  <tr key={p.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3">{new Date(p.payment_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
-                    <td className="p-3 text-green-600 font-bold">KSh {parseFloat(p.amount).toLocaleString()}</td>
-                    <td className="p-3 font-mono text-xs">{p.transaction_code || p.kcb_transaction_id || "—"}</td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" :
-                        p.source === "cash" ? "bg-yellow-100 text-yellow-700" :
-                        p.source === "mpesa" ? "bg-green-100 text-green-700" :
-                        "bg-gray-100 text-gray-600"}`}>
-                        {p.source === "kcb_paybill" ? "KCB Paybill" : p.source}
-                      </span>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr className="text-left text-gray-500">
+                    <th className="px-5 py-2.5">Date</th>
+                    <th className="px-5 py-2.5">Amount</th>
+                    <th className="px-5 py-2.5">Transaction Code</th>
+                    <th className="px-5 py-2.5">Source</th>
                   </tr>
-                ))}
-              </tbody>
-              {isClosed && (
-                <tfoot>
-                  <tr className="bg-green-50 font-bold border-t-2">
-                    <td className="p-3">Total Paid</td>
-                    <td className="p-3 text-green-600">KSh {totalActuallyPaid.toLocaleString()}</td>
-                    <td className="p-3" colSpan={2}></td>
+                </thead>
+                <tbody>
+                  {[...payments].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()).map((p: any) => (
+                    <tr key={p.id} className="border-b">
+                      <td className="px-5 py-2.5">{new Date(p.payment_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
+                      <td className="px-5 py-2.5 text-emerald-600 font-medium">KSh {parseFloat(p.amount).toLocaleString()}</td>
+                      <td className="px-5 py-2.5 font-mono text-xs">{p.transaction_code || p.kcb_transaction_id || "-"}</td>
+                      <td className="px-5 py-2.5">{p.source === "kcb_paybill" ? "KCB Paybill" : p.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 border-t font-bold">
+                  <tr>
+                    <td className="px-5 py-2.5">Total Paid</td>
+                    <td className="px-5 py-2.5 text-emerald-600">KSh {totalPaid.toLocaleString()}</td>
+                    <td colSpan={2}></td>
                   </tr>
                 </tfoot>
-              )}
-            </table>
+              </table>
+            </div>
           )}
         </div>
+
       </div>
-    </div>
+    </Layout>
   );
 }

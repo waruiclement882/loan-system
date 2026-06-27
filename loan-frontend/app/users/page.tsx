@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Layout from "../components/Layout";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
@@ -107,24 +108,12 @@ export default function UsersPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-3 items-center flex-wrap">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</button>
-          <button onClick={() => router.push("/settings")} className="text-gray-600 hover:text-blue-600 text-sm">Settings</button>
-          <button onClick={() => router.push("/audit")} className="text-gray-600 hover:text-blue-600 text-sm">Audit</button>
-          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600 text-sm">📅 PAR</button>
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600 text-sm">Statement</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-500 hover:text-red-700 text-sm">Logout</button>
-        </div>
-      </nav>
-
+    <Layout>
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">👥 User Management</h2>
+          <h2 className="text-2xl font-bold text-[#04342C]">👥 User Management</h2>
           <button onClick={() => { setShowForm(!showForm); setEditUser(null); setForm({ name: "", email: "", password: "", role: "loan_officer" }); setError(""); }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+            className="bg-[#0F6E56] text-white px-4 py-2 rounded-lg hover:bg-[#085041] text-sm">
             + Add User
           </button>
         </div>
@@ -192,6 +181,7 @@ export default function UsersPage() {
           {loading ? (
             <div className="p-8 text-center text-gray-400">Loading users...</div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr className="text-left text-gray-500 border-b">
@@ -225,9 +215,10 @@ export default function UsersPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }

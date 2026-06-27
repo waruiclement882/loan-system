@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getPayments, createPayment, getLoans } from "@/lib/api";
+import Layout from "../components/Layout";
 
 export default function PaymentsPage() {
   const router = useRouter();
@@ -42,25 +43,12 @@ export default function PaymentsPage() {
   const kcbCollected = payments.filter(p => p.source === "kcb_paybill").reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600">Dashboard</button>
-          <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600">Customers</button>
-          <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
-          <button onClick={() => router.push("/approvals")} className="text-gray-600 hover:text-blue-600">Approvals</button>
-          <button onClick={() => router.push("/export")} className="text-gray-600 hover:text-blue-600">Export</button>
-          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">📅 PAR</button>
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
-        </div>
-      </nav>
-
+    <Layout>
       <div className="p-6">
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">Total Payments</p>
-            <p className="text-2xl font-bold text-blue-600">{payments.length}</p>
+            <p className="text-2xl font-bold text-[#0F6E56]">{payments.length}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">Total Collected</p>
@@ -73,8 +61,8 @@ export default function PaymentsPage() {
         </div>
 
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Payments</h2>
-          <button onClick={() => setShowForm(!showForm)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+          <h2 className="text-2xl font-bold text-[#04342C]">Payments</h2>
+          <button onClick={() => setShowForm(!showForm)} className="bg-[#0F6E56] text-white px-4 py-2 rounded-lg hover:bg-[#085041]">
             + Record Payment
           </button>
         </div>
@@ -82,7 +70,7 @@ export default function PaymentsPage() {
         {showForm && (
           <div className="bg-white rounded-lg shadow p-6 mb-6">
             <h3 className="font-bold text-lg mb-4">Record Manual Payment</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Loan</label>
                 <select value={form.loan_id} onChange={(e) => setForm({...form, loan_id: e.target.value})} className="w-full border rounded-lg px-3 py-2">
@@ -118,7 +106,7 @@ export default function PaymentsPage() {
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveTab("all")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === "all" ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${activeTab === "all" ? "bg-[#0F6E56] text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
           >
             All Payments ({payments.length})
           </button>
@@ -130,7 +118,7 @@ export default function PaymentsPage() {
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500 border-b">
@@ -159,6 +147,7 @@ export default function PaymentsPage() {
                         p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" :
                         p.source === "mpesa" ? "bg-green-100 text-green-700" :
                         p.source === "bank" ? "bg-blue-100 text-blue-700" :
+                        p.source === "suspense" ? "bg-amber-100 text-amber-700" :
                         "bg-gray-100 text-gray-700"
                       }`}>
                         {p.source === "kcb_paybill" ? "KCB Paybill" : p.source}
@@ -172,6 +161,6 @@ export default function PaymentsPage() {
           </table>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }

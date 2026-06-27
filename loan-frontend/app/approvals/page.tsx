@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Layout from "../components/Layout";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
@@ -55,7 +56,6 @@ export default function ApprovalsPage() {
 
   const disburseLoan = async (id: number, loan: any) => {
     setError(""); setSuccess("");
-    // Check processing fee paid on frontend first
     if (loan.processing_fee > 0 && !loan.processing_fee_paid) {
       setError("Cannot disburse Loan #" + id + " — processing fee of KSh " + Number(loan.processing_fee).toLocaleString() + " has not been paid. Go to Loans page to mark it as paid.");
       return;
@@ -71,38 +71,23 @@ export default function ApprovalsPage() {
   const tabs = ["pending", "approved", "active", "rejected", "paid"];
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4">
-          <button onClick={() => router.push("/dashboard")}  className="text-gray-600 hover:text-blue-600">Dashboard</button>
-          <button onClick={() => router.push("/customers")}  className="text-gray-600 hover:text-blue-600">Customers</button>
-          <button onClick={() => router.push("/loans")}      className="text-gray-600 hover:text-blue-600">Loans</button>
-          <button onClick={() => router.push("/payments")}   className="text-gray-600 hover:text-blue-600">Payments</button>
-          <button onClick={() => router.push("/export")}     className="text-gray-600 hover:text-blue-600">Export</button>
-          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">📅 PAR</button>
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
-        </div>
-      </nav>
-
-      <div className="p-6">
-        <h2 className="text-2xl font-bold mb-6">Loan Approvals & Disbursements</h2>
+    <Layout>
+      <div className="p-4 md:p-6">
+        <h2 className="text-2xl font-bold mb-6 text-[#04342C]">Loan Approvals & Disbursements</h2>
 
         {error   && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 flex justify-between"><span>{error}</span><button onClick={() => setError("")}>✕</button></div>}
-        {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4 flex justify-between"><span>{success}</span><button onClick={() => setSuccess("")}>✕</button></div>}
+        {success && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg mb-4 flex justify-between"><span>{success}</span><button onClick={() => setSuccess("")}>✕</button></div>}
 
-        {/* Tabs */}
         <div className="flex gap-2 mb-6 flex-wrap">
           {tabs.map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={"px-4 py-2 rounded-lg text-sm font-medium capitalize " +
-                (activeTab === tab ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50")}>
+                (activeTab === tab ? "bg-[#0F6E56] text-white" : "bg-white text-gray-600 hover:bg-gray-50 border border-[#D9E2DC]")}>
               {tab}
             </button>
           ))}
         </div>
 
-        {/* Reject Modal */}
         {rejectForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-96">
@@ -124,6 +109,7 @@ export default function ApprovalsPage() {
           ) : loans.length === 0 ? (
             <p className="p-6 text-center text-gray-400">No {activeTab} loans found</p>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b">
                 <tr className="text-left text-gray-500">
@@ -207,9 +193,10 @@ export default function ApprovalsPage() {
                 })}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }

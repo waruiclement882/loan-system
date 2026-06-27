@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Layout from "../components/Layout";
 
 const API = "https://loan-system-h794.onrender.com";
 
@@ -87,12 +88,14 @@ export default function PARPage() {
   const years = Array.from({ length: 3 }, (_, i) => new Date().getFullYear() - 1 + i);
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-slate-400 text-sm">Loading...</p>
+    <Layout>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-[#0F6E56] border-t-transparent rounded-full animate-spin" />
+          <p className="text-slate-400 text-sm">Loading...</p>
+        </div>
       </div>
-    </div>
+    </Layout>
   );
 
   const tabs = [
@@ -102,25 +105,11 @@ export default function PARPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4 text-sm">
-          {["dashboard", "loans", "customers", "payments"].map(p => (
-            <button key={p} onClick={() => router.push("/" + p)}
-              className="text-slate-500 hover:text-blue-600 capitalize transition-colors">{p}</button>
-          ))}
-          <button onClick={() => router.push("/collection")} className="text-slate-500 hover:text-blue-600">Collection</button>
-          <button onClick={() => router.push("/par")} className="text-gray-600 hover:text-blue-600">PAR</button>
-          <button onClick={() => router.push("/statement")} className="text-gray-600 hover:text-blue-600">Statement</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-400 hover:text-red-600">Logout</button>
-        </div>
-      </nav>
-
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+    <Layout>
+      <div className="p-4 md:p-6 max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800">Loan Monitoring</h2>
+            <h2 className="text-2xl font-bold text-[#04342C]">Loan Monitoring</h2>
             <p className="text-slate-400 text-sm mt-0.5">Track due payments and overdue loans</p>
           </div>
           <button onClick={() => { loadPar(); loadDues(); }}
@@ -132,7 +121,7 @@ export default function PARPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-xs text-slate-400 mb-1">Dues Shown</p>
-            <p className="text-2xl font-bold text-blue-600">{dueData.length}</p>
+            <p className="text-2xl font-bold text-[#0F6E56]">{dueData.length}</p>
             <p className="text-xs text-slate-400 mt-0.5">KES {totalDueAmount.toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 p-4">
@@ -155,15 +144,15 @@ export default function PARPage() {
         </div>
 
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex border-b border-slate-200">
+          <div className="flex border-b border-slate-200 overflow-x-auto">
             {tabs.map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={`px-5 py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
-                  activeTab === tab.key ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50" : "text-slate-500 hover:text-slate-700"
+                className={`px-5 py-3 text-sm font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+                  activeTab === tab.key ? "text-[#0F6E56] border-b-2 border-[#0F6E56] bg-emerald-50/50" : "text-slate-500 hover:text-slate-700"
                 }`}>
                 {tab.label}
                 {tab.count !== null && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"}`}>
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? "bg-emerald-100 text-[#0F6E56]" : "bg-slate-100 text-slate-500"}`}>
                     {tab.count}
                   </span>
                 )}
@@ -171,13 +160,13 @@ export default function PARPage() {
             ))}
           </div>
 
-          <div className="p-6">
+          <div className="p-4 md:p-6">
 
             {activeTab === "dues" && (
               <div className="space-y-5">
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Filter Dues</p>
-                  <div className="flex gap-2 mb-4">
+                  <div className="flex gap-2 mb-4 flex-wrap">
                     {([
                       { key: "week", label: "📅 This Week" },
                       { key: "date", label: "🗓️ Specific Date" },
@@ -186,7 +175,7 @@ export default function PARPage() {
                       <button key={m.key}
                         onClick={() => { setFilterMode(m.key); loadDues(m.key, selectedDate, selectedMonth, selectedYear); }}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                          filterMode === m.key ? "bg-blue-600 text-white border-blue-600" : "bg-white text-slate-600 border-slate-200 hover:border-blue-300"
+                          filterMode === m.key ? "bg-[#0F6E56] text-white border-[#0F6E56]" : "bg-white text-slate-600 border-slate-200 hover:border-emerald-300"
                         }`}>
                         {m.label}
                       </button>
@@ -194,10 +183,10 @@ export default function PARPage() {
                   </div>
 
                   {filterMode === "date" && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <input type="date" value={selectedDate}
                         onChange={e => { setSelectedDate(e.target.value); loadDues("date", e.target.value, selectedMonth, selectedYear); }}
-                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white" />
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white" />
                       {selectedDate && (
                         <span className="text-xs text-slate-500">
                           {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-KE", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
@@ -207,15 +196,15 @@ export default function PARPage() {
                   )}
 
                   {filterMode === "month" && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <select value={selectedMonth}
                         onChange={e => { const m = parseInt(e.target.value); setSelectedMonth(m); loadDues("month", selectedDate, m, selectedYear); }}
-                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white">
                         {MONTHS.map((name, i) => <option key={i+1} value={i+1}>{name}</option>)}
                       </select>
                       <select value={selectedYear}
                         onChange={e => { const y = parseInt(e.target.value); setSelectedYear(y); loadDues("month", selectedDate, selectedMonth, y); }}
-                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white">
+                        className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300 bg-white">
                         {years.map(y => <option key={y} value={y}>{y}</option>)}
                       </select>
                       <span className="text-xs text-slate-500 font-medium">{MONTHS[selectedMonth-1]} {selectedYear}</span>
@@ -229,7 +218,7 @@ export default function PARPage() {
 
                 {dueLoading ? (
                   <div className="flex items-center gap-2 text-slate-400 text-sm py-8 justify-center">
-                    <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
                     Loading dues...
                   </div>
                 ) : dueData.length === 0 ? (
@@ -262,7 +251,7 @@ export default function PARPage() {
                           const dayTotal = insts.reduce((s: number, i: any) => s + parseFloat(i.amount_due || 0), 0);
                           return (
                             <div key={dateKey} className="border border-slate-200 rounded-xl overflow-hidden">
-                              <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                              <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex-wrap gap-2">
                                 <div className="flex items-center gap-2">
                                   <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${color}`}>{label}</span>
                                   <span className="text-xs text-slate-400">
@@ -280,7 +269,7 @@ export default function PARPage() {
                                     className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors"
                                     onClick={() => router.push(`/loans/${inst.loan_id}`)}>
                                     <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center text-xs font-bold text-blue-600">
+                                      <div className="w-8 h-8 bg-emerald-50 rounded-full flex items-center justify-center text-xs font-bold text-[#0F6E56]">
                                         {inst.customer_name?.charAt(0).toUpperCase()}
                                       </div>
                                       <div>
@@ -319,7 +308,7 @@ export default function PARPage() {
                               onClick={() => router.push(`/loans/${inst.loan_id}`)}>
                               <div className="flex items-center gap-3">
                                 <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${
-                                  isPast ? "bg-red-100 text-red-600" : label === "Today" ? "bg-orange-100 text-orange-600" : "bg-blue-50 text-blue-600"
+                                  isPast ? "bg-red-100 text-red-600" : label === "Today" ? "bg-orange-100 text-orange-600" : "bg-emerald-50 text-[#0F6E56]"
                                 }`}>
                                   {inst.customer_name?.charAt(0).toUpperCase()}
                                 </div>
@@ -358,7 +347,7 @@ export default function PARPage() {
                   <div className="space-y-3">
                     {overdueLoans.map((loan: any) => (
                       <div key={loan.id}
-                        className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-xl hover:shadow-sm cursor-pointer"
+                        className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-xl hover:shadow-sm cursor-pointer flex-wrap gap-3"
                         onClick={() => router.push(`/loans/${loan.id}`)}>
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-sm font-bold text-red-600">
@@ -388,7 +377,7 @@ export default function PARPage() {
 
             {activeTab === "par" && parData && (
               <div className="space-y-6">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center p-6 bg-slate-50 rounded-xl border border-slate-200">
                     <p className="text-xs text-slate-400 mb-1">PAR Rate</p>
                     <p className={"text-5xl font-bold " + parColor}>{parData.par}%</p>
@@ -398,7 +387,7 @@ export default function PARPage() {
                   </div>
                   <div className="p-6 bg-slate-50 rounded-xl border border-slate-200">
                     <p className="text-xs text-slate-400 mb-1">Total Portfolio</p>
-                    <p className="text-2xl font-bold text-blue-600">KES {parseFloat(parData.totalPortfolio).toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-[#0F6E56]">KES {parseFloat(parData.totalPortfolio).toLocaleString()}</p>
                     <p className="text-xs text-slate-400 mt-1">{parData.totalLoans} active loans</p>
                   </div>
                   <div className="p-6 bg-red-50 rounded-xl border border-red-200">
@@ -422,7 +411,7 @@ export default function PARPage() {
                           className={`border-b hover:bg-slate-50 cursor-pointer ${loan.is_overdue ? "bg-red-50/50" : ""}`}
                           onClick={() => router.push(`/loans/${loan.id}`)}>
                           <td className="py-3 px-3 font-medium text-slate-800">{loan.customer_name}</td>
-                          <td className="py-3 px-3 text-blue-600 font-mono text-xs">#{loan.id}</td>
+                          <td className="py-3 px-3 text-[#0F6E56] font-mono text-xs">#{loan.id}</td>
                           <td className="py-3 px-3">KES {parseFloat(loan.balance).toLocaleString()}</td>
                           <td className="py-3 px-3">{loan.overdue_count || 0}</td>
                           <td className="py-3 px-3">{loan.days_overdue > 0 ? `${loan.days_overdue} days` : "—"}</td>
@@ -441,7 +430,6 @@ export default function PARPage() {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }
-
