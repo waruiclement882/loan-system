@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p $env:PORT",
     "lint": "eslint"
   },
   "dependencies": {
@@ -28,3 +28,5 @@
     "typescript": "^5"
   }
 }
+
+
