@@ -377,7 +377,9 @@ export default function ExpensesPage() {
                     </div>
                     <div className="divide-y divide-slate-100">
                       {[
-                        { label: "Loan Repayments", value: pnl.income.repayments.total, count: pnl.income.repayments.count, sub: "payments" },
+                        { label: "Loan Repayments (Total)", value: pnl.income.repayments.total, count: pnl.income.repayments.count, sub: "payments" },
+{ label: "  └ Interest Income", value: pnl.income.repayments.interest, count: null, sub: "profit portion" },
+{ label: "  └ Principal Recovered", value: pnl.income.repayments.principal, count: null, sub: "capital returned" },
                         { label: "Processing Fees", value: pnl.income.processing_fees.total, count: pnl.income.processing_fees.count, sub: "loans" },
                         { label: "Float Income", value: pnl.income.float_income.total, count: pnl.income.float_income.count, sub: "transactions" },
                       ].map(item => (
