@@ -68,6 +68,7 @@ export default function Sidebar() {
     { label: "Payment Slip", path: "/slip", show: true, group: "Records" },
     { label: "Collection Sheet", path: "/collection", show: isAdmin, group: "Records" },
     { label: "Reports", path: "/reports", show: isAdmin, group: "Records" },
+    { label: "P&L / Expenses", path: "/expenses", show: isAdmin, group: "Records" },
     { label: "Export", path: "/export", show: isAdmin, group: "Records" },
 
     { label: "Users", path: "/users", show: userRole === "admin", group: "Admin" },
@@ -158,3 +159,4 @@ export default function Sidebar() {
     </>
   );
 }
+
