@@ -86,7 +86,7 @@ export default function ExpensesPage() {
     try {
       const res = await fetch(`${API}/api/expenses/bad-debt-recovery`, {
         method: "POST", headers,
-        body: JSON.stringify({ loan_id: loanId, ...recoveryForm })
+        body: JSON.stringify({ loan_id: loanId, amount: recoveryForm.amount, transaction_code: recoveryForm.transaction_code, notes: recoveryForm.notes })
       });
       const data = await res.json();
       if (data.error) setMsg({ type: "error", text: data.error });

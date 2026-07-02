@@ -9,6 +9,8 @@ export default function ReportsPage() {
   const [loans, setLoans] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [income, setIncome] = useState<any>({ income: [], total: 0 });
+  const [totalExpensesAmount, setTotalExpensesAmount] = useState(0);
+  const [totalBadDebtRecovery, setTotalBadDebtRecovery] = useState(0);
   const [userRole, setUserRole] = useState("");
   const [userName, setUserName] = useState("");
   const [unmatched, setUnmatched] = useState(0);
@@ -43,14 +45,20 @@ export default function ReportsPage() {
     setLoans(Array.isArray(l) ? l : []);
     setPayments(Array.isArray(p) ? p : []);
     try {
-      const [unmatchedRes, incomeRes] = await Promise.all([
+      const [unmatchedRes, incomeRes, expensesRes, writtenOffRes] = await Promise.all([
         fetch(`${API}/api/payments/unmatched`, { headers: getHeaders() }),
-        fetch(`${API}/api/payments/income`, { headers: getHeaders() })
+        fetch(`${API}/api/payments/income`, { headers: getHeaders() }),
+        fetch(`${API}/api/expenses`, { headers: getHeaders() }),
+        fetch(`${API}/api/expenses/written-off`, { headers: getHeaders() })
       ]);
       const unmatchedData = await unmatchedRes.json();
       const incomeData = await incomeRes.json();
+      const expensesData = await expensesRes.json();
+      const writtenOffData = await writtenOffRes.json();
       setUnmatched(Array.isArray(unmatchedData) ? unmatchedData.length : 0);
       setIncome(incomeData || { income: [], total: 0 });
+      setTotalExpensesAmount(expensesData.total || 0);
+      setTotalBadDebtRecovery(writtenOffData.totalRecovered || 0);
     } catch {}
   };
 
@@ -80,7 +88,7 @@ export default function ReportsPage() {
     .reduce((s, l) => s + (parseFloat(l.total_amount || 0) - parseFloat(l.amount || 0)), 0);
 
   // Cash flow calculations
-  const cashInHand = capital + totalRepaid - totalDisbursed + totalIncome;
+  const cashInHand = capital + totalRepaid - totalDisbursed - totalExpensesAmount + totalBadDebtRecovery;
   const totalAssets = cashInHand + totalOutstanding;
   const roi = capital > 0 ? ((totalAssets - capital) / capital * 100) : 0;
   const isOverextended = cashInHand < 0;
@@ -279,7 +287,7 @@ export default function ReportsPage() {
                   KSh {Math.abs(cashInHand).toLocaleString()}
                   {cashInHand < 0 ? " (deficit)" : ""}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Capital + Collected - Disbursed</p>
+                <p className="text-xs text-gray-400 mt-1">Capital + Collected - Disbursed - Expenses + Recoveries</p>
               </div>
             </div>
 
@@ -308,6 +316,20 @@ export default function ReportsPage() {
                   <span className="text-gray-600">Outstanding Loans (owed to you)</span>
                   <span className="font-bold text-blue-600">+ KSh {totalOutstanding.toLocaleString()}</span>
                 </div>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">Total Expenses Paid</span>
+                  <span className="font-bold text-red-500">- KSh {totalExpensesAmount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">Bad Debt Written Off</span>
+                  <span className="font-bold text-red-700">- KSh {(totalExpensesAmount > 0 ? 0 : 0).toLocaleString()}</span>
+                </div>
+                {totalBadDebtRecovery > 0 && (
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-gray-600">Bad Debt Recovered</span>
+                    <span className="font-bold text-green-600">+ KSh {totalBadDebtRecovery.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-gray-600">Processing Fees Collected</span>
                   <span className="font-bold text-indigo-600">+ KSh {totalIncome.toLocaleString()}</span>
@@ -552,7 +574,7 @@ export default function ReportsPage() {
             <p className={`text-2xl font-bold ${cashInHand >= 0 ? "text-blue-600" : "text-red-600"}`}>
               KSh {Math.abs(cashInHand).toLocaleString()}
             </p>
-            <p className="text-xs text-gray-400 mt-1">{cashInHand < 0 ? "⚠️ Deficit" : "Available to disburse"}</p>
+            <p className="text-xs text-gray-400 mt-1">{cashInHand < 0 ? "⚠️ Deficit — stop disbursing" : "Available to disburse"}</p>
           </div>
         </div>
 
