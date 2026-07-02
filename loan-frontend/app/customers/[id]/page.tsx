@@ -40,7 +40,12 @@ export default function CustomerProfilePage() {
     try {
       const res = await fetch(API + "/api/kyc/" + id, { headers });
       const data = await res.json();
-      setKycDocs(Array.isArray(data) ? data : (data && !data.error ? [data] : []));
+      // API returns single object with national_id_url, passport_photo_url
+      if (data && !data.error && data.customer_id) {
+        setKycDocs([data]);
+      } else {
+        setKycDocs([]);
+      }
     } catch {}
   };
 
