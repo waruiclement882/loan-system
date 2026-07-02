@@ -50,23 +50,14 @@ router.get('/pnl', verifyToken, async (req, res) => {
     const month = req.query.month || new Date().getMonth() + 1;
     const year = req.query.year || new Date().getFullYear();
 
-    // Income: payments collected this month with interest/principal split
-const paymentsIncome = await pool.query(`
-  SELECT 
-    COALESCE(SUM(p.amount), 0) as total,
-    COUNT(*) as count,
-    COALESCE(SUM(
-      p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)
-    ), 0) as interest_portion,
-    COALESCE(SUM(
-      p.amount * l.amount / NULLIF(l.total_amount, 0)
-    ), 0) as principal_portion
-  FROM payments p
-  JOIN loans l ON p.loan_id = l.id
-  WHERE EXTRACT(MONTH FROM p.payment_date) = $1
-  AND EXTRACT(YEAR FROM p.payment_date) = $2
-  AND p.source != 'suspense'
-`, [month, year]);
+    // Income: payments collected this month
+    const paymentsIncome = await pool.query(`
+      SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
+      FROM payments
+      WHERE EXTRACT(MONTH FROM payment_date) = $1
+      AND EXTRACT(YEAR FROM payment_date) = $2
+      AND source != 'suspense'
+    `, [month, year]);
 
     // Processing fees this month
     const processingFees = await pool.query(`
@@ -109,39 +100,32 @@ const paymentsIncome = await pool.query(`
     // Interest income = payments - principal portion
     // Simple calculation: total payments - processing fees = repayments
     const totalPayments = parseFloat(paymentsIncome.rows[0].total);
-    const interestIncome = parseFloat(paymentsIncome.rows[0].interest_portion);
-    const principalRecovered = parseFloat(paymentsIncome.rows[0].principal_portion);
     const totalProcessingFees = parseFloat(processingFees.rows[0].total);
     const totalFloatIncome = parseFloat(floatIncome.rows[0].total);
 
-   const totalIncome = interestIncome + totalProcessingFees + totalFloatIncome;
-   const netProfit = totalIncome - totalExpenses;
+    const totalIncome = totalPayments + totalProcessingFees + totalFloatIncome;
+    const netProfit = totalIncome - totalExpenses;
 
     res.json({
-  month: parseInt(month),
-  year: parseInt(year),
-  income: {
-    repayments: { 
-      total: totalPayments, 
-      count: parseInt(paymentsIncome.rows[0].count),
-      interest: interestIncome,
-      principal: principalRecovered
-    },
-    processing_fees: { total: totalProcessingFees, count: parseInt(processingFees.rows[0].count) },
-    float_income: { total: totalFloatIncome, count: parseInt(floatIncome.rows[0].count) },
-    total: totalIncome
-  },
-  expenses: {
-    breakdown: expenses.rows,
-    total: totalExpenses
-  },
-  disbursed: {
-    total: parseFloat(disbursed.rows[0].total),
-    count: parseInt(disbursed.rows[0].count)
-  },
-  net_profit: netProfit,
-  profit_margin: totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0
-});
+      month: parseInt(month),
+      year: parseInt(year),
+      income: {
+        repayments: { total: totalPayments, count: parseInt(paymentsIncome.rows[0].count) },
+        processing_fees: { total: totalProcessingFees, count: parseInt(processingFees.rows[0].count) },
+        float_income: { total: totalFloatIncome, count: parseInt(floatIncome.rows[0].count) },
+        total: totalIncome
+      },
+      expenses: {
+        breakdown: expenses.rows,
+        total: totalExpenses
+      },
+      disbursed: {
+        total: parseFloat(disbursed.rows[0].total),
+        count: parseInt(disbursed.rows[0].count)
+      },
+      net_profit: netProfit,
+      profit_margin: totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
