@@ -11,8 +11,6 @@ export default function ReportsPage() {
   const [income, setIncome] = useState<any>({ income: [], total: 0 });
   const [totalExpensesAmount, setTotalExpensesAmount] = useState(0);
   const [totalBadDebtRecovery, setTotalBadDebtRecovery] = useState(0);
-  const [totalExpensesAmount, setTotalExpensesAmount] = useState(0);
-  const [totalBadDebtRecovery, setTotalBadDebtRecovery] = useState(0);
   const [userRole, setUserRole] = useState("");
   const [userName, setUserName] = useState("");
   const [unmatched, setUnmatched] = useState(0);
