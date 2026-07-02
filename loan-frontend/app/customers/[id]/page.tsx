@@ -65,9 +65,9 @@ export default function CustomerProfilePage() {
     try {
       const formData = new FormData();
       formData.append("document", file);
-      formData.append("document_type", docType);
+      formData.append("doc_type", docType);
       formData.append("customer_id", id as string);
-      const res = await fetch(API + "/api/kyc/upload", {
+      const res = await fetch(API + "/api/kyc/" + id + "/upload", {
         method: "POST",
         headers: { Authorization: "Bearer " + token },
         body: formData
