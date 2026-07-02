@@ -1,4 +1,5 @@
 const loanService = require('../services/loanService');
+const loanRepository = require('../repositories/loanRepository');
 const pool = require('../db/pool');
 const smsService = require('../services/smsService');
 const scheduleService = require('../services/scheduleService');
