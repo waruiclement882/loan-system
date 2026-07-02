@@ -11,6 +11,8 @@ export default function ReportsPage() {
   const [income, setIncome] = useState<any>({ income: [], total: 0 });
   const [totalExpensesAmount, setTotalExpensesAmount] = useState(0);
   const [totalBadDebtRecovery, setTotalBadDebtRecovery] = useState(0);
+  const [totalExpensesAmount, setTotalExpensesAmount] = useState(0);
+  const [totalBadDebtRecovery, setTotalBadDebtRecovery] = useState(0);
   const [userRole, setUserRole] = useState("");
   const [userName, setUserName] = useState("");
   const [unmatched, setUnmatched] = useState(0);
@@ -316,6 +318,20 @@ export default function ReportsPage() {
                   <span className="text-gray-600">Outstanding Loans (owed to you)</span>
                   <span className="font-bold text-blue-600">+ KSh {totalOutstanding.toLocaleString()}</span>
                 </div>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">Total Expenses Paid</span>
+                  <span className="font-bold text-red-500">- KSh {totalExpensesAmount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">Bad Debt Written Off</span>
+                  <span className="font-bold text-red-700">- KSh {(totalExpensesAmount > 0 ? 0 : 0).toLocaleString()}</span>
+                </div>
+                {totalBadDebtRecovery > 0 && (
+                  <div className="flex justify-between items-center py-2 border-b">
+                    <span className="text-gray-600">Bad Debt Recovered</span>
+                    <span className="font-bold text-green-600">+ KSh {totalBadDebtRecovery.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-gray-600">Total Expenses Paid</span>
                   <span className="font-bold text-red-500">- KSh {totalExpensesAmount.toLocaleString()}</span>
