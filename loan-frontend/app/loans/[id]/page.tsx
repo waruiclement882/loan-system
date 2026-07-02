@@ -45,6 +45,23 @@ export default function LoanDetailPage() {
     setLoading(false);
   };
 
+  const handleWriteOff = async () => {
+    const reason = prompt("Reason for writing off this loan?");
+    if (!reason) return;
+    if (!confirm("Are you sure you want to write off Loan #" + loanId + "? This cannot be undone.")) return;
+    try {
+      const res = await fetch(API + "/api/loans/" + loanId + "/write-off", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ reason })
+      });
+      const data = await res.json();
+      if (data.error) alert("Error: " + data.error);
+      else { alert("Loan written off successfully!"); loadData(); }
+    } catch { alert("Failed to write off loan"); }
+  };
+
+
   if (loading) {
     return (
       <Layout>
@@ -87,6 +104,7 @@ export default function LoanDetailPage() {
     approved: "bg-indigo-100 text-indigo-700",
     rejected: "bg-red-100 text-red-700",
     pending: "bg-amber-100 text-amber-700",
+    written_off: "bg-gray-300 text-gray-700",
   }[s] || "bg-gray-100 text-gray-600");
 
   const scheduleStatusColor = (s: string) => ({
@@ -103,6 +121,29 @@ export default function LoanDetailPage() {
         <button onClick={() => router.push("/loans")} className="text-sm text-[#0F6E56] hover:text-[#085041] mb-4 flex items-center gap-1">
           ← Back to Loans
         </button>
+        {loan && loan.status === "active" && (() => {
+          const overdueWeeks = schedule.filter((s: any) => s.status === "overdue");
+          const firstOverdue = overdueWeeks.length > 0 ? new Date(overdueWeeks[0].due_date) : null;
+          const daysOverdue = firstOverdue ? Math.floor((new Date().getTime() - firstOverdue.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+          return daysOverdue >= 40 ? (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <p className="font-semibold text-red-700">⚠️ Loan Overdue {daysOverdue} Days</p>
+                <p className="text-red-500 text-sm">This loan qualifies for bad debt write-off (40+ days overdue)</p>
+              </div>
+              <button onClick={handleWriteOff}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-700 font-medium">
+                ✕ Write Off Loan
+              </button>
+            </div>
+          ) : null;
+        })()}
+        {loan && loan.status === "written_off" && (
+          <div className="mb-4 p-4 bg-gray-100 border border-gray-300 rounded-xl">
+            <p className="font-semibold text-gray-700">✕ This loan has been written off as bad debt</p>
+            <p className="text-gray-500 text-sm mt-1">Balance of KSh {parseFloat(loan.balance||0).toLocaleString()} written off</p>
+          </div>
+        )}
 
         {isClosed ? (
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-5">
