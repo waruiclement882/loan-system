@@ -1,4 +1,8 @@
-"use client";
+const fs = require('fs');
+const path = require('path');
+const filePath = path.join(__dirname, 'loan-frontend', 'app', 'reports', 'page.tsx');
+
+const content = `"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCustomers, getLoans, getPayments } from "@/lib/api";
@@ -25,7 +29,7 @@ export default function ReportsPage() {
 
   const getHeaders = () => {
     const token = localStorage.getItem("token");
-    return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+    return { "Content-Type": "application/json", Authorization: \`Bearer \${token}\` };
   };
 
   useEffect(() => {
@@ -44,8 +48,8 @@ export default function ReportsPage() {
     setPayments(Array.isArray(p) ? p : []);
     try {
       const [unmatchedRes, incomeRes] = await Promise.all([
-        fetch(`${API}/api/payments/unmatched`, { headers: getHeaders() }),
-        fetch(`${API}/api/payments/income`, { headers: getHeaders() })
+        fetch(\`\${API}/api/payments/unmatched\`, { headers: getHeaders() }),
+        fetch(\`\${API}/api/payments/income\`, { headers: getHeaders() })
       ]);
       const unmatchedData = await unmatchedRes.json();
       const incomeData = await incomeRes.json();
@@ -88,7 +92,7 @@ export default function ReportsPage() {
   // Monthly breakdown
   const getMonthKey = (date: string) => {
     const d = new Date(date);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return \`\${d.getFullYear()}-\${String(d.getMonth() + 1).padStart(2, "0")}\`;
   };
   const getMonthLabel = (key: string) => {
     const [year, month] = key.split("-");
@@ -139,7 +143,7 @@ export default function ReportsPage() {
   });
 
   const exportCSV = (data: any[][], filename: string) => {
-    const csv = data.map(row => row.map(cell => `"${cell ?? ""}"`).join(",")).join("\n");
+    const csv = data.map(row => row.map(cell => \`"\${cell ?? ""}"\`).join(",")).join("\\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
@@ -273,9 +277,9 @@ export default function ReportsPage() {
                 <p className="text-2xl font-bold text-green-600">KSh {totalRepaid.toLocaleString()}</p>
                 <p className="text-xs text-gray-400 mt-1">Cash received back</p>
               </div>
-              <div className={`rounded-lg p-4 border ${cashInHand >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+              <div className={\`rounded-lg p-4 border \${cashInHand >= 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}\`}>
                 <p className="text-xs text-gray-500 mb-1">Cash in Hand</p>
-                <p className={`text-2xl font-bold ${cashInHand >= 0 ? "text-green-600" : "text-red-600"}`}>
+                <p className={\`text-2xl font-bold \${cashInHand >= 0 ? "text-green-600" : "text-red-600"}\`}>
                   KSh {Math.abs(cashInHand).toLocaleString()}
                   {cashInHand < 0 ? " (deficit)" : ""}
                 </p>
@@ -300,7 +304,7 @@ export default function ReportsPage() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-gray-600">Cash in Hand</span>
-                  <span className={`font-bold ${cashInHand >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  <span className={\`font-bold \${cashInHand >= 0 ? "text-green-600" : "text-red-600"}\`}>
                     KSh {cashInHand.toLocaleString()}
                   </span>
                 </div>
@@ -322,7 +326,7 @@ export default function ReportsPage() {
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <span className="text-gray-600">Return on Investment</span>
-                  <span className={`font-bold text-lg ${roi >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  <span className={\`font-bold text-lg \${roi >= 0 ? "text-green-600" : "text-red-600"}\`}>
                     {roi.toFixed(1)}% ROI
                   </span>
                 </div>
@@ -401,7 +405,7 @@ export default function ReportsPage() {
               <button onClick={() => exportCSV([
                 ["Loan ID","Amount","Source","Code","Date"],
                 ...collectionPayments.map(p => [p.loan_id, p.amount, p.source, p.transaction_code||"", new Date(p.payment_date).toLocaleDateString()])
-              ], `collection-${collectionDate}.csv`)} className="bg-green-600 text-white px-3 py-2 rounded text-sm">⬇ Export</button>
+              ], \`collection-\${collectionDate}.csv\`)} className="bg-green-600 text-white px-3 py-2 rounded text-sm">⬇ Export</button>
             </div>
             {collectionPayments.length === 0 ? <p className="text-gray-400">No payments on {collectionDate}</p> : (
               <>
@@ -549,7 +553,7 @@ export default function ReportsPage() {
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-gray-500 text-sm">Cash in Hand</p>
-            <p className={`text-2xl font-bold ${cashInHand >= 0 ? "text-blue-600" : "text-red-600"}`}>
+            <p className={\`text-2xl font-bold \${cashInHand >= 0 ? "text-blue-600" : "text-red-600"}\`}>
               KSh {Math.abs(cashInHand).toLocaleString()}
             </p>
             <p className="text-xs text-gray-400 mt-1">{cashInHand < 0 ? "⚠️ Deficit" : "Available to disburse"}</p>
@@ -591,7 +595,7 @@ export default function ReportsPage() {
                   <tr key={p.id} className="border-b hover:bg-gray-50">
                     <td className="py-2">#{p.loan_id}</td>
                     <td className="py-2 text-green-600 font-medium">KSh {parseFloat(p.amount).toLocaleString()}</td>
-                    <td className="py-2"><span className={`px-2 py-1 rounded-full text-xs ${p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" : p.source === "cash" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-600"}`}>{p.source}</span></td>
+                    <td className="py-2"><span className={\`px-2 py-1 rounded-full text-xs \${p.source === "kcb_paybill" ? "bg-purple-100 text-purple-700" : p.source === "cash" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-600"}\`}>{p.source}</span></td>
                     <td className="py-2 text-gray-400">{new Date(p.payment_date).toLocaleDateString()}</td>
                   </tr>
                 ))}
@@ -602,4 +606,7 @@ export default function ReportsPage() {
       </div>
     </div>
   );
-}
+}`;
+
+fs.writeFileSync(filePath, content, 'utf8');
+console.log('✅ Reports page with Cash Flow tracker written!');
