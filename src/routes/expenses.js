@@ -50,28 +50,30 @@ router.get('/pnl', verifyToken, async (req, res) => {
     const month = req.query.month || new Date().getMonth() + 1;
     const year = req.query.year || new Date().getFullYear();
 
-    // Income: all payments this month with interest/principal split
-    const paymentsIncome = await pool.query(`
-      SELECT 
-        COALESCE(SUM(p.amount), 0) as total,
-        COUNT(*) as count,
-        COALESCE(SUM(p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)), 0) as interest_portion,
-        COALESCE(SUM(p.amount * l.amount / NULLIF(l.total_amount, 0)), 0) as principal_portion
-      FROM payments p
-      JOIN loans l ON p.loan_id = l.id
-      WHERE EXTRACT(MONTH FROM p.payment_date) = $1
-      AND EXTRACT(YEAR FROM p.payment_date) = $2
-      AND p.source != 'suspense'
-    `, [month, year]);
+    // Income: all payments on loans disbursed this month (regardless of when payment was made)
+const paymentsIncome = await pool.query(`
+  SELECT 
+    COALESCE(SUM(p.amount), 0) as total,
+    COUNT(*) as count,
+    COALESCE(SUM(p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)), 0) as interest_portion,
+    COALESCE(SUM(p.amount * l.amount / NULLIF(l.total_amount, 0)), 0) as principal_portion
+  FROM payments p
+  JOIN loans l ON p.loan_id = l.id
+  WHERE EXTRACT(MONTH FROM l.created_at) = $1
+  AND EXTRACT(YEAR FROM l.created_at) = $2
+  AND l.status NOT IN ('pending', 'rejected')
+  AND p.source != 'suspense'
+`, [month, year]);
 
-    // Processing fees
-    const processingFees = await pool.query(`
-      SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
-      FROM company_income
-      WHERE type = 'processing_fee'
-      AND EXTRACT(MONTH FROM created_at) = $1
-      AND EXTRACT(YEAR FROM created_at) = $2
-    `, [month, year]);
+    // Processing fees for loans disbursed this month
+const processingFees = await pool.query(`
+  SELECT COALESCE(SUM(ci.amount), 0) as total, COUNT(*) as count
+  FROM company_income ci
+  JOIN loans l ON ci.loan_id = l.id
+  WHERE ci.type = 'processing_fee'
+  AND EXTRACT(MONTH FROM l.created_at) = $1
+  AND EXTRACT(YEAR FROM l.created_at) = $2
+`, [month, year]);
 
     // Float income
     const floatIncome = await pool.query(`
@@ -100,53 +102,53 @@ router.get('/pnl', verifyToken, async (req, res) => {
       ORDER BY total DESC
     `, [month, year]);
 
-    // BREAKDOWN 2: All loans that had payments this month
-    const paymentsByLoan = await pool.query(`
-      SELECT 
-        l.id as loan_id,
-        c.name as customer_name,
-        l.amount,
-        l.total_amount,
-        l.created_at::date as loan_date,
-        COUNT(p.id) as payment_count,
-        COALESCE(SUM(p.amount), 0) as total_paid,
-        COALESCE(SUM(p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)), 0) as interest_paid,
-        COALESCE(SUM(p.amount * l.amount / NULLIF(l.total_amount, 0)), 0) as principal_paid
-      FROM payments p
-      JOIN loans l ON p.loan_id = l.id
-      JOIN customers c ON l.customer_id = c.id
-      WHERE EXTRACT(MONTH FROM p.payment_date) = $1
-      AND EXTRACT(YEAR FROM p.payment_date) = $2
-      AND p.source != 'suspense'
-      GROUP BY l.id, c.name, l.amount, l.total_amount, l.created_at
-      ORDER BY total_paid DESC
-    `, [month, year]);
+    // BREAKDOWN 2: All loans disbursed this month with ALL their payments
+const paymentsByLoan = await pool.query(`
+  SELECT 
+    l.id as loan_id,
+    c.name as customer_name,
+    l.amount,
+    l.total_amount,
+    l.status,
+    l.balance,
+    l.created_at::date as loan_date,
+    COUNT(p.id) as payment_count,
+    COALESCE(SUM(p.amount), 0) as total_paid,
+    COALESCE(SUM(p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)), 0) as interest_paid,
+    COALESCE(SUM(p.amount * l.amount / NULLIF(l.total_amount, 0)), 0) as principal_paid
+  FROM loans l
+  JOIN customers c ON l.customer_id = c.id
+  LEFT JOIN payments p ON p.loan_id = l.id AND p.source != 'suspense'
+  WHERE EXTRACT(MONTH FROM l.created_at) = $1
+  AND EXTRACT(YEAR FROM l.created_at) = $2
+  AND l.status NOT IN ('pending', 'rejected')
+  GROUP BY l.id, c.name, l.amount, l.total_amount, l.status, l.balance, l.created_at
+  ORDER BY total_paid DESC
+`, [month, year]);
 
-    // BREAKDOWN 3: Only loans disbursed THIS month and their payments
-    const disbursedThisMonthPayments = await pool.query(`
-      SELECT 
-        l.id as loan_id,
-        c.name as customer_name,
-        l.amount,
-        l.total_amount,
-        l.created_at::date as loan_date,
-        COUNT(p.id) as payment_count,
-        COALESCE(SUM(p.amount), 0) as total_paid,
-        COALESCE(SUM(p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)), 0) as interest_paid,
-        COALESCE(SUM(p.amount * l.amount / NULLIF(l.total_amount, 0)), 0) as principal_paid,
-        l.total_amount - COALESCE(SUM(p.amount), 0) as remaining_balance
-      FROM loans l
-      JOIN customers c ON l.customer_id = c.id
-      LEFT JOIN payments p ON p.loan_id = l.id
-        AND EXTRACT(MONTH FROM p.payment_date) = $1
-        AND EXTRACT(YEAR FROM p.payment_date) = $2
-        AND p.source != 'suspense'
-      WHERE EXTRACT(MONTH FROM l.created_at) = $1
-      AND EXTRACT(YEAR FROM l.created_at) = $2
-      AND l.status NOT IN ('pending', 'rejected')
-      GROUP BY l.id, c.name, l.amount, l.total_amount, l.created_at
-      ORDER BY total_paid DESC
-    `, [month, year]);
+    // BREAKDOWN 3: Same loans with actual current balance
+const disbursedThisMonthPayments = await pool.query(`
+  SELECT 
+    l.id as loan_id,
+    c.name as customer_name,
+    l.amount,
+    l.total_amount,
+    l.status,
+    l.balance as current_balance,
+    l.created_at::date as loan_date,
+    COUNT(p.id) as payment_count,
+    COALESCE(SUM(p.amount), 0) as total_paid,
+    COALESCE(SUM(p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)), 0) as interest_paid,
+    COALESCE(SUM(p.amount * l.amount / NULLIF(l.total_amount, 0)), 0) as principal_paid
+  FROM loans l
+  JOIN customers c ON l.customer_id = c.id
+  LEFT JOIN payments p ON p.loan_id = l.id AND p.source != 'suspense'
+  WHERE EXTRACT(MONTH FROM l.created_at) = $1
+  AND EXTRACT(YEAR FROM l.created_at) = $2
+  AND l.status NOT IN ('pending', 'rejected')
+  GROUP BY l.id, c.name, l.amount, l.total_amount, l.status, l.balance, l.created_at
+  ORDER BY total_paid DESC
+`, [month, year]);
 
     const totalExpenses = expenses.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
     const totalPayments = parseFloat(paymentsIncome.rows[0].total);

@@ -507,7 +507,7 @@ export default function ExpensesPage() {
                               <td className="py-2 px-3">KES {fmt(row.total_amount)}</td>
                               <td className="py-2 px-3 font-medium text-blue-600">{parseFloat(row.total_paid) > 0 ? `KES ${fmt(row.total_paid)}` : <span className="text-slate-300">—</span>}</td>
                               <td className="py-2 px-3 font-medium text-emerald-600">{parseFloat(row.interest_paid) > 0 ? `KES ${fmt(row.interest_paid)}` : <span className="text-slate-300">—</span>}</td>
-                              <td className="py-2 px-3 text-red-500">KES {fmt(row.remaining_balance)}</td>
+                              <td className="py-2 px-3">{row.status === 'paid' ? <span className="text-emerald-600 font-medium">✅ Fully Paid</span> : <span className="text-red-500">KES {fmt(row.current_balance)}</span>}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -517,7 +517,7 @@ export default function ExpensesPage() {
                             <td className="py-3 px-3 text-slate-600">KES {fmt(pnl.breakdown3_new_loans.loans.reduce((s:number,r:any)=>s+parseFloat(r.total_amount||0),0))}</td>
                             <td className="py-3 px-3 text-blue-600">KES {fmt(pnl.breakdown3_new_loans.summary.total_paid_back)}</td>
                             <td className="py-3 px-3 text-emerald-600">KES {fmt(pnl.breakdown3_new_loans.summary.total_interest_earned)}</td>
-                            <td className="py-3 px-3 text-red-500">KES {fmt(pnl.breakdown3_new_loans.loans.reduce((s:number,r:any)=>s+parseFloat(r.remaining_balance||0),0))}</td>
+                            <td className="py-3 px-3 text-red-500">KES {fmt(pnl.breakdown3_new_loans.loans.reduce((s:number,r:any)=>s+parseFloat(r.current_balance||0),0))}</td>
                           </tr>
                         </tfoot>
                       </table>
