@@ -158,7 +158,27 @@ const disbursedThisMonthPayments = await pool.query(`
   ORDER BY total_paid DESC
 `, [month, year]);
 
-    const totalExpenses = expenses.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
+    // Bad debt write-offs this month
+const badDebt = await pool.query(`
+  SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
+  FROM expenses
+  WHERE category = 'Bad Debt'
+  AND EXTRACT(MONTH FROM expense_date) = $1
+  AND EXTRACT(YEAR FROM expense_date) = $2
+`, [month, year]);
+
+// Bad debt recoveries this month
+const badDebtRecovery = await pool.query(`
+  SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
+  FROM company_income
+  WHERE type = 'bad_debt_recovery'
+  AND EXTRACT(MONTH FROM created_at) = $1
+  AND EXTRACT(YEAR FROM created_at) = $2
+`, [month, year]);
+
+const totalBadDebt = parseFloat(badDebt.rows[0].total);
+const totalBadDebtRecovery = parseFloat(badDebtRecovery.rows[0].total);
+const totalExpenses = expenses.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
     const totalPayments = parseFloat(paymentsIncome.rows[0].total);
     const interestIncome = parseFloat(paymentsIncome.rows[0].interest_portion);
     const principalRecovered = parseFloat(paymentsIncome.rows[0].principal_portion);
@@ -194,7 +214,9 @@ const disbursedThisMonthPayments = await pool.query(`
         total: parseFloat(disbursed.rows[0].total),
         count: parseInt(disbursed.rows[0].count)
       },
-      net_profit: netProfit,
+      bad_debt: { total: totalBadDebt, count: parseInt(badDebt.rows[0].count) },
+bad_debt_recovery: { total: totalBadDebtRecovery, count: parseInt(badDebtRecovery.rows[0].count) },
+net_profit: netProfit,
       profit_margin: totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0,
       breakdown2_all_loans: paymentsByLoan.rows,
       breakdown3_new_loans: {
@@ -246,6 +268,77 @@ router.delete('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     await pool.query('DELETE FROM expenses WHERE id = $1', [req.params.id]);
     res.json({ message: 'Expense deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// POST bad debt recovery
+router.post('/bad-debt-recovery', verifyToken, requireRole('admin', 'cashier'), async (req, res) => {
+  try {
+    const { loan_id, amount, transaction_code, notes } = req.body;
+    const recorded_by = req.user?.id || req.user?.user_id;
+
+    if (!loan_id || !amount) return res.status(400).json({ error: 'loan_id and amount required' });
+
+    // Verify loan is written off
+    const loanRes = await pool.query(
+      'SELECT l.*, c.name as customer_name FROM loans l JOIN customers c ON l.customer_id=c.id WHERE l.id=$1',
+      [loan_id]
+    );
+    if (!loanRes.rows[0]) return res.status(404).json({ error: 'Loan not found' });
+    if (loanRes.rows[0].status !== 'written_off') {
+      return res.status(400).json({ error: 'Loan is not written off' });
+    }
+
+    const loan = loanRes.rows[0];
+
+    // Record as company income - bad debt recovery
+    await pool.query(
+      `INSERT INTO company_income (loan_id, amount, type, transaction_code, recorded_by, notes)
+       VALUES ($1, $2, 'bad_debt_recovery', $3, $4, $5)`,
+      [loan_id, amount, transaction_code || null, recorded_by,
+       notes || `Bad debt recovery from ${loan.customer_name} - Loan #${loan_id}`]
+    );
+
+    // Record payment
+    await pool.query(
+      `INSERT INTO payments (loan_id, amount, source, transaction_code, payment_date)
+       VALUES ($1, $2, 'recovery', $3, NOW())`,
+      [loan_id, amount, transaction_code || `RECOVERY-${Date.now()}`]
+    );
+
+    // Audit log
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, user_name, action, entity, entity_id, details) VALUES ($1,$2,$3,$4,$5,$6)',
+      [recorded_by, 'Admin', 'BAD_DEBT_RECOVERY', 'loans', loan_id,
+       `Recovered KSh ${amount} from written-off loan #${loan_id} - ${loan.customer_name}`]
+    );
+
+    res.json({ message: `Bad debt recovery of KSh ${amount} recorded successfully` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET written off loans
+router.get('/written-off', verifyToken, async (req, res) => {
+  try {
+    const loans = await pool.query(`
+      SELECT l.*, c.name as customer_name, c.phone,
+        COALESCE(SUM(p.amount) FILTER (WHERE p.source='recovery'), 0) as recovered_amount,
+        e.amount as written_off_amount, e.created_at as written_off_at,
+        e.description as write_off_reason
+      FROM loans l
+      JOIN customers c ON l.customer_id = c.id
+      LEFT JOIN payments p ON p.loan_id = l.id
+      LEFT JOIN expenses e ON e.description LIKE '%Loan #' || l.id || '%' AND e.category = 'Bad Debt'
+      WHERE l.status = 'written_off'
+      GROUP BY l.id, c.name, c.phone, e.amount, e.created_at, e.description
+      ORDER BY l.updated_at DESC
+    `);
+    const totalWrittenOff = loans.rows.reduce((s, l) => s + parseFloat(l.written_off_amount || 0), 0);
+    const totalRecovered = loans.rows.reduce((s, l) => s + parseFloat(l.recovered_amount || 0), 0);
+    res.json({ loans: loans.rows, totalWrittenOff, totalRecovered });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
