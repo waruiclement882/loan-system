@@ -36,6 +36,29 @@ export default function CustomerProfilePage() {
     setLoading(false);
   };
 
+
+  const verifyKyc = async () => {
+    try {
+      const res = await fetch(API + "/api/kyc/" + id + "/verify", {
+        method: "PATCH", headers
+      });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { alert("KYC verified successfully!"); loadKyc(); loadProfile(); }
+    } catch { alert("Failed to verify KYC"); }
+  };
+
+  const rejectKyc = async (reason: string) => {
+    try {
+      const res = await fetch(API + "/api/kyc/" + id + "/reject", {
+        method: "PATCH", headers,
+        body: JSON.stringify({ reason })
+      });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { alert("KYC rejected!"); loadKyc(); loadProfile(); }
+    } catch { alert("Failed to reject KYC"); }
+  };
   const loadKyc = async () => {
     try {
       const res = await fetch(API + "/api/kyc/" + id, { headers });
