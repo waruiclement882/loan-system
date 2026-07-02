@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const pool = require('../db/pool');
+const pool = require('../db/connection');
 const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 
 // Configure Cloudinary

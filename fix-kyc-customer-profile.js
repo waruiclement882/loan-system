@@ -1,8 +1,27 @@
-"use client";
+const fs = require('fs');
+const path = require('path');
+
+// Fix KYC pool import
+let kyc = fs.readFileSync('src/routes/kyc.js', 'utf8');
+kyc = kyc.replace("require('../db/pool')", "require('../db/connection')");
+fs.writeFileSync('src/routes/kyc.js', kyc, 'utf8');
+console.log('KYC pool import fixed!');
+
+// Create customer [id] directory
+const dir = path.join('loan-frontend', 'app', 'customers', '[id]');
+if (!fs.existsSync(dir)) {
+  fs.mkdirSync(dir, { recursive: true });
+  console.log('Created [id] directory!');
+}
+
+// Create customer profile page
+const API = 'https://loan-system-h794.onrender.com';
+
+fs.writeFileSync(path.join(dir, 'page.tsx'), `"use client";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 
-const API = "https://loan-system-h794.onrender.com";
+const API = "${API}";
 
 export default function CustomerProfilePage() {
   const router = useRouter();
@@ -286,3 +305,6 @@ export default function CustomerProfilePage() {
     </div>
   );
 }
+`);
+
+console.log('Customer profile page created with KYC tab!');
