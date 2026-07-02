@@ -50,19 +50,27 @@ router.get('/pnl', verifyToken, async (req, res) => {
     const month = req.query.month || new Date().getMonth() + 1;
     const year = req.query.year || new Date().getFullYear();
 
-    // Income: all payments on loans disbursed this month (regardless of when payment was made)
+    // Income: payments on loans disbursed this month, capped at total_amount per loan
 const paymentsIncome = await pool.query(`
   SELECT 
-    COALESCE(SUM(p.amount), 0) as total,
-    COUNT(*) as count,
-    COALESCE(SUM(p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)), 0) as interest_portion,
-    COALESCE(SUM(p.amount * l.amount / NULLIF(l.total_amount, 0)), 0) as principal_portion
-  FROM payments p
-  JOIN loans l ON p.loan_id = l.id
-  WHERE EXTRACT(MONTH FROM l.created_at) = $1
-  AND EXTRACT(YEAR FROM l.created_at) = $2
-  AND l.status NOT IN ('pending', 'rejected')
-  AND p.source != 'suspense'
+    COALESCE(SUM(loan_paid), 0) as total,
+    COALESCE(SUM(payment_count), 0) as count,
+    COALESCE(SUM(interest_portion), 0) as interest_portion,
+    COALESCE(SUM(principal_portion), 0) as principal_portion
+  FROM (
+    SELECT 
+      l.id,
+      COUNT(p.id) as payment_count,
+      LEAST(COALESCE(SUM(p.amount), 0), l.total_amount) as loan_paid,
+      LEAST(COALESCE(SUM(p.amount), 0), l.total_amount) * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0) as interest_portion,
+      LEAST(COALESCE(SUM(p.amount), 0), l.total_amount) * l.amount / NULLIF(l.total_amount, 0) as principal_portion
+    FROM loans l
+    LEFT JOIN payments p ON p.loan_id = l.id AND p.source != 'suspense'
+    WHERE EXTRACT(MONTH FROM l.created_at) = $1
+    AND EXTRACT(YEAR FROM l.created_at) = $2
+    AND l.status NOT IN ('pending', 'rejected')
+    GROUP BY l.id, l.amount, l.total_amount
+  ) sub
 `, [month, year]);
 
     // Processing fees for loans disbursed this month
