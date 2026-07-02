@@ -40,7 +40,7 @@ export default function CustomerProfilePage() {
     try {
       const res = await fetch(API + "/api/kyc/" + id, { headers });
       const data = await res.json();
-      setKycDocs(Array.isArray(data) ? data : []);
+      setKycDocs(Array.isArray(data) ? data : (data && !data.error ? [data] : []));
     } catch {}
   };
 
@@ -74,7 +74,7 @@ export default function CustomerProfilePage() {
       });
       const data = await res.json();
       if (data.error) alert(data.error);
-      else { alert("Document uploaded!"); loadKyc(); }
+      else { loadKyc(); }
     } catch { alert("Upload failed"); }
     setUploading(false);
   };
@@ -87,9 +87,7 @@ export default function CustomerProfilePage() {
   const docTypes = [
     { key: "national_id", label: "National ID" },
     { key: "passport_photo", label: "Passport Photo" },
-    { key: "business_permit", label: "Business Permit" },
-    { key: "bank_statement", label: "Bank Statement" },
-  ];
+    ];
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -251,7 +249,7 @@ export default function CustomerProfilePage() {
             <h3 className="font-bold text-lg mb-4">KYC Documents</h3>
             <div className="grid grid-cols-2 gap-4">
               {docTypes.map(doc => {
-                const existing = kycDocs.find((d: any) => d.document_type === doc.key);
+                const existing = kycDocs.length > 0 ? kycDocs[0][doc.key + '_url'] : null;
                 return (
                   <div key={doc.key} className="border rounded-lg p-4">
                     <div className="flex justify-between items-center mb-2">
@@ -263,7 +261,7 @@ export default function CustomerProfilePage() {
                       )}
                     </div>
                     {existing ? (
-                      <a href={existing.document_url} target="_blank" rel="noreferrer"
+                      <a href={existing} target="_blank" rel="noreferrer"
                         className="text-blue-600 hover:underline text-xs">View Document</a>
                     ) : (
                       <div>
