@@ -159,5 +159,16 @@ const getOverdueLoans = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+const writeLoanOff = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const writtenOffBy = req.user?.id || req.user?.user_id;
+    if (!reason) return res.status(400).json({ error: 'Reason is required' });
+    const result = await loanRepository.writeLoanOff(req.params.id, writtenOffBy, reason);
+    res.json({ message: 'Loan written off successfully', data: result });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
 
-module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan, getPendingLoans, getLoanSchedule, getOverdueLoans };
+module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan, getPendingLoans, getLoanSchedule, getOverdueLoans, writeLoanOff };

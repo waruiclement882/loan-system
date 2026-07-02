@@ -191,9 +191,68 @@ const closeLoan = async (loanId) => {
   console.log(`[Closure] Loan #${loanId} closed. Total repaid: KSh ${totalPaid}`);
   return loanResult.rows[0];
 };
+const writeLoanOff = async (loanId, writtenOffBy, reason) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Get loan details
+    const loanRes = await client.query(
+      'SELECT l.*, c.name as customer_name FROM loans l JOIN customers c ON l.customer_id = c.id WHERE l.id = $1',
+      [loanId]
+    );
+    if (!loanRes.rows[0]) throw new Error('Loan not found');
+    const loan = loanRes.rows[0];
+
+    if (loan.status === 'written_off') throw new Error('Loan already written off');
+    if (loan.status === 'paid') throw new Error('Cannot write off a paid loan');
+
+    const balance = parseFloat(loan.balance || 0);
+
+    // 1. Mark loan as written off
+    await client.query(
+      `UPDATE loans SET status = 'written_off', notes = $1 WHERE id = $2`,
+      [`Written off: ${reason}`, loanId]
+    );
+
+    // 2. Mark all overdue/pending schedules as written_off
+    await client.query(
+      `UPDATE repayment_schedules SET status = 'written_off' WHERE loan_id = $1 AND status IN ('overdue','pending','partial')`,
+      [loanId]
+    );
+
+    // 3. Record as Bad Debt expense
+    await client.query(
+      `INSERT INTO expenses (category, description, amount, payment_method, expense_date, recorded_by)
+       VALUES ('Bad Debt', $1, $2, 'write_off', CURRENT_DATE, $3)`,
+      [
+        `Loan #${loanId} written off — ${loan.customer_name}. Reason: ${reason}`,
+        balance,
+        writtenOffBy
+      ]
+    );
+
+    // 4. Audit log
+    await client.query(
+      'INSERT INTO audit_logs (user_id, user_name, action, entity, entity_id, details) VALUES ($1,$2,$3,$4,$5,$6)',
+      [
+        writtenOffBy, 'Admin', 'WRITE_OFF_LOAN', 'loans', loanId,
+        JSON.stringify({ loan_id: loanId, balance, reason, customer: loan.customer_name })
+      ]
+    );
+
+    await client.query('COMMIT');
+    return { loan_id: loanId, balance_written_off: balance, customer: loan.customer_name };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
 
 module.exports = {
   create, getAll, getById, approve, reject, disburse,
   updateStatus, markProcessingFeePaid, getSchedule,
-  applyPaymentToSchedule, closeLoan
+  applyPaymentToSchedule, closeLoan, writeLoanOff
 };

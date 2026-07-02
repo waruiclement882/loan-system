@@ -14,5 +14,5 @@ router.patch('/:id/reject', requireRole('admin', 'cashier'), loanController.reje
 router.patch('/:id/disburse', requireRole('admin', 'cashier'), loanController.disburseLoan);
 router.patch('/:id/status', loanController.updateLoanStatus);
 router.delete('/:id', requireRole('admin'), loanController.deleteLoan);
-
+router.patch('/:id/write-off', verifyToken, requireRole('admin'), loanController.writeLoanOff);
 module.exports = router;
