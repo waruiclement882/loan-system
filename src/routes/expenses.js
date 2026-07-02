@@ -44,22 +44,27 @@ router.get('/categories', verifyToken, async (req, res) => {
   }
 });
 
-// GET P&L report for a month
+// GET P&L report
 router.get('/pnl', verifyToken, async (req, res) => {
   try {
     const month = req.query.month || new Date().getMonth() + 1;
     const year = req.query.year || new Date().getFullYear();
 
-    // Income: payments collected this month
+    // Income: all payments this month with interest/principal split
     const paymentsIncome = await pool.query(`
-      SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
-      FROM payments
-      WHERE EXTRACT(MONTH FROM payment_date) = $1
-      AND EXTRACT(YEAR FROM payment_date) = $2
-      AND source != 'suspense'
+      SELECT 
+        COALESCE(SUM(p.amount), 0) as total,
+        COUNT(*) as count,
+        COALESCE(SUM(p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)), 0) as interest_portion,
+        COALESCE(SUM(p.amount * l.amount / NULLIF(l.total_amount, 0)), 0) as principal_portion
+      FROM payments p
+      JOIN loans l ON p.loan_id = l.id
+      WHERE EXTRACT(MONTH FROM p.payment_date) = $1
+      AND EXTRACT(YEAR FROM p.payment_date) = $2
+      AND p.source != 'suspense'
     `, [month, year]);
 
-    // Processing fees this month
+    // Processing fees
     const processingFees = await pool.query(`
       SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count
       FROM company_income
@@ -68,7 +73,7 @@ router.get('/pnl', verifyToken, async (req, res) => {
       AND EXTRACT(YEAR FROM created_at) = $2
     `, [month, year]);
 
-    // Float income this month
+    // Float income
     const floatIncome = await pool.query(`
       SELECT COALESCE(SUM(profit), 0) as total, COUNT(*) as count
       FROM float_income
@@ -85,7 +90,7 @@ router.get('/pnl', verifyToken, async (req, res) => {
       AND EXTRACT(YEAR FROM created_at) = $2
     `, [month, year]);
 
-    // Expenses by category this month
+    // Expenses by category
     const expenses = await pool.query(`
       SELECT category, COALESCE(SUM(amount), 0) as total, COUNT(*) as count
       FROM expenses
@@ -95,22 +100,78 @@ router.get('/pnl', verifyToken, async (req, res) => {
       ORDER BY total DESC
     `, [month, year]);
 
-    const totalExpenses = expenses.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
+    // BREAKDOWN 2: All loans that had payments this month
+    const paymentsByLoan = await pool.query(`
+      SELECT 
+        l.id as loan_id,
+        c.name as customer_name,
+        l.amount,
+        l.total_amount,
+        l.created_at::date as loan_date,
+        COUNT(p.id) as payment_count,
+        COALESCE(SUM(p.amount), 0) as total_paid,
+        COALESCE(SUM(p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)), 0) as interest_paid,
+        COALESCE(SUM(p.amount * l.amount / NULLIF(l.total_amount, 0)), 0) as principal_paid
+      FROM payments p
+      JOIN loans l ON p.loan_id = l.id
+      JOIN customers c ON l.customer_id = c.id
+      WHERE EXTRACT(MONTH FROM p.payment_date) = $1
+      AND EXTRACT(YEAR FROM p.payment_date) = $2
+      AND p.source != 'suspense'
+      GROUP BY l.id, c.name, l.amount, l.total_amount, l.created_at
+      ORDER BY total_paid DESC
+    `, [month, year]);
 
-    // Interest income = payments - principal portion
-    // Simple calculation: total payments - processing fees = repayments
+    // BREAKDOWN 3: Only loans disbursed THIS month and their payments
+    const disbursedThisMonthPayments = await pool.query(`
+      SELECT 
+        l.id as loan_id,
+        c.name as customer_name,
+        l.amount,
+        l.total_amount,
+        l.created_at::date as loan_date,
+        COUNT(p.id) as payment_count,
+        COALESCE(SUM(p.amount), 0) as total_paid,
+        COALESCE(SUM(p.amount * (l.total_amount - l.amount) / NULLIF(l.total_amount, 0)), 0) as interest_paid,
+        COALESCE(SUM(p.amount * l.amount / NULLIF(l.total_amount, 0)), 0) as principal_paid,
+        l.total_amount - COALESCE(SUM(p.amount), 0) as remaining_balance
+      FROM loans l
+      JOIN customers c ON l.customer_id = c.id
+      LEFT JOIN payments p ON p.loan_id = l.id
+        AND EXTRACT(MONTH FROM p.payment_date) = $1
+        AND EXTRACT(YEAR FROM p.payment_date) = $2
+        AND p.source != 'suspense'
+      WHERE EXTRACT(MONTH FROM l.created_at) = $1
+      AND EXTRACT(YEAR FROM l.created_at) = $2
+      AND l.status NOT IN ('pending', 'rejected')
+      GROUP BY l.id, c.name, l.amount, l.total_amount, l.created_at
+      ORDER BY total_paid DESC
+    `, [month, year]);
+
+    const totalExpenses = expenses.rows.reduce((s, r) => s + parseFloat(r.total || 0), 0);
     const totalPayments = parseFloat(paymentsIncome.rows[0].total);
+    const interestIncome = parseFloat(paymentsIncome.rows[0].interest_portion);
+    const principalRecovered = parseFloat(paymentsIncome.rows[0].principal_portion);
     const totalProcessingFees = parseFloat(processingFees.rows[0].total);
     const totalFloatIncome = parseFloat(floatIncome.rows[0].total);
-
-    const totalIncome = totalPayments + totalProcessingFees + totalFloatIncome;
+    const totalIncome = interestIncome + totalProcessingFees + totalFloatIncome;
     const netProfit = totalIncome - totalExpenses;
+
+    // Summary for breakdown 3
+    const b3TotalDisbursed = disbursedThisMonthPayments.rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+    const b3TotalPaid = disbursedThisMonthPayments.rows.reduce((s, r) => s + parseFloat(r.total_paid || 0), 0);
+    const b3TotalInterest = disbursedThisMonthPayments.rows.reduce((s, r) => s + parseFloat(r.interest_paid || 0), 0);
 
     res.json({
       month: parseInt(month),
       year: parseInt(year),
       income: {
-        repayments: { total: totalPayments, count: parseInt(paymentsIncome.rows[0].count) },
+        repayments: {
+          total: totalPayments,
+          count: parseInt(paymentsIncome.rows[0].count),
+          interest: interestIncome,
+          principal: principalRecovered
+        },
         processing_fees: { total: totalProcessingFees, count: parseInt(processingFees.rows[0].count) },
         float_income: { total: totalFloatIncome, count: parseInt(floatIncome.rows[0].count) },
         total: totalIncome
@@ -124,7 +185,18 @@ router.get('/pnl', verifyToken, async (req, res) => {
         count: parseInt(disbursed.rows[0].count)
       },
       net_profit: netProfit,
-      profit_margin: totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0
+      profit_margin: totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0,
+      breakdown2_all_loans: paymentsByLoan.rows,
+      breakdown3_new_loans: {
+        loans: disbursedThisMonthPayments.rows,
+        summary: {
+          total_disbursed: b3TotalDisbursed,
+          total_paid_back: b3TotalPaid,
+          total_interest_earned: b3TotalInterest,
+          loan_count: disbursedThisMonthPayments.rows.length,
+          loans_with_payments: disbursedThisMonthPayments.rows.filter(r => parseFloat(r.total_paid) > 0).length
+        }
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -147,7 +219,6 @@ router.post('/', verifyToken, async (req, res) => {
     `, [category, description, amount, payment_method || 'cash', reference || null,
         expense_date || new Date().toISOString().split('T')[0], recorded_by]);
 
-    // Audit log
     await pool.query(
       'INSERT INTO audit_logs (user_id, user_name, action, entity, entity_id, details) VALUES ($1,$2,$3,$4,$5,$6)',
       [recorded_by, 'Officer', 'RECORD_EXPENSE', 'expenses', result.rows[0].id,
