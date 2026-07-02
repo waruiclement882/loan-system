@@ -20,6 +20,10 @@ export default function ExpensesPage() {
   const [filterYear, setFilterYear] = useState(new Date().getFullYear());
   const [filterCategory, setFilterCategory] = useState("");
   const [totalExpenses, setTotalExpenses] = useState(0);
+  const [writtenOff, setWrittenOff] = useState<any>({ loans: [], totalWrittenOff: 0, totalRecovered: 0 });
+  const [recoveryForm, setRecoveryForm] = useState({ loan_id: "", amount: "", transaction_code: "", notes: "" });
+  const [showRecoveryForm, setShowRecoveryForm] = useState<number | null>(null);
+  const [submittingRecovery, setSubmittingRecovery] = useState(false);
 
   const [form, setForm] = useState({
     category: "", description: "", amount: "",
@@ -33,7 +37,7 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     if (!token) { router.push("/login"); return; }
-    loadCategories(); loadExpenses(); loadPnl();
+    loadCategories(); loadExpenses(); loadPnl(); loadWrittenOff();
   }, []);
 
   useEffect(() => { loadExpenses(); }, [filterMonth, filterYear, filterCategory]);
@@ -66,6 +70,34 @@ export default function ExpensesPage() {
       const data = await res.json();
       setPnl(data);
     } catch { }
+  };
+
+  const loadWrittenOff = async () => {
+    try {
+      const res = await fetch(`${API}/api/expenses/written-off`, { headers });
+      const data = await res.json();
+      setWrittenOff(data || { loans: [], totalWrittenOff: 0, totalRecovered: 0 });
+    } catch {}
+  };
+
+  const handleBadDebtRecovery = async (loanId: number) => {
+    if (!recoveryForm.amount) { setMsg({ type: "error", text: "Amount is required" }); return; }
+    setSubmittingRecovery(true);
+    try {
+      const res = await fetch(`${API}/api/expenses/bad-debt-recovery`, {
+        method: "POST", headers,
+        body: JSON.stringify({ loan_id: loanId, ...recoveryForm })
+      });
+      const data = await res.json();
+      if (data.error) setMsg({ type: "error", text: data.error });
+      else {
+        setMsg({ type: "success", text: data.message });
+        setShowRecoveryForm(null);
+        setRecoveryForm({ loan_id: "", amount: "", transaction_code: "", notes: "" });
+        loadWrittenOff();
+      }
+    } catch { setMsg({ type: "error", text: "Failed to record recovery" }); }
+    setSubmittingRecovery(false);
   };
 
   const handleSubmit = async () => {
@@ -301,6 +333,19 @@ export default function ExpensesPage() {
                     <p className="text-xs text-red-400 font-medium uppercase tracking-wide">Total Expenses</p>
                     <p className="text-3xl font-bold text-red-600 mt-1">KES {fmt(pnl.expenses.total)}</p>
                   </div>
+                  {pnl.bad_debt?.total > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-center">
+                      <p className="text-xs text-red-400 font-medium uppercase tracking-wide">Bad Debt Written Off</p>
+                      <p className="text-3xl font-bold text-red-700 mt-1">KES {fmt(pnl.bad_debt?.total || 0)}</p>
+                      <p className="text-xs text-red-400 mt-1">{pnl.bad_debt?.count || 0} loan(s)</p>
+                    </div>
+                  )}
+                  {pnl.bad_debt_recovery?.total > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
+                      <p className="text-xs text-green-400 font-medium uppercase tracking-wide">Bad Debt Recovered</p>
+                      <p className="text-3xl font-bold text-green-700 mt-1">KES {fmt(pnl.bad_debt_recovery?.total || 0)}</p>
+                    </div>
+                  )}
                   <div className={`border rounded-xl p-5 text-center ${pnl.net_profit >= 0 ? "bg-blue-50 border-blue-200" : "bg-orange-50 border-orange-200"}`}>
                     <p className={`text-xs font-medium uppercase tracking-wide ${pnl.net_profit >= 0 ? "text-blue-500" : "text-orange-500"}`}>Net {pnl.net_profit >= 0 ? "Profit" : "Loss"}</p>
                     <p className={`text-3xl font-bold mt-1 ${pnl.net_profit >= 0 ? "text-blue-600" : "text-orange-600"}`}>KES {fmt(Math.abs(pnl.net_profit))}</p>
@@ -308,12 +353,104 @@ export default function ExpensesPage() {
                   </div>
                 </div>
 
+                
+                {/* Bad Debt Tab */}
+                {pnlTab === "bad_debt" && (
+                  <div>
+                    {/* Summary */}
+                    <div className="grid grid-cols-3 gap-4 mb-6">
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                        <p className="text-xs text-red-400 uppercase font-medium">Total Written Off</p>
+                        <p className="text-2xl font-bold text-red-600">KES {(writtenOff.totalWrittenOff || 0).toLocaleString()}</p>
+                        <p className="text-xs text-red-400 mt-1">{writtenOff.loans?.length || 0} loan(s)</p>
+                      </div>
+                      <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                        <p className="text-xs text-green-400 uppercase font-medium">Total Recovered</p>
+                        <p className="text-2xl font-bold text-green-600">KES {(writtenOff.totalRecovered || 0).toLocaleString()}</p>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
+                        <p className="text-xs text-gray-400 uppercase font-medium">Net Bad Debt Loss</p>
+                        <p className="text-2xl font-bold text-gray-700">
+                          KES {((writtenOff.totalWrittenOff || 0) - (writtenOff.totalRecovered || 0)).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Written Off Loans Table */}
+                    {writtenOff.loans?.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400">No written-off loans</div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50">
+                            <tr className="text-left text-gray-500 border-b">
+                              <th className="p-3">Loan</th>
+                              <th className="p-3">Customer</th>
+                              <th className="p-3">Written Off</th>
+                              <th className="p-3">Recovered</th>
+                              <th className="p-3">Net Loss</th>
+                              <th className="p-3">Date</th>
+                              <th className="p-3">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {writtenOff.loans?.map((loan: any) => (
+                              <tr key={loan.id} className="border-b hover:bg-gray-50">
+                                <td className="p-3 font-medium">#{loan.id}</td>
+                                <td className="p-3">{loan.customer_name}</td>
+                                <td className="p-3 text-red-600 font-bold">KES {parseFloat(loan.written_off_amount || 0).toLocaleString()}</td>
+                                <td className="p-3 text-green-600">KES {parseFloat(loan.recovered_amount || 0).toLocaleString()}</td>
+                                <td className="p-3 text-gray-700 font-medium">
+                                  KES {(parseFloat(loan.written_off_amount || 0) - parseFloat(loan.recovered_amount || 0)).toLocaleString()}
+                                </td>
+                                <td className="p-3 text-gray-400 text-xs">
+                                  {loan.written_off_at ? new Date(loan.written_off_at).toLocaleDateString() : "—"}
+                                </td>
+                                <td className="p-3">
+                                  {showRecoveryForm === loan.id ? (
+                                    <div className="flex flex-col gap-2 min-w-[200px]">
+                                      <input type="number" placeholder="Amount (KES)"
+                                        value={recoveryForm.amount}
+                                        onChange={e => setRecoveryForm({...recoveryForm, amount: e.target.value})}
+                                        className="border rounded px-2 py-1 text-xs w-full" />
+                                      <input type="text" placeholder="Transaction code (optional)"
+                                        value={recoveryForm.transaction_code}
+                                        onChange={e => setRecoveryForm({...recoveryForm, transaction_code: e.target.value})}
+                                        className="border rounded px-2 py-1 text-xs w-full" />
+                                      <div className="flex gap-1">
+                                        <button onClick={() => handleBadDebtRecovery(loan.id)}
+                                          disabled={submittingRecovery}
+                                          className="bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 disabled:opacity-50">
+                                          {submittingRecovery ? "..." : "✅ Save"}
+                                        </button>
+                                        <button onClick={() => setShowRecoveryForm(null)}
+                                          className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <button onClick={() => setShowRecoveryForm(loan.id)}
+                                      className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+                                      + Recovery
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {/* P&L Sub-tabs */}
                 <div className="flex gap-2 border-b border-slate-200 pb-0">
                   {[
                     { key: "summary", label: "📋 Summary" },
                     { key: "all_loans", label: "🏦 All Loans with Payments" },
                     { key: "new_loans", label: "✨ New Loans This Month" },
+                    { key: "bad_debt", label: "⚠️ Bad Debt" },
                   ].map(t => (
                     <button key={t.key} onClick={() => setPnlTab(t.key)}
                       className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors border-b-2 ${pnlTab === t.key ? "text-blue-600 border-blue-600 bg-blue-50" : "text-slate-500 border-transparent hover:text-slate-700"}`}>
