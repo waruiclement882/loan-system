@@ -10,14 +10,17 @@ router.get('/', verifyToken, async (req, res) => {
       SELECT b.*, u.name as manager_name,
         COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'active') as active_loans,
         COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'paid') as paid_loans,
-        COALESCE(SUM(l.amount) FILTER (WHERE l.status NOT IN ('pending','rejected')), 0) as total_disbursed,
-        COALESCE(SUM(l.balance) FILTER (WHERE l.status = 'active'), 0) as outstanding,
-        COALESCE(SUM(p.amount), 0) as total_collected,
+        COALESCE(SUM(DISTINCT l.amount) FILTER (WHERE l.status NOT IN ('pending','rejected')), 0) as total_disbursed,
+        COALESCE(SUM(DISTINCT l.balance) FILTER (WHERE l.status = 'active'), 0) as outstanding,
+        COALESCE((
+          SELECT SUM(p.amount) FROM payments p
+          JOIN loans pl ON p.loan_id = pl.id
+          WHERE pl.branch_id = b.id
+        ), 0) as total_collected,
         COUNT(DISTINCT c.id) as total_customers
       FROM branches b
       LEFT JOIN users u ON b.manager_id = u.id
       LEFT JOIN loans l ON l.branch_id = b.id
-      LEFT JOIN payments p ON p.loan_id = l.id
       LEFT JOIN customers c ON c.branch_id = b.id
       WHERE b.is_active = TRUE
       GROUP BY b.id, u.name
@@ -34,19 +37,24 @@ router.get('/:id', verifyToken, async (req, res) => {
       SELECT b.*, u.name as manager_name,
         COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'active') as active_loans,
         COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'paid') as paid_loans,
-        COALESCE(SUM(l.amount) FILTER (WHERE l.status NOT IN ('pending','rejected')), 0) as total_disbursed,
-        COALESCE(SUM(l.balance) FILTER (WHERE l.status = 'active'), 0) as outstanding,
-        COALESCE(SUM(p.amount), 0) as total_collected,
+        COALESCE(SUM(DISTINCT l.amount) FILTER (WHERE l.status NOT IN ('pending','rejected')), 0) as total_disbursed,
+        COALESCE(SUM(DISTINCT l.balance) FILTER (WHERE l.status = 'active'), 0) as outstanding,
+        COALESCE((
+          SELECT SUM(p.amount) FROM payments p
+          JOIN loans pl ON p.loan_id = pl.id
+          WHERE pl.branch_id = b.id
+        ), 0) as total_collected,
         COUNT(DISTINCT c.id) as total_customers,
-        COALESCE(SUM(e.amount), 0) as total_expenses,
-        COALESCE(SUM(ci.amount), 0) as total_income
+        COALESCE((
+          SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id
+        ), 0) as total_expenses,
+        COALESCE((
+          SELECT SUM(ci.amount) FROM company_income ci WHERE ci.branch_id = b.id
+        ), 0) as total_income
       FROM branches b
       LEFT JOIN users u ON b.manager_id = u.id
       LEFT JOIN loans l ON l.branch_id = b.id
-      LEFT JOIN payments p ON p.loan_id = l.id
       LEFT JOIN customers c ON c.branch_id = b.id
-      LEFT JOIN expenses e ON e.branch_id = b.id
-      LEFT JOIN company_income ci ON ci.branch_id = b.id
       WHERE b.id = $1
       GROUP BY b.id, u.name
     `, [req.params.id]);
@@ -91,21 +99,25 @@ router.put('/:id', verifyToken, requireRole('admin'), async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Get branch summary (for combined admin view)
+// Get branch summary (combined admin view)
 router.get('/summary/all', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
+      SELECT
         COALESCE(SUM(b.capital), 0) as total_capital,
-        COALESCE(SUM(l.amount) FILTER (WHERE l.status NOT IN ('pending','rejected')), 0) as total_disbursed,
-        COALESCE(SUM(l.balance) FILTER (WHERE l.status = 'active'), 0) as total_outstanding,
-        COALESCE(SUM(p.amount), 0) as total_collected,
+        COALESCE((
+          SELECT SUM(l.amount) FROM loans l
+          WHERE l.status NOT IN ('pending','rejected')
+        ), 0) as total_disbursed,
+        COALESCE((
+          SELECT SUM(l.balance) FROM loans l WHERE l.status = 'active'
+        ), 0) as total_outstanding,
+        COALESCE((SELECT SUM(p.amount) FROM payments p), 0) as total_collected,
         COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'active') as active_loans,
         COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'paid') as paid_loans,
         COUNT(DISTINCT c.id) as total_customers
       FROM branches b
       LEFT JOIN loans l ON l.branch_id = b.id
-      LEFT JOIN payments p ON p.loan_id = l.id
       LEFT JOIN customers c ON c.branch_id = b.id
       WHERE b.is_active = TRUE
     `);
