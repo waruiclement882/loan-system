@@ -7,23 +7,18 @@ const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 router.get('/', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT b.*, u.name as manager_name,
-        COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'active') as active_loans,
-        COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'paid') as paid_loans,
-        COALESCE(SUM(DISTINCT l.amount) FILTER (WHERE l.status NOT IN ('pending','rejected')), 0) as total_disbursed,
-        COALESCE(SUM(DISTINCT l.balance) FILTER (WHERE l.status = 'active'), 0) as outstanding,
-        COALESCE((
-          SELECT SUM(p.amount) FROM payments p
-          JOIN loans pl ON p.loan_id = pl.id
-          WHERE pl.branch_id = b.id
-        ), 0) as total_collected,
-        COUNT(DISTINCT c.id) as total_customers
+      SELECT
+        b.*,
+        u.name as manager_name,
+        COALESCE((SELECT COUNT(*) FROM loans l WHERE l.branch_id = b.id AND l.status = 'active'), 0) as active_loans,
+        COALESCE((SELECT COUNT(*) FROM loans l WHERE l.branch_id = b.id AND l.status = 'paid'), 0) as paid_loans,
+        COALESCE((SELECT SUM(l.amount) FROM loans l WHERE l.branch_id = b.id AND l.status NOT IN ('pending','rejected')), 0) as total_disbursed,
+        COALESCE((SELECT SUM(l.balance) FROM loans l WHERE l.branch_id = b.id AND l.status = 'active'), 0) as outstanding,
+        COALESCE((SELECT SUM(p.amount) FROM payments p JOIN loans l ON p.loan_id = l.id WHERE l.branch_id = b.id), 0) as total_collected,
+        COALESCE((SELECT COUNT(*) FROM customers c WHERE c.branch_id = b.id), 0) as total_customers
       FROM branches b
       LEFT JOIN users u ON b.manager_id = u.id
-      LEFT JOIN loans l ON l.branch_id = b.id
-      LEFT JOIN customers c ON c.branch_id = b.id
       WHERE b.is_active = TRUE
-      GROUP BY b.id, u.name
       ORDER BY b.id
     `);
     res.json(result.rows);
@@ -34,29 +29,20 @@ router.get('/', verifyToken, async (req, res) => {
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT b.*, u.name as manager_name,
-        COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'active') as active_loans,
-        COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'paid') as paid_loans,
-        COALESCE(SUM(DISTINCT l.amount) FILTER (WHERE l.status NOT IN ('pending','rejected')), 0) as total_disbursed,
-        COALESCE(SUM(DISTINCT l.balance) FILTER (WHERE l.status = 'active'), 0) as outstanding,
-        COALESCE((
-          SELECT SUM(p.amount) FROM payments p
-          JOIN loans pl ON p.loan_id = pl.id
-          WHERE pl.branch_id = b.id
-        ), 0) as total_collected,
-        COUNT(DISTINCT c.id) as total_customers,
-        COALESCE((
-          SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id
-        ), 0) as total_expenses,
-        COALESCE((
-          SELECT SUM(ci.amount) FROM company_income ci WHERE ci.branch_id = b.id
-        ), 0) as total_income
+      SELECT
+        b.*,
+        u.name as manager_name,
+        COALESCE((SELECT COUNT(*) FROM loans l WHERE l.branch_id = b.id AND l.status = 'active'), 0) as active_loans,
+        COALESCE((SELECT COUNT(*) FROM loans l WHERE l.branch_id = b.id AND l.status = 'paid'), 0) as paid_loans,
+        COALESCE((SELECT SUM(l.amount) FROM loans l WHERE l.branch_id = b.id AND l.status NOT IN ('pending','rejected')), 0) as total_disbursed,
+        COALESCE((SELECT SUM(l.balance) FROM loans l WHERE l.branch_id = b.id AND l.status = 'active'), 0) as outstanding,
+        COALESCE((SELECT SUM(p.amount) FROM payments p JOIN loans l ON p.loan_id = l.id WHERE l.branch_id = b.id), 0) as total_collected,
+        COALESCE((SELECT COUNT(*) FROM customers c WHERE c.branch_id = b.id), 0) as total_customers,
+        COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id), 0) as total_expenses,
+        COALESCE((SELECT SUM(ci.amount) FROM company_income ci WHERE ci.branch_id = b.id), 0) as total_income
       FROM branches b
       LEFT JOIN users u ON b.manager_id = u.id
-      LEFT JOIN loans l ON l.branch_id = b.id
-      LEFT JOIN customers c ON c.branch_id = b.id
       WHERE b.id = $1
-      GROUP BY b.id, u.name
     `, [req.params.id]);
     if (!result.rows[0]) return res.status(404).json({ error: 'Branch not found' });
     res.json(result.rows[0]);
@@ -104,22 +90,13 @@ router.get('/summary/all', verifyToken, requireRole('admin'), async (req, res) =
   try {
     const result = await pool.query(`
       SELECT
-        COALESCE(SUM(b.capital), 0) as total_capital,
-        COALESCE((
-          SELECT SUM(l.amount) FROM loans l
-          WHERE l.status NOT IN ('pending','rejected')
-        ), 0) as total_disbursed,
-        COALESCE((
-          SELECT SUM(l.balance) FROM loans l WHERE l.status = 'active'
-        ), 0) as total_outstanding,
-        COALESCE((SELECT SUM(p.amount) FROM payments p), 0) as total_collected,
-        COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'active') as active_loans,
-        COUNT(DISTINCT l.id) FILTER (WHERE l.status = 'paid') as paid_loans,
-        COUNT(DISTINCT c.id) as total_customers
-      FROM branches b
-      LEFT JOIN loans l ON l.branch_id = b.id
-      LEFT JOIN customers c ON c.branch_id = b.id
-      WHERE b.is_active = TRUE
+        COALESCE((SELECT SUM(capital) FROM branches WHERE is_active = TRUE), 0) as total_capital,
+        COALESCE((SELECT SUM(amount) FROM loans WHERE status NOT IN ('pending','rejected')), 0) as total_disbursed,
+        COALESCE((SELECT SUM(balance) FROM loans WHERE status = 'active'), 0) as total_outstanding,
+        COALESCE((SELECT SUM(amount) FROM payments), 0) as total_collected,
+        COALESCE((SELECT COUNT(*) FROM loans WHERE status = 'active'), 0) as active_loans,
+        COALESCE((SELECT COUNT(*) FROM loans WHERE status = 'paid'), 0) as paid_loans,
+        COALESCE((SELECT COUNT(*) FROM customers), 0) as total_customers
     `);
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
