@@ -88,7 +88,7 @@ export default function ReportsPage() {
     .reduce((s, l) => s + (parseFloat(l.total_amount || 0) - parseFloat(l.amount || 0)), 0);
 
   // Cash flow calculations
-  const cashInHand = capital + totalRepaid - totalDisbursed - totalExpensesAmount + totalBadDebtRecovery;
+  const cashInHand = capital + totalRepaid + totalIncome - totalDisbursed - totalExpensesAmount + totalBadDebtRecovery;
   const totalAssets = cashInHand + totalOutstanding;
   const roi = capital > 0 ? ((totalAssets - capital) / capital * 100) : 0;
   const isOverextended = cashInHand < 0;
@@ -287,7 +287,7 @@ export default function ReportsPage() {
                   KSh {Math.abs(cashInHand).toLocaleString()}
                   {cashInHand < 0 ? " (deficit)" : ""}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Capital + Collected - Disbursed - Expenses + Recoveries</p>
+                <p className="text-xs text-gray-400 mt-1">Capital + Collected + Fees - Disbursed - Expenses</p>
               </div>
             </div>
 
@@ -317,12 +317,12 @@ export default function ReportsPage() {
                   <span className="font-bold text-blue-600">+ KSh {totalOutstanding.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-gray-600">Total Expenses Paid</span>
-                  <span className="font-bold text-red-500">- KSh {totalExpensesAmount.toLocaleString()}</span>
+                  <span className="text-gray-600">Processing Fees & Float Income</span>
+                  <span className="font-bold text-indigo-600">+ KSh {totalIncome.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-gray-600">Bad Debt Written Off</span>
-                  <span className="font-bold text-red-700">- KSh {(totalExpensesAmount > 0 ? 0 : 0).toLocaleString()}</span>
+                  <span className="text-gray-600">Total Expenses Paid</span>
+                  <span className="font-bold text-red-500">- KSh {totalExpensesAmount.toLocaleString()}</span>
                 </div>
                 {totalBadDebtRecovery > 0 && (
                   <div className="flex justify-between items-center py-2 border-b">
