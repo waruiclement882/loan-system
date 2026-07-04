@@ -1,4 +1,9 @@
-"use client";
+const fs = require('fs');
+const path = require('path');
+
+const filePath = path.join(__dirname, 'loan-frontend', 'app', 'customers', '[id]', 'page.tsx');
+
+const content = `"use client";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 
@@ -307,3 +312,9 @@ export default function CustomerProfilePage() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync(filePath, content, 'utf8');
+const size = fs.statSync(filePath).size;
+console.log('File written! Size:', size, 'bytes');
+console.log('Path:', filePath);
