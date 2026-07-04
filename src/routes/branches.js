@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db/pool');
+const pool = require('../db/connection');
 const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 
 // Get all branches
