@@ -186,4 +186,4 @@ const assignBranch = async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 };
 
-module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan, getPendingLoans, getLoanSchedule, getOverdueLoans, writeLoanOff };
+module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan, getPendingLoans, getLoanSchedule, getOverdueLoans, writeLoanOff, assignBranch };
