@@ -22,9 +22,10 @@ const getCustomerById = async (req, res) => {
 const createCustomer = async (req, res) => {
   try {
     const { name, email, phone, national_id } = req.body;
+    const branch_id = req.user?.branch_id || 1;
     const result = await pool.query(
-      'INSERT INTO customers (name, email, phone, national_id) VALUES ($1,$2,$3,$4) RETURNING *',
-      [name, email, phone, national_id]
+      'INSERT INTO customers (name, email, phone, national_id, branch_id) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [name, email, phone, national_id, branch_id]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {

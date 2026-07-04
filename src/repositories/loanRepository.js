@@ -1,10 +1,10 @@
 const pool = require('../db/connection');
 
 const create = async (loan) => {
-  const { customer_id, amount, term_weeks, interest_amount, total_amount, weekly_installment, created_by } = loan;
+  const { customer_id, amount, term_weeks, interest_amount, total_amount, weekly_installment, created_by, branch_id } = loan;
   const r = await pool.query(
-    'INSERT INTO loans (customer_id,amount,term_weeks,interest_amount,total_amount,weekly_installment,balance,status,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
-    [customer_id, amount, term_weeks, interest_amount, total_amount, weekly_installment || 0, total_amount, 'pending', created_by || null]
+    'INSERT INTO loans (customer_id,amount,term_weeks,interest_amount,total_amount,weekly_installment,balance,status,created_by,branch_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+    [customer_id, amount, term_weeks, interest_amount, total_amount, weekly_installment || 0, total_amount, 'pending', created_by || null, branch_id || 1]
   );
   return r.rows[0];
 };

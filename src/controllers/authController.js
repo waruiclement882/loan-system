@@ -22,7 +22,7 @@ const validatePassword = (password) => {
 // ── 3. Generate token ─────────────────────────────────────────────────────────
 const generateToken = (user) => {
   return jwt.sign(
-    { id: user.id, user_id: user.id, role: user.role, name: user.name },
+    { id: user.id, user_id: user.id, role: user.role, name: user.name, branch_id: user.branch_id },
     process.env.JWT_SECRET,
     { expiresIn: '24h' }
   );
@@ -168,7 +168,8 @@ const login = async (req, res) => {
         name: user.name,
         full_name: user.full_name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        branch_id: user.branch_id
       },
       token
     });

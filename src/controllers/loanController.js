@@ -65,7 +65,8 @@ const createLoan = async (req, res) => {
       }
     }
 
-    const loan = await loanService.createLoan({ ...req.body, created_by });
+    const branch_id = req.user?.branch_id || 1;
+    const loan = await loanService.createLoan({ ...req.body, created_by, branch_id });
     res.status(201).json(loan);
     const userName = await getUserName(created_by);
     audit(created_by, userName, 'CREATE_LOAN', 'loans', loan.id, `Loan of KSh ${loan.amount} for customer ${loan.customer_id}`);
