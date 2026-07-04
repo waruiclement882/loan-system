@@ -173,4 +173,17 @@ const writeLoanOff = async (req, res) => {
   }
 };
 
+const assignBranch = async (req, res) => {
+  try {
+    const { branch_id } = req.body;
+    if (!branch_id) return res.status(400).json({ error: 'branch_id required' });
+    const result = await pool.query(
+      'UPDATE loans SET branch_id = $1 WHERE id = $2 RETURNING id, branch_id',
+      [branch_id, req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Loan not found' });
+    res.json({ message: 'Loan assigned to branch', loan: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
 module.exports = { getAllLoans, getLoanById, createLoan, approveLoan, rejectLoan, disburseLoan, updateLoanStatus, deleteLoan, getPendingLoans, getLoanSchedule, getOverdueLoans, writeLoanOff };

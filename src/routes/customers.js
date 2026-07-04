@@ -114,5 +114,18 @@ router.delete('/:id/kyc/:docId', verifyToken, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// Assign customer to branch
+router.patch('/:id/branch', verifyToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { branch_id } = req.body;
+    if (!branch_id) return res.status(400).json({ error: 'branch_id required' });
+    const result = await pool.query(
+      'UPDATE customers SET branch_id = $1 WHERE id = $2 RETURNING *',
+      [branch_id, req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: 'Customer not found' });
+    res.json({ message: 'Customer assigned to branch', customer: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 module.exports = router;

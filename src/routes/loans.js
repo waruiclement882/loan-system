@@ -15,4 +15,6 @@ router.patch('/:id/disburse', requireRole('admin', 'cashier'), loanController.di
 router.patch('/:id/status', loanController.updateLoanStatus);
 router.delete('/:id', requireRole('admin'), loanController.deleteLoan);
 router.patch('/:id/write-off', verifyToken, requireRole('admin'), loanController.writeLoanOff);
+// Assign loan to branch
+router.patch('/:id/branch', verifyToken, requireRole('admin'), (req, res) => loanController.assignBranch(req, res));
 module.exports = router;
