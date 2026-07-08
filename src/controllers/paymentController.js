@@ -203,12 +203,7 @@ class PaymentController {
            VALUES ($1, $2, 'processing_fee', $3, $4, $5)`,
           [loan_id, amount, txCode, recorded_by, notes || 'Manual processing fee']
         );
-        // Insert payment record
-        await client.query(
-          `INSERT INTO payments (loan_id, amount, transaction_code, source, notes, payment_date)
-           VALUES ($1, $2, $3, $4, $5, NOW())`,
-          [loan_id, amount, txCode, source || 'cash', notes || null]
-        );
+        // Processing fee goes to company_income ONLY — no payment record
       } else {
         // Regular repayment
         const currentBalance = parseFloat(loan.balance) || 0;
