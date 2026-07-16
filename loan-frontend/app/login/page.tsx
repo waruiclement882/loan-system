@@ -13,10 +13,10 @@ export default function LoginPage() {
   const [companyName, setCompanyName] = useState('Blessed Ventures');
   const [tagline, setTagline] = useState('Sign in to your account');
   const [logoUrl, setLogoUrl] = useState('');
+  const [lampOn, setLampOn] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
+  const [swinging, setSwinging] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -29,78 +29,13 @@ export default function LoginPage() {
       }).catch(() => {});
   }, []);
 
-  // Floating particles canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    const particles: {
-      x: number; y: number; r: number;
-      vx: number; vy: number; opacity: number; pulse: number;
-    }[] = Array.from({ length: 55 }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 3 + 1,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      opacity: Math.random() * 0.5 + 0.1,
-      pulse: Math.random() * Math.PI * 2,
-    }));
-
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Draw connection lines between nearby particles
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(159, 225, 203, ${(1 - dist / 120) * 0.15})`;
-            ctx.lineWidth = 0.5;
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
-            ctx.stroke();
-          }
-        }
-      }
-
-      particles.forEach(p => {
-        p.pulse += 0.02;
-        const pulsedR = p.r + Math.sin(p.pulse) * 0.5;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, pulsedR, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(159, 225, 203, ${p.opacity})`;
-        ctx.fill();
-
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x < 0) p.x = canvas.width;
-        if (p.x > canvas.width) p.x = 0;
-        if (p.y < 0) p.y = canvas.height;
-        if (p.y > canvas.height) p.y = 0;
-      });
-
-      animRef.current = requestAnimationFrame(draw);
-    };
-
-    draw();
-    return () => {
-      window.removeEventListener('resize', resize);
-      cancelAnimationFrame(animRef.current);
-    };
-  }, []);
+  const toggleLamp = () => {
+    setSwinging(true);
+    setTimeout(() => {
+      setLampOn(prev => !prev);
+      setSwinging(false);
+    }, 200);
+  };
 
   const handleLogin = async () => {
     setLoading(true); setError('');
@@ -125,214 +60,271 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center"
-      style={{ background: 'linear-gradient(135deg, #04342C 0%, #085041 40%, #0a6b55 70%, #04342C 100%)' }}>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: lampOn
+        ? 'radial-gradient(ellipse at 30% 40%, #2a1f0a 0%, #1c1408 40%, #0e0b04 100%)'
+        : 'radial-gradient(ellipse at 50% 50%, #0d1a0f 0%, #080e09 60%, #040704 100%)',
+      transition: 'background 0.8s ease',
+      padding: '20px',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
 
-      {/* Animated canvas background */}
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ opacity: 0.7 }} />
-
-      {/* Glowing orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(29,158,117,0.15) 0%, transparent 70%)', animation: 'pulse 4s ease-in-out infinite' }} />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(15,110,86,0.2) 0%, transparent 70%)', animation: 'pulse 5s ease-in-out infinite 1s' }} />
-
-      {/* Login card */}
-      <div
-        className="relative z-10 w-full max-w-sm mx-4"
-        style={{
-          opacity: mounted ? 1 : 0,
-          transform: mounted ? 'translateY(0)' : 'translateY(32px)',
-          transition: 'opacity 0.7s ease, transform 0.7s ease',
-        }}
-      >
-        {/* Glassmorphism card */}
+      {lampOn && (
         <div style={{
-          background: 'rgba(255,255,255,0.07)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(159,225,203,0.2)',
-          borderRadius: '24px',
-          padding: '40px 36px',
-          boxShadow: '0 25px 50px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
-        }}>
+          position: 'absolute', bottom: 0, left: '18%',
+          width: 320, height: 220,
+          background: 'radial-gradient(ellipse at 50% 100%, rgba(255,200,80,0.18) 0%, transparent 70%)',
+          pointerEvents: 'none', animation: 'glowIn 0.6s ease forwards',
+        }} />
+      )}
 
-          {/* Logo / brand */}
-          <div className="text-center mb-8">
-            {logoUrl ? (
-              <img src={logoUrl} alt="Logo"
-                className="h-14 object-contain mx-auto mb-4"
-                style={{ filter: 'brightness(0) invert(1)', opacity: 0.9 }} />
-            ) : (
-              <div className="mx-auto mb-4 w-14 h-14 rounded-2xl flex items-center justify-center"
-                style={{ background: 'rgba(29,158,117,0.3)', border: '1px solid rgba(159,225,203,0.3)' }}>
-                <span style={{ fontSize: 26 }}>🏦</span>
-              </div>
-            )}
-            <h1 className="font-bold text-white" style={{ fontSize: 22, letterSpacing: '-0.3px' }}>
-              {companyName}
-            </h1>
-            <p style={{ color: 'rgba(159,225,203,0.8)', fontSize: 13, marginTop: 4 }}>{tagline}</p>
-          </div>
+      {lampOn && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'radial-gradient(ellipse at 28% 45%, rgba(255,180,40,0.06) 0%, transparent 55%)',
+          pointerEvents: 'none', animation: 'glowIn 0.8s ease forwards',
+        }} />
+      )}
 
-          {/* Error */}
-          {error && (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        gap: 60, width: '100%', maxWidth: 900, flexWrap: 'wrap',
+      }}>
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+
+          {lampOn && (
             <div style={{
-              background: 'rgba(239,68,68,0.15)',
-              border: '1px solid rgba(239,68,68,0.3)',
-              color: '#fca5a5',
-              padding: '10px 14px',
-              borderRadius: 12,
-              fontSize: 13,
-              marginBottom: 16,
-            }}>
-              {error}
-            </div>
+              position: 'absolute', top: 30, left: '50%', transform: 'translateX(-50%)',
+              width: 200, height: 200, borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255,210,80,0.35) 0%, transparent 70%)',
+              animation: 'glowIn 0.5s ease forwards', pointerEvents: 'none',
+            }} />
           )}
 
-          {/* Email */}
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', color: 'rgba(159,225,203,0.9)', fontSize: 12, fontWeight: 500, marginBottom: 6, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleLogin()}
-              placeholder="you@example.com"
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(159,225,203,0.25)',
-                borderRadius: 12,
-                padding: '12px 14px',
-                color: 'white',
-                fontSize: 14,
-                outline: 'none',
-                boxSizing: 'border-box',
-                transition: 'border-color 0.2s, background 0.2s',
-              }}
-              onFocus={e => {
-                e.target.style.borderColor = 'rgba(159,225,203,0.6)';
-                e.target.style.background = 'rgba(255,255,255,0.12)';
-              }}
-              onBlur={e => {
-                e.target.style.borderColor = 'rgba(159,225,203,0.25)';
-                e.target.style.background = 'rgba(255,255,255,0.08)';
-              }}
-            />
+          <svg width="180" height="280" viewBox="0 0 180 280" fill="none"
+            style={{ filter: lampOn ? 'drop-shadow(0 0 24px rgba(255,200,60,0.5))' : 'none', transition: 'filter 0.6s ease' }}>
+            <ellipse cx="90" cy="72" rx="68" ry="18"
+              fill={lampOn ? '#f0d060' : '#3a3a3a'}
+              style={{ transition: 'fill 0.6s ease' }} />
+            <path d="M22 72 Q10 130 30 148 Q60 158 90 158 Q120 158 150 148 Q170 130 158 72 Z"
+              fill={lampOn ? '#e8c840' : '#2e2e2e'}
+              style={{ transition: 'fill 0.6s ease' }} />
+            <ellipse cx="90" cy="148" rx="60" ry="14"
+              fill={lampOn ? '#d4b030' : '#252525'}
+              style={{ transition: 'fill 0.6s ease' }} />
+            {lampOn && <ellipse cx="90" cy="148" rx="55" ry="10" fill="rgba(255,240,120,0.6)" />}
+            <circle cx="90" cy="155" r="8"
+              fill={lampOn ? '#fffde0' : '#1a1a1a'}
+              style={{ transition: 'fill 0.4s ease' }} />
+            <rect x="85" y="155" width="10" height="70" rx="5"
+              fill={lampOn ? '#c8a820' : '#282828'}
+              style={{ transition: 'fill 0.6s ease' }} />
+            <rect x="82" y="220" width="16" height="30" rx="6"
+              fill={lampOn ? '#b89818' : '#222222'}
+              style={{ transition: 'fill 0.6s ease' }} />
+            <ellipse cx="90" cy="252" rx="42" ry="10"
+              fill={lampOn ? '#a08010' : '#1e1e1e'}
+              style={{ transition: 'fill 0.6s ease' }} />
+            <ellipse cx="90" cy="256" rx="38" ry="7"
+              fill={lampOn ? '#8a6c08' : '#1a1a1a'}
+              style={{ transition: 'fill 0.6s ease' }} />
+            <line x1="90" y1="256" x2="90" y2="278"
+              stroke={lampOn ? '#c8a820' : '#333'} strokeWidth="2.5"
+              style={{ transition: 'stroke 0.6s ease' }} />
+          </svg>
+
+          <div style={{ position: 'relative', marginTop: -12, cursor: 'pointer' }} onClick={toggleLamp}>
+            <div style={{
+              width: 2, height: swinging ? 28 : 22,
+              background: lampOn ? '#c8a820' : '#444',
+              margin: '0 auto', borderRadius: 2,
+              transition: 'height 0.15s ease, background 0.6s ease',
+            }} />
+            <div style={{
+              width: 14, height: 14, borderRadius: '50%',
+              background: lampOn
+                ? 'radial-gradient(circle at 35% 35%, #ffe066, #c8a820)'
+                : 'radial-gradient(circle at 35% 35%, #666, #333)',
+              margin: '4px auto 0',
+              boxShadow: lampOn ? '0 0 8px rgba(255,200,60,0.6)' : '0 2px 4px rgba(0,0,0,0.5)',
+              transition: 'all 0.4s ease',
+              animation: swinging ? 'ballSwing 0.3s ease' : 'none',
+            }} />
+            <p style={{
+              color: lampOn ? 'rgba(255,200,60,0.6)' : 'rgba(255,255,255,0.2)',
+              fontSize: 10, marginTop: 8, textAlign: 'center',
+              letterSpacing: '0.08em', transition: 'color 0.6s ease', userSelect: 'none',
+            }}>
+              {lampOn ? 'click to dim' : 'click to light'}
+            </p>
           </div>
-
-          {/* Password */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <label style={{ color: 'rgba(159,225,203,0.9)', fontSize: 12, fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                Password
-              </label>
-              <button onClick={() => router.push('/forgot-password')}
-                style={{ color: 'rgba(159,225,203,0.7)', fontSize: 12, background: 'none', border: 'none', cursor: 'pointer' }}>
-                Forgot password?
-              </button>
-            </div>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showPass ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                placeholder="••••••••"
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(159,225,203,0.25)',
-                  borderRadius: 12,
-                  padding: '12px 44px 12px 14px',
-                  color: 'white',
-                  fontSize: 14,
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  transition: 'border-color 0.2s, background 0.2s',
-                }}
-                onFocus={e => {
-                  e.target.style.borderColor = 'rgba(159,225,203,0.6)';
-                  e.target.style.background = 'rgba(255,255,255,0.12)';
-                }}
-                onBlur={e => {
-                  e.target.style.borderColor = 'rgba(159,225,203,0.25)';
-                  e.target.style.background = 'rgba(255,255,255,0.08)';
-                }}
-              />
-              <button
-                onClick={() => setShowPass(!showPass)}
-                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(159,225,203,0.6)', fontSize: 16 }}>
-                {showPass ? '🙈' : '👁'}
-              </button>
-            </div>
-          </div>
-
-          {/* Sign in button */}
-          <button
-            onClick={handleLogin}
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '13px',
-              borderRadius: 12,
-              border: 'none',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: 15,
-              fontWeight: 600,
-              color: 'white',
-              background: loading
-                ? 'rgba(29,158,117,0.5)'
-                : 'linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%)',
-              boxShadow: loading ? 'none' : '0 4px 20px rgba(29,158,117,0.4)',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-            }}
-            onMouseEnter={e => {
-              if (!loading) {
-                (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)';
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 24px rgba(29,158,117,0.5)';
-              }
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
-              (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 20px rgba(29,158,117,0.4)';
-            }}
-          >
-            {loading ? (
-              <>
-                <span style={{
-                  width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)',
-                  borderTopColor: 'white', borderRadius: '50%',
-                  display: 'inline-block', animation: 'spin 0.7s linear infinite'
-                }} />
-                Signing in...
-              </>
-            ) : 'Sign In'}
-          </button>
-
-          {/* Footer */}
-          <p style={{ textAlign: 'center', color: 'rgba(159,225,203,0.4)', fontSize: 11, marginTop: 24 }}>
-            Secured · Blessed Ventures LTD © {new Date().getFullYear()}
-          </p>
         </div>
+
+        <div style={{
+          width: '100%', maxWidth: 360,
+          opacity: mounted ? (lampOn ? 1 : 0.06) : 0,
+          transform: lampOn ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.98)',
+          transition: 'opacity 0.7s ease, transform 0.7s ease',
+          pointerEvents: lampOn ? 'auto' : 'none',
+        }}>
+          <div style={{
+            background: lampOn ? 'rgba(30,22,8,0.85)' : 'rgba(10,14,10,0.6)',
+            backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+            border: `1px solid ${lampOn ? 'rgba(200,168,32,0.25)' : 'rgba(255,255,255,0.06)'}`,
+            borderRadius: 20, padding: '36px 32px',
+            boxShadow: lampOn
+              ? '0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,200,60,0.08)'
+              : '0 20px 60px rgba(0,0,0,0.4)',
+            transition: 'all 0.7s ease',
+          }}>
+
+            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" style={{ height: 48, objectFit: 'contain', margin: '0 auto 12px', display: 'block', filter: 'brightness(0) invert(1)', opacity: 0.85 }} />
+              ) : (
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14, margin: '0 auto 12px',
+                  background: lampOn ? 'rgba(200,168,32,0.2)' : 'rgba(29,158,117,0.2)',
+                  border: `1px solid ${lampOn ? 'rgba(200,168,32,0.3)' : 'rgba(29,158,117,0.3)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 22, transition: 'all 0.6s ease',
+                }}>🏦</div>
+              )}
+              <h1 style={{ color: lampOn ? '#f0d060' : '#9FE1CB', fontSize: 20, fontWeight: 700, margin: 0, transition: 'color 0.6s ease' }}>
+                {companyName}
+              </h1>
+              <p style={{ color: lampOn ? 'rgba(240,208,96,0.6)' : 'rgba(159,225,203,0.5)', fontSize: 12, marginTop: 4, transition: 'color 0.6s ease' }}>
+                {tagline}
+              </p>
+            </div>
+
+            {error && (
+              <div style={{
+                background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                color: '#fca5a5', padding: '10px 14px', borderRadius: 10, fontSize: 13, marginBottom: 16,
+              }}>{error}</div>
+            )}
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', color: lampOn ? 'rgba(240,208,96,0.7)' : 'rgba(159,225,203,0.7)', fontSize: 11, fontWeight: 600, marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase', transition: 'color 0.6s ease' }}>
+                Email Address
+              </label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                placeholder="you@example.com"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: `1px solid ${lampOn ? 'rgba(200,168,32,0.2)' : 'rgba(159,225,203,0.15)'}`,
+                  borderRadius: 10, padding: '11px 13px', color: 'white', fontSize: 14, outline: 'none',
+                  transition: 'border-color 0.3s',
+                }}
+                onFocus={e => { e.target.style.borderColor = lampOn ? 'rgba(200,168,32,0.6)' : 'rgba(159,225,203,0.5)'; }}
+                onBlur={e => { e.target.style.borderColor = lampOn ? 'rgba(200,168,32,0.2)' : 'rgba(159,225,203,0.15)'; }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 22 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ color: lampOn ? 'rgba(240,208,96,0.7)' : 'rgba(159,225,203,0.7)', fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', transition: 'color 0.6s ease' }}>
+                  Password
+                </label>
+                <button onClick={() => router.push('/forgot-password')}
+                  style={{ color: lampOn ? 'rgba(240,208,96,0.5)' : 'rgba(159,225,203,0.5)', fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', transition: 'color 0.6s ease' }}>
+                  Forgot password?
+                </button>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <input type={showPass ? 'text' : 'password'} value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                  placeholder="••••••••"
+                  style={{
+                    width: '100%', boxSizing: 'border-box',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${lampOn ? 'rgba(200,168,32,0.2)' : 'rgba(159,225,203,0.15)'}`,
+                    borderRadius: 10, padding: '11px 40px 11px 13px', color: 'white', fontSize: 14, outline: 'none',
+                    transition: 'border-color 0.3s',
+                  }}
+                  onFocus={e => { e.target.style.borderColor = lampOn ? 'rgba(200,168,32,0.6)' : 'rgba(159,225,203,0.5)'; }}
+                  onBlur={e => { e.target.style.borderColor = lampOn ? 'rgba(200,168,32,0.2)' : 'rgba(159,225,203,0.15)'; }}
+                />
+                <button onClick={() => setShowPass(!showPass)}
+                  style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', fontSize: 15 }}>
+                  {showPass ? '🙈' : '👁'}
+                </button>
+              </div>
+            </div>
+
+            <button onClick={handleLogin} disabled={loading}
+              style={{
+                width: '100%', padding: '13px', borderRadius: 11, border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontSize: 14, fontWeight: 700,
+                color: lampOn ? '#1a1200' : 'white',
+                background: loading ? 'rgba(200,168,32,0.4)'
+                  : lampOn ? 'linear-gradient(135deg, #f0d060 0%, #c8a820 100%)'
+                  : 'linear-gradient(135deg, #1D9E75 0%, #0F6E56 100%)',
+                boxShadow: loading ? 'none' : lampOn
+                  ? '0 4px 20px rgba(200,168,32,0.4)'
+                  : '0 4px 20px rgba(29,158,117,0.35)',
+                transition: 'all 0.5s ease',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+              {loading ? (
+                <>
+                  <span style={{
+                    width: 15, height: 15,
+                    border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#1a1200',
+                    borderRadius: '50%', display: 'inline-block',
+                    animation: 'spin 0.7s linear infinite',
+                  }} />
+                  Signing in...
+                </>
+              ) : 'Sign In'}
+            </button>
+
+            <p style={{ textAlign: 'center', color: lampOn ? 'rgba(200,168,32,0.25)' : 'rgba(255,255,255,0.1)', fontSize: 10, marginTop: 20, transition: 'color 0.6s ease' }}>
+              Blessed Ventures LTD © {new Date().getFullYear()}
+            </p>
+          </div>
+        </div>
+
+        {mounted && !lampOn && (
+          <div style={{
+            position: 'absolute', bottom: 40, left: '50%', transform: 'translateX(-50%)',
+            color: 'rgba(255,255,255,0.2)', fontSize: 13, textAlign: 'center',
+            animation: 'fadeHint 2s ease-in-out infinite', whiteSpace: 'nowrap',
+          }}>
+            💡 Pull the cord to turn on the lamp
+          </div>
+        )}
       </div>
 
       <style>{`
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 0.6; }
-          50% { transform: scale(1.08); opacity: 1; }
+        @keyframes glowIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes ballSwing {
+          0% { transform: translateX(0); }
+          25% { transform: translateX(5px); }
+          75% { transform: translateX(-5px); }
+          100% { transform: translateX(0); }
         }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeHint {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 0.8; }
         }
-        input::placeholder { color: rgba(159,225,203,0.3); }
+        input::placeholder { color: rgba(255,255,255,0.2); }
+        input:-webkit-autofill {
+          -webkit-box-shadow: 0 0 0 100px rgba(30,22,8,0.9) inset !important;
+          -webkit-text-fill-color: white !important;
+        }
       `}</style>
     </div>
   );
