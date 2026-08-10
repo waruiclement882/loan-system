@@ -1,7 +1,7 @@
 const fs = require('fs');
 const files = [
-  'src/repositories/loanRepository.js',
-  'src/routes/reports.js'
+  'src/controllers/loanController.js',
+  'src/services/cronService.js'
 ];
 
 files.forEach(f => {

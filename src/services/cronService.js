@@ -29,7 +29,7 @@ const sendDailySummary = async () => {
     const overdue = await pool.query(`
       SELECT COUNT(*) as count, COALESCE(SUM(balance), 0) as total
       FROM loans WHERE status = 'active' AND id IN (
-        SELECT DISTINCT loan_id FROM repayment_schedules
+        SELECT DISTINCT loan_id FROM repayment_schedule
         WHERE due_date < NOW() AND status = 'pending'
       )`);
 
@@ -268,7 +268,7 @@ cron.schedule('*/14 * * * *', async () => {
   cron.schedule('0 8 * * *', async () => {
     try {
       const result = await pool.query(
-        "UPDATE repayment_schedules SET status='overdue' WHERE due_date < NOW() AND status='pending' RETURNING loan_id"
+        "UPDATE repayment_schedule SET status='overdue' WHERE due_date < NOW() AND status='pending' RETURNING loan_id"
       );
       if (result.rows.length > 0) {
         console.log('[Cron] Marked', result.rows.length, 'installments as overdue');
@@ -287,7 +287,7 @@ cron.schedule('*/14 * * * *', async () => {
 
       const dueTomorrow = await pool.query(`
         SELECT rs.*, l.customer_id, c.name as customer_name, c.phone
-        FROM repayment_schedules rs
+        FROM repayment_schedule rs
         JOIN loans l ON rs.loan_id = l.id
         JOIN customers c ON l.customer_id = c.id
         WHERE rs.due_date::date = $1 AND rs.status = 'pending'`, [tomorrowStr]);

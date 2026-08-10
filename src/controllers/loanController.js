@@ -149,10 +149,10 @@ const getOverdueLoans = async (req, res) => {
       SELECT DISTINCT loans.*, customers.name as customer_name, customers.phone as customer_phone,
         u1.name as created_by_name
       FROM loans
-      JOIN repayment_schedules ON repayment_schedules.loan_id = loans.id
+      JOIN repayment_schedule ON repayment_schedule.loan_id = loans.id
       LEFT JOIN customers ON loans.customer_id = customers.id
       LEFT JOIN users u1 ON loans.created_by = u1.id
-      WHERE repayment_schedules.status = 'overdue'
+      WHERE repayment_schedule.status = 'overdue'
       AND loans.status = 'active'
       ORDER BY loans.id
     `);
