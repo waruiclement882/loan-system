@@ -65,7 +65,7 @@ const disburse = async (id, disbursed_by) => {
 
     // Auto-generate repayment schedule
     if (loan.term_weeks && loan.total_amount) {
-      await client.query('DELETE FROM repayment_schedules WHERE loan_id=$1', [loan.id]);
+      await client.query('DELETE FROM repayment_schedule WHERE loan_id=$1', [loan.id]);
 
       const totalAmount = parseFloat(loan.total_amount);
       const termWeeks = parseInt(loan.term_weeks);
@@ -81,7 +81,7 @@ const disburse = async (id, disbursed_by) => {
         if (runningBalance < 0) runningBalance = 0;
 
         await client.query(
-          `INSERT INTO repayment_schedules (loan_id, installment_no, due_date, amount_due, amount_paid, balance, status)
+          `INSERT INTO repayment_schedule (loan_id, installment_no, due_date, amount_due, amount_paid, balance, status)
            VALUES ($1, $2, $3, $4, 0, $5, 'pending')`,
           [loan.id, i, due.toISOString().split('T')[0], amt, runningBalance]
         );
@@ -117,7 +117,7 @@ const markProcessingFeePaid = async (id, transaction_code) => {
 
 const getSchedule = async (loanId) => {
   const r = await pool.query(
-    'SELECT * FROM repayment_schedules WHERE loan_id=$1 ORDER BY installment_no ASC',
+    'SELECT * FROM repayment_schedule WHERE loan_id=$1 ORDER BY installment_no ASC',
     [loanId]
   );
   return r.rows;
@@ -125,7 +125,7 @@ const getSchedule = async (loanId) => {
 
 const applyPaymentToSchedule = async (loanId, amountPaid) => {
   const installments = await pool.query(
-    "SELECT * FROM repayment_schedules WHERE loan_id=$1 AND status != 'paid' ORDER BY installment_no ASC",
+    "SELECT * FROM repayment_schedule WHERE loan_id=$1 AND status != 'paid' ORDER BY installment_no ASC",
     [loanId]
   );
 
@@ -138,13 +138,13 @@ const applyPaymentToSchedule = async (loanId, amountPaid) => {
 
     if (remaining >= owed) {
       await pool.query(
-        "UPDATE repayment_schedules SET amount_paid=$1, status='paid', paid_at=NOW() WHERE id=$2",
+        "UPDATE repayment_schedule SET amount_paid=$1, status='paid', paid_at=NOW() WHERE id=$2",
         [due, inst.id]
       );
       remaining -= owed;
     } else {
       await pool.query(
-        "UPDATE repayment_schedules SET amount_paid=$1, status='partial' WHERE id=$2",
+        "UPDATE repayment_schedule SET amount_paid=$1, status='partial' WHERE id=$2",
         [already + remaining, inst.id]
       );
       remaining = 0;
@@ -152,7 +152,7 @@ const applyPaymentToSchedule = async (loanId, amountPaid) => {
   }
 
   await pool.query(
-    "UPDATE repayment_schedules SET status='overdue' WHERE loan_id=$1 AND due_date < NOW() AND status='pending'",
+    "UPDATE repayment_schedule SET status='overdue' WHERE loan_id=$1 AND due_date < NOW() AND status='pending'",
     [loanId]
   );
 };
@@ -180,7 +180,7 @@ const closeLoan = async (loanId) => {
 
   // 3. Mark all remaining schedule rows as paid
   await pool.query(
-    `UPDATE repayment_schedules
+    `UPDATE repayment_schedule
      SET status = 'paid',
          amount_paid = amount_due,
          paid_at = NOW()
@@ -217,7 +217,7 @@ const writeLoanOff = async (loanId, writtenOffBy, reason) => {
 
     // 2. Mark all overdue/pending schedules as written_off
     await client.query(
-      `UPDATE repayment_schedules SET status = 'written_off' WHERE loan_id = $1 AND status IN ('overdue','pending','partial')`,
+      `UPDATE repayment_schedule SET status = 'written_off' WHERE loan_id = $1 AND status IN ('overdue','pending','partial')`,
       [loanId]
     );
 

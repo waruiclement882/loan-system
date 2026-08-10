@@ -1,9 +1,13 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/services/scheduleService.js', 'utf8');
+const files = [
+  'src/repositories/loanRepository.js',
+  'src/routes/reports.js'
+];
 
-// Fix table name from repayment_schedules to repayment_schedule
-content = content.split('repayment_schedules').join('repayment_schedule');
-
-fs.writeFileSync('src/services/scheduleService.js', content, 'utf8');
-console.log('✅ Fixed table name!');
-console.log('Still has old name:', content.includes('repayment_schedules'));
+files.forEach(f => {
+  let content = fs.readFileSync(f, 'utf8');
+  const count = (content.match(/repayment_schedules/g) || []).length;
+  content = content.split('repayment_schedules').join('repayment_schedule');
+  fs.writeFileSync(f, content, 'utf8');
+  console.log(`✅ Fixed ${f} — ${count} occurrence(s)`);
+});

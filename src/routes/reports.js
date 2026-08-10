@@ -114,7 +114,7 @@ router.get('/par', verifyToken, async (req, res) => {
 
     const overdue = await pool.query(`
       SELECT DISTINCT loan_id, MIN(due_date) AS earliest_overdue, COUNT(*) AS overdue_count
-      FROM repayment_schedules
+      FROM repayment_schedule
       WHERE status = 'overdue'
       GROUP BY loan_id
     `);
@@ -152,7 +152,7 @@ router.get('/collection', verifyToken, async (req, res) => {
     const due = await pool.query(`
       SELECT rs.*, l.customer_id, l.amount AS loan_amount, l.balance,
         c.name AS customer_name, c.phone
-      FROM repayment_schedules rs
+      FROM repayment_schedule rs
       JOIN loans l ON rs.loan_id = l.id
       JOIN customers c ON l.customer_id = c.id
       WHERE rs.due_date::date = $1
@@ -242,7 +242,7 @@ router.get('/statement/:loanId', verifyToken, async (req, res) => {
     if (!loanRes.rows[0]) return res.status(404).json({ error: 'Loan not found' });
 
     const scheduleRes = await pool.query(
-      'SELECT * FROM repayment_schedules WHERE loan_id = $1 ORDER BY installment_no ASC',
+      'SELECT * FROM repayment_schedule WHERE loan_id = $1 ORDER BY installment_no ASC',
       [loanId]
     );
 
@@ -280,7 +280,7 @@ router.get('/due-this-week', verifyToken, async (req, res) => {
         c.name AS customer_name, c.phone,
         l.amount as loan_amount, l.total_amount,
         l.weekly_installment
-      FROM repayment_schedules rs
+      FROM repayment_schedule rs
       JOIN loans l ON rs.loan_id = l.id
       JOIN customers c ON l.customer_id = c.id
       WHERE ${whereClause}
