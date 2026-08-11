@@ -242,7 +242,7 @@ router.get('/statement/:loanId', verifyToken, async (req, res) => {
     if (!loanRes.rows[0]) return res.status(404).json({ error: 'Loan not found' });
 
     const scheduleRes = await pool.query(
-      'SELECT * FROM repayment_schedule WHERE loan_id = $1 ORDER BY installment_no ASC',
+      'SELECT * FROM repayment_schedule WHERE loan_id = $1 ORDER BY week_number ASC',
       [loanId]
     );
 

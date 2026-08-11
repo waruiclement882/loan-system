@@ -81,7 +81,7 @@ const disburse = async (id, disbursed_by) => {
         if (runningBalance < 0) runningBalance = 0;
 
         await client.query(
-          `INSERT INTO repayment_schedule (loan_id, installment_no, due_date, amount_due, amount_paid, balance, status)
+          `INSERT INTO repayment_schedule (loan_id, week_number, due_date, amount_due, amount_paid, balance, status)
            VALUES ($1, $2, $3, $4, 0, $5, 'pending')`,
           [loan.id, i, due.toISOString().split('T')[0], amt, runningBalance]
         );
@@ -117,7 +117,7 @@ const markProcessingFeePaid = async (id, transaction_code) => {
 
 const getSchedule = async (loanId) => {
   const r = await pool.query(
-    'SELECT * FROM repayment_schedule WHERE loan_id=$1 ORDER BY installment_no ASC',
+    'SELECT * FROM repayment_schedule WHERE loan_id=$1 ORDER BY week_number ASC',
     [loanId]
   );
   return r.rows;
@@ -125,7 +125,7 @@ const getSchedule = async (loanId) => {
 
 const applyPaymentToSchedule = async (loanId, amountPaid) => {
   const installments = await pool.query(
-    "SELECT * FROM repayment_schedule WHERE loan_id=$1 AND status != 'paid' ORDER BY installment_no ASC",
+    "SELECT * FROM repayment_schedule WHERE loan_id=$1 AND status != 'paid' ORDER BY week_number ASC",
     [loanId]
   );
 

@@ -21,7 +21,7 @@ const generateSchedule = async (loanId) => {
       : weeklyAmount;
 
     await pool.query(
-      `INSERT INTO repayment_schedule (loan_id, installment_no, due_date, amount_due, amount_paid, status)
+      `INSERT INTO repayment_schedule (loan_id, week_number, due_date, amount_due, amount_paid, status)
        VALUES ($1, $2, $3, $4, 0, 'pending')`,
       [loanId, week, dueDate.toISOString().split('T')[0], amount]
     );
@@ -33,7 +33,7 @@ const generateSchedule = async (loanId) => {
 
 const getSchedule = async (loanId) => {
   const result = await pool.query(
-    'SELECT * FROM repayment_schedule WHERE loan_id = $1 ORDER BY installment_no ASC',
+    'SELECT * FROM repayment_schedule WHERE loan_id = $1 ORDER BY week_number ASC',
     [loanId]
   );
   return result.rows;
@@ -41,7 +41,7 @@ const getSchedule = async (loanId) => {
 
 const applyPaymentToSchedule = async (loanId, amountPaid) => {
   const schedule = await pool.query(
-    "SELECT * FROM repayment_schedule WHERE loan_id = $1 AND status != 'paid' ORDER BY installment_no ASC",
+    "SELECT * FROM repayment_schedule WHERE loan_id = $1 AND status != 'paid' ORDER BY week_number ASC",
     [loanId]
   );
 
