@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
 });
 
 // Update settings (admin only)
-router.put('/', verifyToken, requireRole('admin'), async (req, res) => {
+router.put('/', verifyToken, requireRole('admin', 'branch_admin'), async (req, res) => {
   try {
     const { company_name, tagline, phone, email, address, logo_url, primary_color, paybill, account_number, max_loans_per_customer, max_loan_amount } = req.body;
     const result = await pool.query(

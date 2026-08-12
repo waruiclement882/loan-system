@@ -5,8 +5,8 @@ const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 
 router.get('/', verifyToken, paymentController.getAllPayments);
 router.post('/', verifyToken, paymentController.createPayment);
-router.get('/unmatched', verifyToken, requireRole('admin', 'cashier'), paymentController.getUnmatched);
-router.get('/income', verifyToken, requireRole('admin', 'cashier'), async (req, res) => {
+router.get('/unmatched', verifyToken, requireRole('admin', 'cashier', 'branch_admin'), paymentController.getUnmatched);
+router.get('/income', verifyToken, requireRole('admin', 'cashier', 'branch_admin'), async (req, res) => {
   try {
     const result = await require('../db/pool').query(`
       SELECT ci.id, ci.loan_id, ci.amount, ci.type,
@@ -23,7 +23,7 @@ router.get('/income', verifyToken, requireRole('admin', 'cashier'), async (req, 
     res.status(500).json({ error: err.message });
   }
 });
-router.post('/match', verifyToken, requireRole('admin', 'cashier'), (req, res) => paymentController.matchTransaction(req, res));
-router.post('/manual', verifyToken, requireRole('admin', 'cashier'), (req, res) => paymentController.manualPayment(req, res));
+router.post('/match', verifyToken, requireRole('admin', 'cashier', 'branch_admin'), (req, res) => paymentController.matchTransaction(req, res));
+router.post('/manual', verifyToken, requireRole('admin', 'cashier', 'branch_admin'), (req, res) => paymentController.manualPayment(req, res));
 
 module.exports = router;

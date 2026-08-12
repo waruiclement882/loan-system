@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../db/pool');
 const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 
-router.get('/', verifyToken, requireRole('admin'), async (req, res) => {
+router.get('/', verifyToken, requireRole('admin', 'branch_admin'), async (req, res) => {
   try {
     const result = await pool.query(`
   SELECT audit_logs.*, users.name as user_name

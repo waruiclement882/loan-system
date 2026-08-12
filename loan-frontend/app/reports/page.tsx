@@ -63,7 +63,7 @@ export default function ReportsPage() {
   };
 
   const logout = () => { localStorage.clear(); router.push("/login"); };
-  const isAdmin = ["admin", "cashier"].includes(userRole);
+  const isAdmin = ["admin", "cashier", "branch_admin"].includes(userRole);
   const pendingLoans = loans.filter(l => l.status === "pending").length;
   const today = new Date();
 

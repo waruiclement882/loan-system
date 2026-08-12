@@ -61,7 +61,9 @@ export default function DashboardPage() {
   const activeLoans = loans.filter(l => l.status === "active").length;
   const pendingLoans = loans.filter(l => l.status === "pending").length;
   const collectionRate = totalDisbursed > 0 ? Math.round((totalCollected / totalDisbursed) * 100) : 0;
-  const isAdmin = ["admin", "cashier"].includes(userRole);
+  const isAdmin = ["admin", "cashier", "branch_admin"].includes(userRole);
+  const isBranchAdmin = userRole === "branch_admin";
+  const isFullAdmin = userRole === "admin";
   const dueTodayAmount = dueToday.reduce((s: number, r: any) => s + parseFloat(r.amount_due || 0), 0);
   const overdueLoans = loans.filter(l => l.status === "active" && l.due_date && new Date(l.due_date) < today);
   const overdueAmount = overdueLoans.reduce((s, l) => s + parseFloat(l.balance || 0), 0);
