@@ -81,9 +81,9 @@ const disburse = async (id, disbursed_by) => {
         if (runningBalance < 0) runningBalance = 0;
 
         await client.query(
-          `INSERT INTO repayment_schedule (loan_id, week_number, due_date, amount_due, amount_paid, balance, status)
-           VALUES ($1, $2, $3, $4, 0, $5, 'pending')`,
-          [loan.id, i, due.toISOString().split('T')[0], amt, runningBalance]
+          `INSERT INTO repayment_schedule (loan_id, week_number, due_date, amount_due, amount_paid, status)
+           VALUES ($1, $2, $3, $4, 0, 'pending')`,
+          [loan.id, i, due.toISOString().split('T')[0], amt]
         );
       }
       console.log(`[Repo] Generated ${termWeeks}-week schedule for loan #${loan.id}`);
