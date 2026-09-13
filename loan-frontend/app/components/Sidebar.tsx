@@ -62,6 +62,7 @@ export default function Sidebar() {
     { label: "Suspense", path: "/suspense", show: isAdmin, group: "Operations" },
     { label: "Float", path: "/float", show: isAdmin, group: "Operations" },
     { label: "PAR", path: "/par", show: isAdmin, group: "Operations" },
+    { label: "Loan Arrears", path: "/arrears", show: isAdmin, group: "Operations" },
 
     { label: "Schedule", path: "/schedule", show: true, group: "Records" },
     { label: "Statement", path: "/statement", show: true, group: "Records" },
