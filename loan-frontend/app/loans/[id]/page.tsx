@@ -249,11 +249,11 @@ export default function LoanDetailPage() {
                 <tbody>
                   {schedule.map((inst: any) => (
                     <tr key={inst.id} className={`border-b ${inst.status === "overdue" ? "bg-red-50" : ""}`}>
-                      <td className="px-5 py-2.5 text-gray-500">Week {inst.installment_no}</td>
+                      <td className="px-5 py-2.5 text-gray-500">Week {inst.week_number}</td>
                       <td className="px-5 py-2.5">{new Date(inst.due_date).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</td>
                       <td className="px-5 py-2.5">KSh {parseFloat(inst.amount_due).toLocaleString()}</td>
                       <td className="px-5 py-2.5 text-emerald-600">{parseFloat(inst.amount_paid) > 0 ? "KSh " + parseFloat(inst.amount_paid).toLocaleString() : "—"}</td>
-                      <td className="px-5 py-2.5">KSh {(parseFloat(inst.balance) || 0).toLocaleString()}</td>
+                      <td className="px-5 py-2.5">KSh {(parseFloat(inst.amount_due) - parseFloat(inst.amount_paid)).toLocaleString()}</td>
                       <td className="px-5 py-2.5">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${scheduleStatusColor(inst.status)}`}>
                           {inst.status}

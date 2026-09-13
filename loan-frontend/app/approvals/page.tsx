@@ -56,6 +56,23 @@ export default function ApprovalsPage() {
 
   const disburseLoan = async (id: number, loan: any) => {
     setError(""); setSuccess("");
+
+    // Check KYC verification first
+    try {
+      const token = localStorage.getItem("token");
+      const kycRes = await fetch(`https://loan-system-h794.onrender.com/api/kyc/${loan.customer_id}`, {
+        headers: { Authorization: "Bearer " + token }
+      });
+      const kycData = await kycRes.json();
+      if (!kycData || !kycData.kyc_verified) {
+        setError("❌ Cannot disburse Loan #" + id + " — Customer KYC is NOT verified. Go to Customer Profile → KYC Documents to upload and verify ID.");
+        return;
+      }
+    } catch {
+      setError("❌ Cannot disburse — KYC verification check failed. Please try again.");
+      return;
+    }
+
     if (loan.processing_fee > 0 && !loan.processing_fee_paid) {
       setError("Cannot disburse Loan #" + id + " — processing fee of KSh " + Number(loan.processing_fee).toLocaleString() + " has not been paid. Go to Loans page to mark it as paid.");
       return;
