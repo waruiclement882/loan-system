@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
+const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
+
 export default function VoiceCommand() {
   const router = useRouter();
   const [listening, setListening] = useState(false);
@@ -23,103 +25,183 @@ export default function VoiceCommand() {
   }, []);
 
   const speak = (text: string) => {
+    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1;
     utterance.pitch = 1;
     window.speechSynthesis.speak(utterance);
   };
 
-  const processCommand = useCallback((command: string) => {
+  const getHeaders = () => {
+    const token = localStorage.getItem("token");
+    return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+  };
+
+  const searchAndOpenCustomer = async (name: string) => {
+    setFeedback(`🔍 Searching for ${name}...`);
+    try {
+      const res = await fetch(`${API}/api/customers`, { headers: getHeaders() });
+      const customers = await res.json();
+      if (!Array.isArray(customers)) { speak('Could not search customers'); return; }
+
+      const nameLower = name.toLowerCase();
+      const match = customers.find((c: any) =>
+        c.name?.toLowerCase().includes(nameLower)
+      );
+
+      if (match) {
+        speak(`Opening ${match.name}`);
+        setFeedback(`👤 Opening ${match.name}...`);
+        router.push(`/customers/${match.id}`);
+      } else {
+        speak(`Customer ${name} not found`);
+        setFeedback(`❌ Customer "${name}" not found`);
+      }
+    } catch {
+      speak('Search failed');
+      setFeedback('❌ Search failed');
+    }
+  };
+
+  const searchAndOpenLoan = async (name: string) => {
+    setFeedback(`🔍 Searching loan for ${name}...`);
+    try {
+      const res = await fetch(`${API}/api/loans`, { headers: getHeaders() });
+      const loans = await res.json();
+      if (!Array.isArray(loans)) { speak('Could not search loans'); return; }
+
+      const nameLower = name.toLowerCase();
+      const matches = loans.filter((l: any) =>
+        l.customer_name?.toLowerCase().includes(nameLower)
+      );
+
+      if (matches.length === 1) {
+        speak(`Opening loan for ${matches[0].customer_name}`);
+        setFeedback(`📋 Opening loan #${matches[0].id} for ${matches[0].customer_name}...`);
+        router.push(`/loans/${matches[0].id}`);
+      } else if (matches.length > 1) {
+        // Open most recent active loan
+        const active = matches.find((l: any) => l.status === 'active') || matches[matches.length - 1];
+        speak(`Opening loan for ${active.customer_name}`);
+        setFeedback(`📋 Opening loan #${active.id} for ${active.customer_name}...`);
+        router.push(`/loans/${active.id}`);
+      } else {
+        speak(`No loan found for ${name}`);
+        setFeedback(`❌ No loan found for "${name}"`);
+      }
+    } catch {
+      speak('Search failed');
+      setFeedback('❌ Search failed');
+    }
+  };
+
+  const openLoanById = (id: string) => {
+    speak(`Opening loan number ${id}`);
+    setFeedback(`📋 Opening Loan #${id}...`);
+    router.push(`/loans/${id}`);
+  };
+
+  const processCommand = useCallback(async (command: string) => {
     const cmd = command.toLowerCase().trim();
     setTranscript(command);
 
-    // Navigation commands
+    // ── Open loan of specific person ──
+    // "open loan of joseph" / "show loan for mary" / "loan of peter"
+    const loanOfMatch = cmd.match(/(?:open|show|view)?\s*loan\s+(?:of|for)\s+(.+)/);
+    if (loanOfMatch) {
+      await searchAndOpenLoan(loanOfMatch[1].trim());
+      setTimeout(() => { setFeedback(""); setTranscript(""); }, 3000);
+      return;
+    }
+
+    // "open joseph loan" / "show mary's loan"
+    const nameFirstLoan = cmd.match(/(?:open|show|view)\s+(.+?)(?:'s)?\s+loan/);
+    if (nameFirstLoan) {
+      await searchAndOpenLoan(nameFirstLoan[1].trim());
+      setTimeout(() => { setFeedback(""); setTranscript(""); }, 3000);
+      return;
+    }
+
+    // ── Open loan by ID ──
+    // "open loan 45" / "show loan number 12"
+    const loanIdMatch = cmd.match(/loan\s+(?:number\s+|#)?(\d+)/);
+    if (loanIdMatch) {
+      openLoanById(loanIdMatch[1]);
+      setTimeout(() => { setFeedback(""); setTranscript(""); }, 3000);
+      return;
+    }
+
+    // ── Open customer profile ──
+    // "open customer joseph" / "show profile of mary"
+    const customerMatch = cmd.match(/(?:open|show|view)\s+(?:customer|profile)\s+(?:of\s+|for\s+)?(.+)/);
+    if (customerMatch) {
+      await searchAndOpenCustomer(customerMatch[1].trim());
+      setTimeout(() => { setFeedback(""); setTranscript(""); }, 3000);
+      return;
+    }
+
+    // "open joseph's profile" / "show mary profile"
+    const profileMatch = cmd.match(/(?:open|show|view)\s+(.+?)(?:'s)?\s+(?:profile|account|details)/);
+    if (profileMatch) {
+      await searchAndOpenCustomer(profileMatch[1].trim());
+      setTimeout(() => { setFeedback(""); setTranscript(""); }, 3000);
+      return;
+    }
+
+    // ── Page navigation ──
     if (cmd.includes('dashboard') || cmd.includes('home')) {
-      speak('Going to dashboard');
-      setFeedback('🏠 Going to Dashboard...');
-      router.push('/dashboard');
-    } else if (cmd.includes('customer') && (cmd.includes('new') || cmd.includes('add') || cmd.includes('create'))) {
-      speak('Opening new customer form');
-      setFeedback('👤 Opening New Customer...');
-      router.push('/customers');
+      speak('Going to dashboard'); setFeedback('🏠 Dashboard'); router.push('/dashboard');
+    } else if (cmd.includes('new customer') || cmd.includes('add customer') || cmd.includes('register customer')) {
+      speak('Opening new customer'); setFeedback('👤 New Customer'); router.push('/customers');
     } else if (cmd.includes('customer')) {
-      speak('Going to customers');
-      setFeedback('👥 Going to Customers...');
-      router.push('/customers');
+      speak('Going to customers'); setFeedback('👥 Customers'); router.push('/customers');
     } else if (cmd.includes('new loan') || cmd.includes('create loan') || cmd.includes('add loan')) {
-      speak('Opening new loan form');
-      setFeedback('📋 Opening New Loan...');
-      router.push('/loans');
+      speak('Opening new loan'); setFeedback('📋 New Loan'); router.push('/loans');
     } else if (cmd.includes('loan')) {
-      speak('Going to loans');
-      setFeedback('📋 Going to Loans...');
-      router.push('/loans');
+      speak('Going to loans'); setFeedback('📋 Loans'); router.push('/loans');
     } else if (cmd.includes('payment')) {
-      speak('Going to payments');
-      setFeedback('💳 Going to Payments...');
-      router.push('/payments');
+      speak('Going to payments'); setFeedback('💳 Payments'); router.push('/payments');
     } else if (cmd.includes('approval') || cmd.includes('approve')) {
-      speak('Going to approvals');
-      setFeedback('✅ Going to Approvals...');
-      router.push('/approvals');
+      speak('Going to approvals'); setFeedback('✅ Approvals'); router.push('/approvals');
     } else if (cmd.includes('match')) {
-      speak('Going to payment matching');
-      setFeedback('🔗 Going to Match Payments...');
-      router.push('/matching');
+      speak('Going to payment matching'); setFeedback('🔗 Match Payments'); router.push('/matching');
     } else if (cmd.includes('report')) {
-      speak('Going to reports');
-      setFeedback('📊 Going to Reports...');
-      router.push('/reports');
+      speak('Going to reports'); setFeedback('📊 Reports'); router.push('/reports');
     } else if (cmd.includes('arrear')) {
-      speak('Going to loan arrears');
-      setFeedback('⚠️ Going to Loan Arrears...');
-      router.push('/arrears');
+      speak('Going to loan arrears'); setFeedback('⚠️ Loan Arrears'); router.push('/arrears');
     } else if (cmd.includes('setting')) {
-      speak('Going to settings');
-      setFeedback('⚙️ Going to Settings...');
-      router.push('/settings');
+      speak('Going to settings'); setFeedback('⚙️ Settings'); router.push('/settings');
     } else if (cmd.includes('audit')) {
-      speak('Going to audit logs');
-      setFeedback('📋 Going to Audit Logs...');
-      router.push('/audit');
+      speak('Going to audit logs'); setFeedback('📋 Audit Logs'); router.push('/audit');
     } else if (cmd.includes('expense')) {
-      speak('Going to expenses');
-      setFeedback('💰 Going to Expenses...');
-      router.push('/expenses');
+      speak('Going to expenses'); setFeedback('💰 Expenses'); router.push('/expenses');
     } else if (cmd.includes('branch')) {
-      speak('Going to branches');
-      setFeedback('🏢 Going to Branches...');
-      router.push('/branches');
+      speak('Going to branches'); setFeedback('🏢 Branches'); router.push('/branches');
     } else if (cmd.includes('user')) {
-      speak('Going to users');
-      setFeedback('👥 Going to Users...');
-      router.push('/users');
+      speak('Going to users'); setFeedback('👥 Users'); router.push('/users');
     } else if (cmd.includes('statement')) {
-      speak('Going to statements');
-      setFeedback('📄 Going to Statement...');
-      router.push('/statement');
+      speak('Going to statements'); setFeedback('📄 Statement'); router.push('/statement');
     } else if (cmd.includes('schedule')) {
-      speak('Going to schedule');
-      setFeedback('📅 Going to Schedule...');
-      router.push('/schedule');
+      speak('Going to schedule'); setFeedback('📅 Schedule'); router.push('/schedule');
     } else if (cmd.includes('suspense')) {
-      speak('Going to suspense');
-      setFeedback('🔄 Going to Suspense...');
-      router.push('/suspense');
+      speak('Going to suspense'); setFeedback('🔄 Suspense'); router.push('/suspense');
     } else if (cmd.includes('float')) {
-      speak('Going to float');
-      setFeedback('💵 Going to Float...');
-      router.push('/float');
+      speak('Going to float'); setFeedback('💵 Float'); router.push('/float');
+    } else if (cmd.includes('par')) {
+      speak('Going to portfolio at risk'); setFeedback('📊 PAR'); router.push('/par');
+    } else if (cmd.includes('slip')) {
+      speak('Going to payment slip'); setFeedback('🧾 Payment Slip'); router.push('/slip');
+    } else if (cmd.includes('collection')) {
+      speak('Going to collection'); setFeedback('📋 Collection'); router.push('/collection');
     } else if (cmd.includes('logout') || cmd.includes('log out') || cmd.includes('sign out')) {
-      speak('Logging out');
-      setFeedback('👋 Logging out...');
+      speak('Logging out'); setFeedback('👋 Logging out...');
       setTimeout(() => { localStorage.clear(); router.push('/login'); }, 1000);
     } else if (cmd.includes('help')) {
-      speak('Available commands: dashboard, customers, loans, payments, approvals, match, reports, arrears, settings, branches, expenses, logout');
-      setFeedback('💡 Say: dashboard, customers, loans, payments, approvals, match, reports, arrears, settings, branches, expenses, logout');
+      speak('You can say: open loan of Joseph, show loan for Mary, open loan 45, go to dashboard, customers, loans, payments, approvals, reports, arrears, settings, branches, expenses, or logout');
+      setFeedback('💡 Commands: "open loan of [name]", "loan [number]", "dashboard", "customers", "loans", "reports"...');
     } else {
       speak('Command not recognized. Say help for available commands.');
-      setFeedback('❓ Command not recognized. Say "help" for commands.');
+      setFeedback('❓ Not recognized. Say "help" for commands.');
     }
 
     setTimeout(() => { setFeedback(""); setTranscript(""); }, 3000);
@@ -138,21 +220,16 @@ export default function VoiceCommand() {
       const result = event.results[current];
       const text = result[0].transcript;
       setTranscript(text);
-      if (result.isFinal) {
-        processCommand(text);
-      }
+      if (result.isFinal) processCommand(text);
     };
 
     recognition.onerror = (event: any) => {
       setListening(false);
-      setFeedback('❌ Error: ' + event.error);
+      setFeedback('❌ ' + event.error);
       setTimeout(() => setFeedback(""), 2000);
     };
 
-    recognition.onend = () => {
-      setListening(false);
-    };
-
+    recognition.onend = () => setListening(false);
     recognition.start();
   }, [recognition, listening, processCommand]);
 
@@ -161,7 +238,6 @@ export default function VoiceCommand() {
     setListening(false);
   };
 
-  // Keyboard shortcut - press Space on non-input elements
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && e.ctrlKey) {
@@ -178,14 +254,13 @@ export default function VoiceCommand() {
 
   return (
     <>
-      {/* Feedback Toast */}
       {(feedback || transcript) && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-gray-900 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 max-w-md">
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-gray-900 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 max-w-lg text-center">
           {listening && (
-            <div className="flex gap-1">
-              {[1,2,3].map(i => (
+            <div className="flex gap-1 shrink-0">
+              {[1,2,3,4].map(i => (
                 <div key={i} className="w-1 bg-green-400 rounded-full animate-bounce"
-                  style={{ height: `${8 + i * 4}px`, animationDelay: `${i * 0.1}s` }} />
+                  style={{ height: `${6 + i * 3}px`, animationDelay: `${i * 0.1}s` }} />
               ))}
             </div>
           )}
@@ -193,15 +268,12 @@ export default function VoiceCommand() {
         </div>
       )}
 
-      {/* Microphone Button */}
       <button
         onClick={listening ? stopListening : startListening}
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 ${
-          listening
-            ? 'bg-red-500 hover:bg-red-600 scale-110 animate-pulse'
-            : 'bg-green-600 hover:bg-green-700 hover:scale-105'
+          listening ? 'bg-red-500 hover:bg-red-600 scale-110 animate-pulse' : 'bg-green-600 hover:bg-green-700 hover:scale-105'
         }`}
-        title={listening ? 'Stop listening (Ctrl+Space)' : 'Voice command (Ctrl+Space)'}
+        title={listening ? 'Stop (Ctrl+Space)' : 'Voice Command (Ctrl+Space)'}
       >
         {listening ? (
           <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -215,12 +287,9 @@ export default function VoiceCommand() {
         )}
       </button>
 
-      {/* Hint */}
-      {!listening && (
-        <div className="fixed bottom-6 right-24 z-40 bg-gray-800 text-white text-xs px-3 py-1.5 rounded-full opacity-60">
-          Ctrl+Space
-        </div>
-      )}
+      <div className="fixed bottom-6 right-24 z-40 bg-gray-800 text-white text-xs px-3 py-1.5 rounded-full opacity-50 pointer-events-none">
+        Ctrl+Space
+      </div>
     </>
   );
 }
