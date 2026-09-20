@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import SessionTimeout from "./components/SessionTimeout";
 import Keepalive from "./components/Keepalive";
+import VoiceCommand from "./components/VoiceCommand";
 
 export const metadata: Metadata = {
   title: "Blessed Ventures LTD",
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Keepalive />
         <SessionTimeout />
+        <VoiceCommand />
         {children}
       </body>
     </html>

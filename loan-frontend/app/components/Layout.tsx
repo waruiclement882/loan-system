@@ -1,6 +1,5 @@
 "use client";
 import Sidebar from "./Sidebar";
-import VoiceCommand from "./VoiceCommand";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,7 +10,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
-      <VoiceCommand />
     </div>
   );
 }
