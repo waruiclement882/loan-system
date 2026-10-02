@@ -61,9 +61,9 @@ export default function BranchesPage() {
         body: JSON.stringify({ ...form, capital: parseFloat(form.capital) || 0 })
       });
       const data = await res.json();
-      if (data.error) setMessage("❌ " + data.error);
-      else { setMessage("✅ Branch saved!"); setShowForm(false); setEditBranch(null); loadBranches(); }
-    } catch { setMessage("❌ Failed to save"); }
+      if (data.error) setMessage("âŒ " + data.error);
+      else { setMessage("âœ… Branch saved!"); setShowForm(false); setEditBranch(null); loadBranches(); }
+    } catch { setMessage("âŒ Failed to save"); }
     setSaving(false);
   };
 
@@ -79,7 +79,7 @@ export default function BranchesPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       <nav className="bg-white shadow px-4 md:px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Blessed Ventures LTD</h1>
+        <h1 className="text-xl font-bold text-blue-600">Lunar Lumina Solutions</h1>
         <div className="flex gap-3 items-center">
           <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600 text-sm">Dashboard</button>
           <button onClick={() => router.push("/settings")} className="text-gray-600 hover:text-blue-600 text-sm">Settings</button>
@@ -90,8 +90,8 @@ export default function BranchesPage() {
       <div className="p-4 md:p-6 max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-2xl font-bold">🏢 Branch Management</h2>
-            <p className="text-gray-500 text-sm mt-1">Manage all Blessed Ventures LTD branches</p>
+            <h2 className="text-2xl font-bold">ðŸ¢ Branch Management</h2>
+            <p className="text-gray-500 text-sm mt-1">Manage all Lunar Lumina Solutions branches</p>
           </div>
           <button onClick={() => { setShowForm(true); setEditBranch(null); setForm({ name: "", code: "", location: "", capital: "", manager_id: "" }); }}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
@@ -100,7 +100,7 @@ export default function BranchesPage() {
         </div>
 
         {message && (
-          <div className={`mb-4 p-3 rounded-lg ${message.startsWith("✅") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+          <div className={`mb-4 p-3 rounded-lg ${message.startsWith("âœ…") ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
             {message} <button onClick={() => setMessage("")} className="ml-2 text-xs underline">dismiss</button>
           </div>
         )}
@@ -156,7 +156,7 @@ export default function BranchesPage() {
         <div className="flex gap-2 mb-6 flex-wrap">
           <button onClick={() => setActiveBranch(null)}
             className={`px-4 py-2 rounded-lg text-sm font-medium ${!activeBranch ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}>
-            🏢 All Branches
+            ðŸ¢ All Branches
           </button>
           {branches.map((b: any) => (
             <button key={b.id} onClick={() => setActiveBranch(b)}
@@ -210,7 +210,7 @@ export default function BranchesPage() {
                         <p className="font-medium">{b.name}</p>
                         <p className="text-xs text-gray-400">{b.code}</p>
                       </td>
-                      <td className="p-4 text-gray-500">{b.location || "—"}</td>
+                      <td className="p-4 text-gray-500">{b.location || "â€”"}</td>
                       <td className="p-4 text-blue-600 font-medium">{fmt(b.capital)}</td>
                       <td className="p-4 text-purple-600">{fmt(b.total_disbursed)}</td>
                       <td className="p-4 text-green-600">{fmt(b.total_collected)}</td>
@@ -242,7 +242,7 @@ export default function BranchesPage() {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-xl font-bold">{activeBranch.name}</h3>
-                  <p className="text-gray-500 text-sm">{activeBranch.location} · Code: {activeBranch.code}</p>
+                  <p className="text-gray-500 text-sm">{activeBranch.location} Â· Code: {activeBranch.code}</p>
                   {activeBranch.manager_name && <p className="text-blue-600 text-sm mt-1">Manager: {activeBranch.manager_name}</p>}
                 </div>
                 <button onClick={() => { setEditBranch(activeBranch); setForm({ name: activeBranch.name, code: activeBranch.code, location: activeBranch.location||"", capital: activeBranch.capital, manager_id: activeBranch.manager_id||"" }); setShowForm(true); }}
@@ -259,7 +259,7 @@ export default function BranchesPage() {
                 <div className="bg-purple-50 rounded-lg p-4">
                   <p className="text-xs text-gray-500">Disbursed</p>
                   <p className="text-xl font-bold text-purple-600">{fmt(activeBranch.total_disbursed)}</p>
-                  <p className="text-xs text-gray-400">{activeBranch.active_loans} active · {activeBranch.paid_loans} paid</p>
+                  <p className="text-xs text-gray-400">{activeBranch.active_loans} active Â· {activeBranch.paid_loans} paid</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4">
                   <p className="text-xs text-gray-500">Collected</p>
@@ -276,7 +276,7 @@ export default function BranchesPage() {
                   <span className="text-gray-600 font-medium">Cash in Hand</span>
                   <span className={`text-xl font-bold ${cashInHand(activeBranch) >= 0 ? "text-blue-600" : "text-red-600"}`}>
                     {fmt(cashInHand(activeBranch))}
-                    {cashInHand(activeBranch) < 0 && " ⚠️ Deficit"}
+                    {cashInHand(activeBranch) < 0 && " âš ï¸ Deficit"}
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Capital + Collected - Disbursed</p>
@@ -287,25 +287,25 @@ export default function BranchesPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <button onClick={() => router.push(`/customers?branch=${activeBranch.id}`)}
                 className="bg-white rounded-lg shadow p-4 hover:shadow-md text-left">
-                <p className="text-2xl mb-1">👥</p>
+                <p className="text-2xl mb-1">ðŸ‘¥</p>
                 <p className="font-medium text-sm">Customers</p>
                 <p className="text-gray-400 text-xs">{activeBranch.total_customers} registered</p>
               </button>
               <button onClick={() => router.push(`/loans?branch=${activeBranch.id}`)}
                 className="bg-white rounded-lg shadow p-4 hover:shadow-md text-left">
-                <p className="text-2xl mb-1">📋</p>
+                <p className="text-2xl mb-1">ðŸ“‹</p>
                 <p className="font-medium text-sm">Loans</p>
                 <p className="text-gray-400 text-xs">{activeBranch.active_loans} active</p>
               </button>
               <button onClick={() => router.push(`/reports?branch=${activeBranch.id}`)}
                 className="bg-white rounded-lg shadow p-4 hover:shadow-md text-left">
-                <p className="text-2xl mb-1">📊</p>
+                <p className="text-2xl mb-1">ðŸ“Š</p>
                 <p className="font-medium text-sm">Reports</p>
                 <p className="text-gray-400 text-xs">Branch analytics</p>
               </button>
               <button onClick={() => router.push(`/expenses?branch=${activeBranch.id}`)}
                 className="bg-white rounded-lg shadow p-4 hover:shadow-md text-left">
-                <p className="text-2xl mb-1">💰</p>
+                <p className="text-2xl mb-1">ðŸ’°</p>
                 <p className="font-medium text-sm">Expenses</p>
                 <p className="text-gray-400 text-xs">P&L for this branch</p>
               </button>

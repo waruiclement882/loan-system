@@ -5,7 +5,7 @@ import Keepalive from "./components/Keepalive";
 import VoiceCommand from "./components/VoiceCommand";
 
 export const metadata: Metadata = {
-  title: "Blessed Ventures LTD",
+  title: "Lunar Lumina Solutions",
   description: "Loan Management System",
   manifest: "/manifest.json",
 };
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#2563eb" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Blessed Ventures LTD" />
+        <meta name="apple-mobile-web-app-title" content="Lunar Lumina Solutions" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body>
