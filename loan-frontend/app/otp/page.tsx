@@ -1,10 +1,11 @@
 "use client";
+import { Suspense } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
 
-export default function OTPPage() {
+function OTPContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get("user_id");
@@ -15,11 +16,10 @@ export default function OTPPage() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState("");
-  const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
+  const [timeLeft, setTimeLeft] = useState(180);
   const [resendCooldown, setResendCooldown] = useState(60);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Countdown timer
   useEffect(() => {
     if (!userId) { router.push("/login"); return; }
     const timer = setInterval(() => {
@@ -31,7 +31,6 @@ export default function OTPPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Resend cooldown
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const t = setInterval(() => setResendCooldown(c => Math.max(0, c - 1)), 1000);
@@ -47,7 +46,6 @@ export default function OTPPage() {
     setCode(newCode);
     setError("");
     if (val && i < 5) inputRefs.current[i + 1]?.focus();
-    // Auto-submit when all 6 digits entered
     if (val && i === 5 && newCode.every(d => d)) {
       handleVerify(newCode.join(""));
     }
@@ -71,7 +69,6 @@ export default function OTPPage() {
     const otp = fullCode || code.join("");
     if (otp.length < 6) { setError("Please enter all 6 digits"); return; }
     if (timeLeft === 0) { setError("Code expired. Please request a new one."); return; }
-
     setLoading(true);
     setError("");
     try {
@@ -121,11 +118,9 @@ export default function OTPPage() {
   return (
     <div className="min-h-screen bg-[#F4F7F5] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
-
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-[#04342C] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">{method === "sms" ? "📱" : "📧"}</span>
+            <span className="text-3xl">{method === "sms" ? "??" : "??"}</span>
           </div>
           <h1 className="text-2xl font-bold text-[#04342C]">Enter Your Code</h1>
           <p className="text-gray-500 text-sm mt-2">
@@ -133,15 +128,11 @@ export default function OTPPage() {
           </p>
           {message && <p className="text-[#1D9E75] text-xs mt-1 font-medium">{decodeURIComponent(message)}</p>}
         </div>
-
-        {/* Timer */}
         <div className={`text-center mb-6 ${timeLeft <= 30 ? "text-red-500" : "text-gray-500"}`}>
           <span className="text-sm font-medium">
-            {timeLeft > 0 ? `⏱ Code expires in ${formatTime(timeLeft)}` : "⚠️ Code expired — request a new one"}
+            {timeLeft > 0 ? `? Code expires in ${formatTime(timeLeft)}` : "?? Code expired � request a new one"}
           </span>
         </div>
-
-        {/* OTP Input boxes */}
         <div className="flex gap-3 justify-center mb-6" onPaste={handlePaste}>
           {code.map((digit, i) => (
             <input
@@ -160,25 +151,19 @@ export default function OTPPage() {
             />
           ))}
         </div>
-
-        {/* Error */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-center">
             <p className="text-red-600 text-sm">{error}</p>
           </div>
         )}
-
-        {/* Verify button */}
         <button
           onClick={() => handleVerify()}
           disabled={loading || code.some(d => !d) || timeLeft === 0}
           className="w-full bg-[#04342C] text-white py-3 rounded-xl font-semibold text-base hover:bg-[#0F6E56] transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-4">
-          {loading ? "Verifying..." : "✓ Verify Code"}
+          {loading ? "Verifying..." : "? Verify Code"}
         </button>
-
-        {/* Resend */}
         <div className="text-center">
-          <p className="text-gray-500 text-sm mb-2">Didn't receive the code?</p>
+          <p className="text-gray-500 text-sm mb-2">Did not receive the code?</p>
           <button
             onClick={handleResend}
             disabled={resending || resendCooldown > 0}
@@ -186,14 +171,20 @@ export default function OTPPage() {
             {resending ? "Sending..." : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Code"}
           </button>
         </div>
-
-        {/* Back to login */}
         <div className="text-center mt-4">
           <button onClick={() => router.push("/login")} className="text-gray-400 text-xs hover:text-gray-600">
-            ← Back to login
+            ? Back to Login
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OTPPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F4F7F5] flex items-center justify-center"><p className="text-gray-500">Loading...</p></div>}>
+      <OTPContent />
+    </Suspense>
   );
 }
