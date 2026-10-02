@@ -94,9 +94,9 @@ const login = async (req, res) => {
     // Send OTP
     if (otpMethod === 'sms') {
       if (!user.phone) return res.status(400).json({ error: 'No phone number on file. Use email instead.' });
-      await smsService.sendSms(user.phone,
+      smsService.sendSms(user.phone,
         `Your Blessed Ventures login code is: ${otp}. Valid for 3 minutes. Do not share this code.`
-      );
+      ).catch(e => console.error('[SMS OTP]', e.message));
       res.json({
         requires_otp: true,
         method: 'sms',
@@ -104,7 +104,8 @@ const login = async (req, res) => {
         user_id: user.id
       });
     } else {
-      await emailService.sendEmail({
+      // Fire email async - don't block login response
+      emailService.sendEmail({
         to: user.email,
         subject: 'Your Blessed Ventures Login Code',
         html: `
@@ -223,9 +224,9 @@ const resendOtp = async (req, res) => {
       [user_id, otp, otpMethod, expiresAt]);
 
     if (otpMethod === 'sms') {
-      await smsService.sendSms(user.phone, `Your Blessed Ventures login code is: ${otp}. Valid for 3 minutes.`);
+      smsService.sendSms(user.phone, `Your Blessed Ventures login code is: ${otp}. Valid for 3 minutes.`).catch(e => console.error('[SMS Resend]', e.message));
     } else {
-      await emailService.sendEmail({
+      emailService.sendEmail({
         to: user.email,
         subject: 'Your New Login Code — Blessed Ventures',
         html: `<div style="font-family:Arial;padding:24px;text-align:center;"><h2>New Login Code</h2><p style="font-size:36px;font-weight:bold;color:#04342C;letter-spacing:10px;">${otp}</p><p style="color:#ef4444;">Expires in 3 minutes</p></div>`
