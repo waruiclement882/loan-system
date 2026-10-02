@@ -1,5 +1,4 @@
-"use client"
-use client
+"use client";
 import { Suspense } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -82,9 +81,6 @@ function OTPContent() {
     <div className="min-h-screen bg-[#F4F7F5] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#04342C] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">{method === "sms" ? "SMS" : "EMAIL"}</span>
-          </div>
           <h1 className="text-2xl font-bold text-[#04342C]">Enter Your Code</h1>
           <p className="text-gray-500 text-sm mt-2">
             {method === "sms" ? "We sent a 6-digit code via SMS" : "We sent a 6-digit code to your email"}
@@ -100,9 +96,7 @@ function OTPContent() {
           {code.map((digit, i) => (
             <input key={i} ref={el => { inputRefs.current[i] = el; }} type="text" inputMode="numeric" maxLength={1} value={digit}
               onChange={e => handleInput(i, e.target.value)} onKeyDown={e => handleKeyDown(i, e)}
-              className={`w-12 h-14 text-center text-2xl font-bold border-2 rounded-xl outline-none transition-all
-                ${digit ? "border-[#04342C] bg-[#F0FDF4]" : "border-gray-200"} ${error ? "border-red-400" : ""}
-                focus:border-[#1D9E75] focus:ring-2 focus:ring-[#1D9E75]/20`} />
+              className={`w-12 h-14 text-center text-2xl font-bold border-2 rounded-xl outline-none transition-all ${digit ? "border-[#04342C] bg-[#F0FDF4]" : "border-gray-200"} ${error ? "border-red-400" : ""} focus:border-[#1D9E75] focus:ring-2 focus:ring-[#1D9E75]/20`} />
           ))}
         </div>
         {error && <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-center"><p className="text-red-600 text-sm">{error}</p></div>}
