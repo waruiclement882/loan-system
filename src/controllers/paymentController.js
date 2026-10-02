@@ -259,12 +259,14 @@ class PaymentController {
       // Send SMS
       try {
         const smsService = require('../services/smsService');
+const waService = require('../services/whatsappService');
         const customerRes = await pool.query(
           'SELECT customers.phone FROM customers JOIN loans ON loans.customer_id = customers.id WHERE loans.id = $1',
           [loan_id]
         );
         if (customerRes.rows[0]?.phone) {
           const finalLoan = await pool.query('SELECT balance FROM loans WHERE id = $1', [loan_id]);
+          waService.sendPaymentReceivedWhatsApp(customer.phone, amount, loanId, balance).catch(e => console.error('[WA]', e.message));
           smsService.sendPaymentReceivedSms(
             customerRes.rows[0].phone, amount, loan_id,
             finalLoan.rows[0]?.balance || 0
@@ -284,3 +286,4 @@ class PaymentController {
 }
 
 module.exports = new PaymentController();
+

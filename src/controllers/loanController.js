@@ -2,6 +2,7 @@ const loanService = require('../services/loanService');
 const loanRepository = require('../repositories/loanRepository');
 const pool = require('../db/pool');
 const smsService = require('../services/smsService');
+const waService = require('../services/whatsappService');
 const scheduleService = require('../services/scheduleService');
 
 const audit = async (userId, userName, action, entity, entityId, details) => {
@@ -82,6 +83,7 @@ const approveLoan = async (req, res) => {
     const userName = await getUserName(approved_by);
     audit(approved_by, userName, 'APPROVE_LOAN', 'loans', loan.id, `Loan #${loan.id} approved`);
     const phone = await getCustomerPhone(loan.customer_id);
+    if (phone) waService.sendLoanApprovedWhatsApp(phone, loan.id, loan.amount, loan.processing_fee).catch(e => console.error('[WA]', e.message));
     if (phone) smsService.sendLoanApprovedSms(phone, loan.id, loan.amount, loan.processing_fee).catch(e => console.error('[SMS]', e.message));
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
@@ -96,6 +98,7 @@ const rejectLoan = async (req, res) => {
     const userName = await getUserName(rejected_by);
     audit(rejected_by, userName, 'REJECT_LOAN', 'loans', loan.id, `Loan #${loan.id} rejected. Reason: ${reason}`);
     const phone = await getCustomerPhone(loan.customer_id);
+    if (phone) waService.sendLoanRejectedWhatsApp(phone, loan.id, reason).catch(e => console.error('[WA]', e.message));
     if (phone) smsService.sendLoanRejectedSms(phone, loan.id, reason).catch(e => console.error('[SMS]', e.message));
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
@@ -110,6 +113,7 @@ const disburseLoan = async (req, res) => {
     const userName = await getUserName(disbursed_by);
     audit(disbursed_by, userName, 'DISBURSE_LOAN', 'loans', loan.id, `Loan #${loan.id} KSh ${loan.amount} disbursed`);
     const phone = await getCustomerPhone(loan.customer_id);
+    if (phone) waService.sendLoanDisbursedWhatsApp(phone, loan.id, loan.amount, loan.total_amount, loan.term_weeks).catch(e => console.error('[WA]', e.message));
     if (phone) smsService.sendLoanDisbursedSms(phone, loan.id, loan.amount, loan.total_amount).catch(e => console.error('[SMS]', e.message));
   } catch (error) { res.status(400).json({ error: error.message }); }
 };
