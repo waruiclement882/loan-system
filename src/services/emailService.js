@@ -1,9 +1,10 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT) || 587,
-  secure: false,
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  family: 4,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
@@ -32,7 +33,7 @@ const sendLoanApprovedEmail = async (customer, loan) => {
     to: customer.email,
     subject: 'Your Loan Has Been Approved - Lunar Lumina Solutions',
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px;">
-      <h2 style="color:#16a34a;">Loan Approved! ✅</h2>
+      <h2 style="color:#16a34a;">Loan Approved! âœ…</h2>
       <p>Dear <strong>${customer.name}</strong>,</p>
       <p>Your loan application has been <strong style="color:#16a34a;">approved</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin:20px 0;">
@@ -52,7 +53,7 @@ const sendLoanDisbursedEmail = async (customer, loan) => {
     to: customer.email,
     subject: 'Your Loan Has Been Disbursed - Lunar Lumina Solutions',
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px;">
-      <h2 style="color:#2563eb;">Loan Disbursed! 💰</h2>
+      <h2 style="color:#2563eb;">Loan Disbursed! ðŸ’°</h2>
       <p>Dear <strong>${customer.name}</strong>,</p>
       <p>Your loan has been <strong style="color:#2563eb;">disbursed</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin:20px 0;">
@@ -86,7 +87,7 @@ const sendPaymentReceivedEmail = async (customer, payment, loan) => {
     to: customer.email,
     subject: `Payment Received - Loan #${loan.id} - Lunar Lumina Solutions`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px;">
-      <h2 style="color:#16a34a;">Payment Received! ✅</h2>
+      <h2 style="color:#16a34a;">Payment Received! âœ…</h2>
       <p>Dear <strong>${customer.name}</strong>,</p>
       <p>We have received your payment for Loan <strong>#${loan.id}</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin:20px 0;">
