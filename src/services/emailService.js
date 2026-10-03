@@ -1,27 +1,21 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  family: 4,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async ({ to, subject, html, text }) => {
   try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.warn('[EmailService] EMAIL credentials not set - skipping');
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[EmailService] RESEND_API_KEY not set - skipping');
       return;
     }
-    const result = await transporter.sendMail({
-      from: `"Lunar Lumina Solutions" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-      to, subject, html, text
+    const result = await resend.emails.send({
+      from: 'Lunar Lumina Solutions <onboarding@resend.dev>',
+      to,
+      subject,
+      html,
+      text
     });
-    console.log('[EmailService] Email sent to:', to, '| ID:', result.messageId);
+    console.log('[EmailService] Email sent to:', to, '| ID:', result.id);
     return result;
   } catch (err) {
     console.error('[EmailService] Failed to send email:', err.message);
@@ -33,7 +27,7 @@ const sendLoanApprovedEmail = async (customer, loan) => {
     to: customer.email,
     subject: 'Your Loan Has Been Approved - Lunar Lumina Solutions',
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px;">
-      <h2 style="color:#16a34a;">Loan Approved! âœ…</h2>
+      <h2 style="color:#16a34a;">Loan Approved! </h2>
       <p>Dear <strong>${customer.name}</strong>,</p>
       <p>Your loan application has been <strong style="color:#16a34a;">approved</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin:20px 0;">
@@ -53,7 +47,7 @@ const sendLoanDisbursedEmail = async (customer, loan) => {
     to: customer.email,
     subject: 'Your Loan Has Been Disbursed - Lunar Lumina Solutions',
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px;">
-      <h2 style="color:#2563eb;">Loan Disbursed! ðŸ’°</h2>
+      <h2 style="color:#2563eb;">Loan Disbursed!</h2>
       <p>Dear <strong>${customer.name}</strong>,</p>
       <p>Your loan has been <strong style="color:#2563eb;">disbursed</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin:20px 0;">
@@ -87,7 +81,7 @@ const sendPaymentReceivedEmail = async (customer, payment, loan) => {
     to: customer.email,
     subject: `Payment Received - Loan #${loan.id} - Lunar Lumina Solutions`,
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e5e7eb;border-radius:8px;">
-      <h2 style="color:#16a34a;">Payment Received! âœ…</h2>
+      <h2 style="color:#16a34a;">Payment Received!</h2>
       <p>Dear <strong>${customer.name}</strong>,</p>
       <p>We have received your payment for Loan <strong>#${loan.id}</strong>.</p>
       <table style="width:100%;border-collapse:collapse;margin:20px 0;">
