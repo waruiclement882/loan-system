@@ -19,6 +19,7 @@ const suspenseRoutes = require('./routes/suspense');
 const floatRoutes = require('./routes/float');
 const expensesRoutes = require('./routes/expenses');
 const branchRoutes = require('./routes/branches'); 
+const customerNotesRoutes = require('./routes/customerNotes');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -92,6 +93,7 @@ app.use('/api/suspense', suspenseRoutes);
 app.use('/api/float', floatRoutes);
 app.use('/api/expenses', expensesRoutes);
 app.use('/api/branches', branchRoutes);
+app.use('/api/customers', customerNotesRoutes);
 
 
 // ── 9. Global error handler ───────────────────────────────────────────────────
