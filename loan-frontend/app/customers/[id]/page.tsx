@@ -1,6 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import Layout from "../../components/Layout";
 
 const API = "https://loan-system-h794.onrender.com";
 
@@ -16,47 +17,66 @@ export default function CustomerProfilePage() {
   const [activeTab, setActiveTab] = useState("loans");
   const [kycDocs, setKycDocs] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [notes, setNotes] = useState<any[]>([]);
+  const [newNote, setNewNote] = useState({ category: "visit", note: "" });
+  const [addingNote, setAddingNote] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [locationForm, setLocationForm] = useState({ location: "", nearest_landmark: "", latitude: "", longitude: "" });
+  const [savingLocation, setSavingLocation] = useState(false);
+
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
   const headers = { "Content-Type": "application/json", Authorization: "Bearer " + token };
 
   useEffect(() => {
     if (!token) { router.push("/login"); return; }
-    loadProfile();
-    loadKyc();
+    loadAll();
   }, [id]);
 
-  const loadProfile = async () => {
+  const loadAll = async () => {
     setLoading(true);
+    await Promise.all([loadProfile(), loadKyc(), loadNotes()]);
+    setLoading(false);
+  };
+
+  const loadProfile = async () => {
     try {
       const res = await fetch(API + "/api/customers/" + id + "/profile", { headers });
       const data = await res.json();
       setProfile(data);
-      setEditForm(data.customer);
+      setEditForm(data.customer || {});
+      setLocationForm({
+        location: data.customer?.location || "",
+        nearest_landmark: data.customer?.nearest_landmark || "",
+        latitude: data.customer?.latitude || "",
+        longitude: data.customer?.longitude || "",
+      });
     } catch {}
-    setLoading(false);
   };
 
   const loadKyc = async () => {
     try {
       const res = await fetch(API + "/api/kyc/" + id, { headers });
       const data = await res.json();
-      // API returns single object with national_id_url and passport_photo_url
-      if (data && !data.error && (data.customer_id || data.national_id_url || data.passport_photo_url)) {
-        setKycDocs([data]);
-      } else {
-        setKycDocs([]);
-      }
+      if (data && !data.error && (data.customer_id || data.national_id_url)) setKycDocs([data]);
+      else setKycDocs([]);
+    } catch {}
+  };
+
+  const loadNotes = async () => {
+    try {
+      const res = await fetch(API + "/api/customers/" + id + "/notes", { headers });
+      const data = await res.json();
+      setNotes(Array.isArray(data) ? data : []);
     } catch {}
   };
 
   const verifyKyc = async () => {
     try {
-      const res = await fetch(API + "/api/kyc/" + id + "/verify", {
-        method: "PATCH", headers
-      });
+      const res = await fetch(API + "/api/kyc/" + id + "/verify", { method: "PATCH", headers });
       const data = await res.json();
       if (data.error) alert("Error: " + data.error);
-      else { alert("✅ KYC verified successfully!"); loadKyc(); loadProfile(); }
+      else { alert("✅ KYC verified!"); loadKyc(); loadProfile(); }
     } catch { alert("Failed to verify KYC"); }
   };
 
@@ -64,10 +84,7 @@ export default function CustomerProfilePage() {
     const reason = prompt("Reason for rejection:");
     if (!reason) return;
     try {
-      const res = await fetch(API + "/api/kyc/" + id + "/reject", {
-        method: "PATCH", headers,
-        body: JSON.stringify({ reason })
-      });
+      const res = await fetch(API + "/api/kyc/" + id + "/reject", { method: "PATCH", headers, body: JSON.stringify({ reason }) });
       const data = await res.json();
       if (data.error) alert("Error: " + data.error);
       else { alert("KYC rejected!"); loadKyc(); loadProfile(); }
@@ -77,10 +94,7 @@ export default function CustomerProfilePage() {
   const handleUpdate = async () => {
     setSaving(true);
     try {
-      const res = await fetch(API + "/api/customers/" + id, {
-        method: "PUT", headers,
-        body: JSON.stringify(editForm)
-      });
+      const res = await fetch(API + "/api/customers/" + id, { method: "PUT", headers, body: JSON.stringify(editForm) });
       const data = await res.json();
       if (data.error) alert(data.error);
       else { setEditing(false); loadProfile(); }
@@ -97,166 +111,150 @@ export default function CustomerProfilePage() {
       formData.append("document", file);
       formData.append("doc_type", docType);
       const res = await fetch(API + "/api/kyc/" + id + "/upload", {
-        method: "POST",
-        headers: { Authorization: "Bearer " + token },
-        body: formData
+        method: "POST", headers: { Authorization: "Bearer " + token }, body: formData
       });
       const data = await res.json();
       if (data.error) alert(data.error);
-      else { alert("Document uploaded successfully!"); loadKyc(); }
+      else { alert("Document uploaded!"); loadKyc(); }
     } catch { alert("Upload failed"); }
     setUploading(false);
   };
 
-  if (loading) return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <p className="text-gray-400">Loading profile...</p>
-    </div>
-  );
-  if (!profile) return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <p className="text-red-400">Customer not found</p>
-    </div>
-  );
+  const saveNote = async () => {
+    if (!newNote.note.trim()) { alert("Please enter a note"); return; }
+    setSavingNote(true);
+    try {
+      const res = await fetch(API + "/api/customers/" + id + "/notes", {
+        method: "POST", headers, body: JSON.stringify(newNote)
+      });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { setNotes([data, ...notes]); setNewNote({ category: "visit", note: "" }); setAddingNote(false); }
+    } catch { alert("Failed to save note"); }
+    setSavingNote(false);
+  };
+
+  const deleteNote = async (noteId: number) => {
+    if (!confirm("Delete this note?")) return;
+    await fetch(API + "/api/customers/" + id + "/notes/" + noteId, { method: "DELETE", headers });
+    setNotes(notes.filter((n: any) => n.id !== noteId));
+  };
+
+  const saveLocation = async () => {
+    setSavingLocation(true);
+    try {
+      const body: any = { location: locationForm.location, nearest_landmark: locationForm.nearest_landmark };
+      if (locationForm.latitude) body.latitude = parseFloat(locationForm.latitude);
+      if (locationForm.longitude) body.longitude = parseFloat(locationForm.longitude);
+      const res = await fetch(API + "/api/customers/" + id + "/location", {
+        method: "PATCH", headers, body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (data.error) alert(data.error);
+      else { setEditingLocation(false); loadProfile(); }
+    } catch { alert("Failed to save location"); }
+    setSavingLocation(false);
+  };
+
+  const openMaps = () => {
+    const c = profile?.customer;
+    if (c?.latitude && c?.longitude) {
+      window.open(`https://www.google.com/maps?q=${c.latitude},${c.longitude}`, "_blank");
+    } else if (c?.location) {
+      window.open(`https://www.google.com/maps/search/${encodeURIComponent(c.location + " Kenya")}`, "_blank");
+    } else {
+      window.open(`https://www.google.com/maps/search/${encodeURIComponent((c?.name || "") + " Kenya")}`, "_blank");
+    }
+  };
+
+  if (loading) return <Layout><div className="flex items-center justify-center h-64"><p className="text-gray-400">Loading profile...</p></div></Layout>;
+  if (!profile) return <Layout><div className="flex items-center justify-center h-64"><p className="text-red-400">Customer not found</p></div></Layout>;
 
   const { customer, loans, payments, stats } = profile;
+  const kyc = kycDocs[0];
+  const kycStatus = kyc?.kyc_verified ? "verified" : kyc?.national_id_url ? "pending" : "none";
 
-  const docTypes = [
-    { key: "national_id", label: "National ID" },
-    { key: "passport_photo", label: "Passport Photo" },
-    { key: "business_permit", label: "Business Permit" },
-    { key: "bank_statement", label: "Bank Statement" },
+  const categoryColors: any = { call: "bg-blue-100 text-blue-700", visit: "bg-green-100 text-green-700", payment: "bg-purple-100 text-purple-700", other: "bg-gray-100 text-gray-600" };
+  const categoryIcons: any = { call: "📞", visit: "🚶", payment: "💳", other: "📌" };
+
+  const tabs = [
+    { key: "loans", label: "📋 Loans" },
+    { key: "payments", label: "💳 Payments" },
+    { key: "notes", label: `📝 Notes ${notes.length > 0 ? `(${notes.length})` : ""}` },
+    { key: "kyc", label: "🪪 KYC" },
+    { key: "details", label: "👤 Details" },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4">
-          <button onClick={() => router.push("/dashboard")} className="text-gray-600 hover:text-blue-600">Dashboard</button>
-          <button onClick={() => router.push("/customers")} className="text-gray-600 hover:text-blue-600">Customers</button>
-          <button onClick={() => router.push("/loans")} className="text-gray-600 hover:text-blue-600">Loans</button>
-          <button onClick={() => router.push("/payments")} className="text-gray-600 hover:text-blue-600">Payments</button>
-        </div>
-      </nav>
+    <Layout>
+      <div className="p-4 md:p-6 max-w-5xl mx-auto">
+        {/* Back */}
+        <button onClick={() => router.push("/customers")} className="text-blue-600 hover:underline text-sm mb-4 flex items-center gap-1">← Back to Customers</button>
 
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => router.push("/customers")} className="text-gray-400 hover:text-gray-600 text-sm">← Back to Customers</button>
-          <h2 className="text-2xl font-bold">Customer Profile</h2>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="flex justify-between items-start">
+        {/* Header */}
+        <div className="bg-white rounded-xl shadow p-5 mb-4">
+          <div className="flex justify-between items-start flex-wrap gap-3">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-2xl font-bold text-blue-600">
-                {customer.name?.charAt(0).toUpperCase()}
+              <div className="w-14 h-14 rounded-full bg-[#04342C] flex items-center justify-center text-white text-2xl font-bold flex-shrink-0">
+                {customer?.name?.charAt(0)?.toUpperCase()}
               </div>
               <div>
-                {editing ? (
-                  <input value={editForm.name || ""} onChange={e => setEditForm({...editForm, name: e.target.value})}
-                    className="text-xl font-bold border rounded px-2 py-1 mb-1 w-full" />
-                ) : (
-                  <h3 className="text-xl font-bold">{customer.name}</h3>
+                <h1 className="text-xl font-bold text-gray-800">{customer?.name}</h1>
+                <p className="text-gray-500 text-sm">{customer?.phone} · {customer?.national_id || "No ID"}</p>
+                {customer?.location && (
+                  <p className="text-gray-400 text-xs mt-0.5">📍 {customer.location}{customer.nearest_landmark ? ` · near ${customer.nearest_landmark}` : ""}</p>
                 )}
-                <p className="text-gray-500 text-sm">Customer ID: #{customer.id}</p>
-                <p className="text-gray-500 text-sm">Joined: {new Date(customer.created_at).toLocaleDateString()}</p>
               </div>
             </div>
-            <div className="flex gap-2">
-              {editing ? (
-                <>
-                  <button onClick={handleUpdate} disabled={saving}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">
-                    {saving ? "Saving..." : "Save Changes"}
-                  </button>
-                  <button onClick={() => setEditing(false)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">Cancel</button>
-                </>
-              ) : (
-                <button onClick={() => setEditing(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">Edit</button>
-              )}
+            <div className="flex gap-2 flex-wrap">
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${kycStatus === "verified" ? "bg-green-100 text-green-700" : kycStatus === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>
+                {kycStatus === "verified" ? "✅ KYC Verified" : kycStatus === "pending" ? "⏳ KYC Pending" : "❌ KYC Missing"}
+              </span>
+              <button onClick={openMaps} className="bg-[#04342C] text-white px-3 py-1.5 rounded-lg text-xs hover:bg-[#0F6E56] flex items-center gap-1">
+                🗺️ Open in Maps
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mt-6">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Phone</label>
-              {editing ? (
-                <input value={editForm.phone || ""} onChange={e => setEditForm({...editForm, phone: e.target.value})}
-                  className="w-full border rounded px-2 py-1 text-sm" />
-              ) : <p className="font-medium">{customer.phone || "-"}</p>}
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Email</label>
-              {editing ? (
-                <input value={editForm.email || ""} onChange={e => setEditForm({...editForm, email: e.target.value})}
-                  className="w-full border rounded px-2 py-1 text-sm" />
-              ) : <p className="font-medium">{customer.email || "-"}</p>}
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">National ID</label>
-              {editing ? (
-                <input value={editForm.national_id || ""} onChange={e => setEditForm({...editForm, national_id: e.target.value})}
-                  className="w-full border rounded px-2 py-1 text-sm" />
-              ) : <p className="font-medium">{customer.national_id || "-"}</p>}
-            </div>
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-gray-100">
+            <div className="text-center"><p className="text-xs text-gray-500">Loans</p><p className="font-bold text-blue-600">{stats?.total_loans || 0}</p></div>
+            <div className="text-center"><p className="text-xs text-gray-500">Borrowed</p><p className="font-bold text-purple-600">KSh {parseFloat(stats?.total_borrowed || 0).toLocaleString()}</p></div>
+            <div className="text-center"><p className="text-xs text-gray-500">Paid</p><p className="font-bold text-green-600">KSh {parseFloat(stats?.total_paid || 0).toLocaleString()}</p></div>
+            <div className="text-center"><p className="text-xs text-gray-500">Outstanding</p><p className="font-bold text-red-600">KSh {parseFloat(stats?.outstanding || 0).toLocaleString()}</p></div>
           </div>
         </div>
 
-        <div className="grid grid-cols-5 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-4"><p className="text-xs text-gray-500">Total Loans</p><p className="text-2xl font-bold text-blue-600">{stats.totalLoans}</p></div>
-          <div className="bg-white rounded-lg shadow p-4"><p className="text-xs text-gray-500">Total Borrowed</p><p className="text-xl font-bold text-purple-600">KSh {stats.totalBorrowed.toLocaleString()}</p></div>
-          <div className="bg-white rounded-lg shadow p-4"><p className="text-xs text-gray-500">Total Paid</p><p className="text-xl font-bold text-green-600">KSh {stats.totalPaid.toLocaleString()}</p></div>
-          <div className="bg-white rounded-lg shadow p-4"><p className="text-xs text-gray-500">Outstanding</p><p className="text-xl font-bold text-red-600">KSh {stats.totalOutstanding.toLocaleString()}</p></div>
-          <div className="bg-white rounded-lg shadow p-4"><p className="text-xs text-gray-500">Active / Paid</p><p className="text-xl font-bold text-teal-600">{stats.activeLoans} / {stats.paidLoans}</p></div>
-        </div>
-
-        <div className="flex gap-2 mb-4">
-          {[
-            { key: "loans", label: "Loans (" + loans.length + ")" },
-            { key: "payments", label: "Payments (" + payments.length + ")" },
-            { key: "kyc", label: "KYC Documents (" + kycDocs.length + ")" },
-          ].map(tab => (
+        {/* Tabs */}
+        <div className="flex gap-1 mb-4 bg-white rounded-xl shadow p-1 overflow-x-auto">
+          {tabs.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-              className={"px-4 py-2 rounded-lg text-sm font-medium " + (activeTab === tab.key ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50")}>
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab.key ? "bg-[#04342C] text-white" : "text-gray-500 hover:bg-gray-100"}`}>
               {tab.label}
             </button>
           ))}
         </div>
 
+        {/* ── LOANS TAB ── */}
         {activeTab === "loans" && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {loans.length === 0 ? <p className="p-8 text-center text-gray-400">No loans found</p> : (
+          <div className="bg-white rounded-xl shadow overflow-hidden">
+            <div className="px-5 py-4 border-b flex justify-between items-center">
+              <h3 className="font-bold">Loan History</h3>
+              <button onClick={() => router.push("/loans")} className="bg-[#04342C] text-white px-3 py-1.5 rounded-lg text-xs hover:bg-[#0F6E56]">+ New Loan</button>
+            </div>
+            {!loans?.length ? <div className="p-10 text-center text-gray-400">No loans yet</div> : (
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr className="text-left text-gray-500">
-                    <th className="px-6 py-3">ID</th><th className="px-6 py-3">Amount</th>
-                    <th className="px-6 py-3">Term</th><th className="px-6 py-3">Total</th>
-                    <th className="px-6 py-3">Balance</th><th className="px-6 py-3">Status</th><th className="px-6 py-3">Schedule</th>
-                  </tr>
-                </thead>
+                <thead className="bg-gray-50"><tr className="text-left text-gray-500 border-b">
+                  <th className="px-5 py-3">Loan</th><th className="px-5 py-3">Amount</th><th className="px-5 py-3">Balance</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Date</th>
+                </tr></thead>
                 <tbody>
-                  {loans.map((loan: any) => (
-                    <tr key={loan.id} className="border-b hover:bg-gray-50">
-                      <td className="px-6 py-3">#{loan.id}</td>
-                      <td className="px-6 py-3">KSh {parseFloat(loan.amount).toLocaleString()}</td>
-                      <td className="px-6 py-3">{loan.term_weeks} wks</td>
-                      <td className="px-6 py-3">KSh {parseFloat(loan.total_amount || 0).toLocaleString()}</td>
-                      <td className="px-6 py-3 text-red-600">KSh {parseFloat(loan.balance || 0).toLocaleString()}</td>
-                      <td className="px-6 py-3">
-                        <span className={"px-2 py-1 rounded-full text-xs " + (
-                          loan.status === "paid" ? "bg-green-100 text-green-700" :
-                          loan.status === "active" ? "bg-blue-100 text-blue-700" :
-                          "bg-yellow-100 text-yellow-700")}>
-                          {loan.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3">
-                        {["active","paid"].includes(loan.status) && (
-                          <button onClick={() => router.push("/schedule?loan_id=" + loan.id)}
-                            className="text-blue-600 hover:underline text-xs">View</button>
-                        )}
-                      </td>
+                  {loans.map((l: any) => (
+                    <tr key={l.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => router.push("/loans/" + l.id)}>
+                      <td className="px-5 py-3 text-blue-600 font-medium">#{l.id}</td>
+                      <td className="px-5 py-3">KSh {parseFloat(l.amount).toLocaleString()}</td>
+                      <td className="px-5 py-3 text-red-600">KSh {parseFloat(l.balance).toLocaleString()}</td>
+                      <td className="px-5 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${l.status === "paid" ? "bg-green-100 text-green-700" : l.status === "active" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>{l.status}</span></td>
+                      <td className="px-5 py-3 text-gray-400">{new Date(l.created_at).toLocaleDateString("en-KE")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -265,24 +263,23 @@ export default function CustomerProfilePage() {
           </div>
         )}
 
+        {/* ── PAYMENTS TAB ── */}
         {activeTab === "payments" && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {payments.length === 0 ? <p className="p-8 text-center text-gray-400">No payments found</p> : (
+          <div className="bg-white rounded-xl shadow overflow-hidden">
+            <div className="px-5 py-4 border-b"><h3 className="font-bold">Payment History</h3></div>
+            {!payments?.length ? <div className="p-10 text-center text-gray-400">No payments yet</div> : (
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr className="text-left text-gray-500">
-                    <th className="px-6 py-3">Loan ID</th><th className="px-6 py-3">Amount</th>
-                    <th className="px-6 py-3">Transaction</th><th className="px-6 py-3">Source</th><th className="px-6 py-3">Date</th>
-                  </tr>
-                </thead>
+                <thead className="bg-gray-50"><tr className="text-left text-gray-500 border-b">
+                  <th className="px-5 py-3">Date</th><th className="px-5 py-3">Loan</th><th className="px-5 py-3">Amount</th><th className="px-5 py-3">Source</th><th className="px-5 py-3">Code</th>
+                </tr></thead>
                 <tbody>
                   {payments.map((p: any) => (
                     <tr key={p.id} className="border-b hover:bg-gray-50">
-                      <td className="px-6 py-3">#{p.loan_id}</td>
-                      <td className="px-6 py-3 text-green-600 font-medium">KSh {parseFloat(p.amount).toLocaleString()}</td>
-                      <td className="px-6 py-3 font-mono text-xs">{p.transaction_code || "-"}</td>
-                      <td className="px-6 py-3">{p.source}</td>
-                      <td className="px-6 py-3 text-xs text-gray-400">{new Date(p.payment_date).toLocaleDateString()}</td>
+                      <td className="px-5 py-3 text-gray-400">{new Date(p.payment_date).toLocaleDateString("en-KE")}</td>
+                      <td className="px-5 py-3">#{p.loan_id}</td>
+                      <td className="px-5 py-3 text-green-600 font-bold">KSh {parseFloat(p.amount).toLocaleString()}</td>
+                      <td className="px-5 py-3"><span className="px-2 py-0.5 rounded-full text-xs bg-purple-100 text-purple-700">{p.source === "kcb_paybill" ? "KCB Paybill" : p.source}</span></td>
+                      <td className="px-5 py-3 font-mono text-xs">{p.transaction_code || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -291,115 +288,209 @@ export default function CustomerProfilePage() {
           </div>
         )}
 
-        {activeTab === "kyc" && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="font-bold text-lg mb-4">🪪 KYC Documents</h3>
-
-            {/* KYC Status Banner */}
-            {kycDocs.length > 0 && kycDocs[0]?.kyc_verified && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-green-600 text-lg">✅</span>
-                  <div>
-                    <p className="text-green-700 font-medium text-sm">KYC Verified</p>
-                    <p className="text-green-500 text-xs">Customer is verified and eligible for loans</p>
-                  </div>
+        {/* ── NOTES TAB ── */}
+        {activeTab === "notes" && (
+          <div className="space-y-4">
+            {/* Location Card */}
+            <div className="bg-white rounded-xl shadow p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg">📍 Customer Location</h3>
+                <div className="flex gap-2">
+                  <button onClick={() => setEditingLocation(!editingLocation)} className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-200">✏️ Edit</button>
+                  <button onClick={openMaps} className="bg-[#04342C] text-white px-4 py-1.5 rounded-lg text-sm hover:bg-[#0F6E56] flex items-center gap-2">🗺️ Open in Maps</button>
                 </div>
-                <button onClick={rejectKyc} className="px-3 py-1 bg-red-100 text-red-700 rounded-lg text-xs hover:bg-red-200">Revoke</button>
               </div>
-            )}
-            {kycDocs.length > 0 && !kycDocs[0]?.kyc_verified && (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-yellow-700 font-medium text-sm">⚠️ KYC Pending — Documents uploaded but not yet verified</p>
-              </div>
-            )}
-            {kycDocs.length === 0 && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-700 font-medium text-sm">❌ KYC Not Started — Upload National ID and Passport Photo</p>
-              </div>
-            )}
 
-            {/* Document Upload Grid - Only National ID and Passport Photo */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              {[
-                { key: "national_id", label: "🪪 National ID", urlKey: "national_id_url" },
-                { key: "passport_photo", label: "📸 Passport Photo", urlKey: "passport_photo_url" }
-              ].map(doc => {
-                const docData = kycDocs.length > 0 ? kycDocs[0] : null;
-                const url = docData ? docData[doc.urlKey] : null;
-                return (
-                  <div key={doc.key} className={"border-2 rounded-lg p-4 " + (url ? "border-green-300 bg-green-50" : "border-dashed border-gray-300 bg-gray-50")}>
-                    <div className="flex justify-between items-center mb-3">
-                      <p className="font-medium text-sm">{doc.label}</p>
-                      {url ? (
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">✓ Uploaded</span>
-                      ) : (
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs">Missing</span>
-                      )}
+              {editingLocation ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Area / Location</label>
+                      <input value={locationForm.location} onChange={e => setLocationForm({ ...locationForm, location: e.target.value })}
+                        placeholder="e.g. Wanguru, near market" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]" />
                     </div>
-                    {url && (
-                      <div className="mb-3">
-                        <a href={url} target="_blank" rel="noreferrer"
-                          className="text-blue-600 hover:underline text-sm flex items-center gap-1">
-                          👁 View Document
-                        </a>
-                      </div>
-                    )}
-                    <div className="flex gap-2 flex-wrap">
-                      {/* Upload from file/gallery */}
-                      <input type="file" id={"kyc-upload-" + doc.key} className="hidden"
-                        accept="image/*,.pdf"
-                        onChange={e => handleKycUpload(e, doc.key)} />
-                      <label htmlFor={"kyc-upload-" + doc.key}
-                        className={"cursor-pointer px-3 py-1.5 rounded-lg text-xs inline-block font-medium " + (uploading ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700")}>
-                        {uploading ? "Uploading..." : "📁 Upload"}
-                      </label>
-                      {/* Take photo with camera */}
-                      <input type="file" id={"kyc-camera-" + doc.key} className="hidden"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={e => handleKycUpload(e, doc.key)} />
-                      <label htmlFor={"kyc-camera-" + doc.key}
-                        className={"cursor-pointer px-3 py-1.5 rounded-lg text-xs inline-block font-medium " + (uploading ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-green-600 text-white hover:bg-green-700")}>
-                        📷 Camera
-                      </label>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Nearest Landmark</label>
+                      <input value={locationForm.nearest_landmark} onChange={e => setLocationForm({ ...locationForm, nearest_landmark: e.target.value })}
+                        placeholder="e.g. Near Wanguru Primary" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Latitude (optional)</label>
+                      <input value={locationForm.latitude} onChange={e => setLocationForm({ ...locationForm, latitude: e.target.value })}
+                        placeholder="e.g. -0.6234" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">Longitude (optional)</label>
+                      <input value={locationForm.longitude} onChange={e => setLocationForm({ ...locationForm, longitude: e.target.value })}
+                        placeholder="e.g. 37.2905" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]" />
                     </div>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Verify / Reject Actions */}
-            <div className="border-t pt-4">
-              {kycDocs.length === 0 ? (
-                <p className="text-sm text-gray-400 italic">⬆️ Upload both documents to enable verification</p>
-              ) : !kycDocs[0]?.national_id_url || !kycDocs[0]?.passport_photo_url ? (
-                <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                  <p className="text-sm text-orange-600 font-medium">⚠️ Upload BOTH National ID and Passport Photo before verifying</p>
-                </div>
-              ) : kycDocs[0]?.kyc_verified ? (
-                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                  <span className="text-green-600 font-medium text-sm">✅ KYC Verified — Loan disbursement is allowed</span>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setEditingLocation(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button onClick={saveLocation} disabled={savingLocation} className="px-4 py-2 text-sm text-white bg-[#04342C] rounded-lg hover:bg-[#0F6E56] disabled:opacity-50">
+                      {savingLocation ? "Saving..." : "✅ Save Location"}
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div>
-                  <p className="text-sm text-gray-600 mb-3">Both documents uploaded. Please review and verify:</p>
-                  <div className="flex items-center gap-3">
-                    <button onClick={verifyKyc}
-                      className="px-5 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 font-medium">
-                      ✅ Verify KYC
-                    </button>
-                    <button onClick={rejectKyc}
-                      className="px-5 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 font-medium">
-                      ❌ Reject KYC
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">Location / Area</p>
+                    <p className="font-medium text-gray-800">{customer?.location || <span className="text-gray-400 italic text-sm">Not set</span>}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-1">Nearest Landmark</p>
+                    <p className="font-medium text-gray-800">{customer?.nearest_landmark || <span className="text-gray-400 italic text-sm">Not set</span>}</p>
+                  </div>
+                  {customer?.latitude && customer?.longitude && (
+                    <div className="bg-blue-50 rounded-lg p-3 col-span-2">
+                      <p className="text-xs text-blue-500 mb-1">GPS Coordinates</p>
+                      <p className="font-mono text-sm text-blue-700">{customer.latitude}, {customer.longitude}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Notes Card */}
+            <div className="bg-white rounded-xl shadow p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg">📝 Field Notes ({notes.length})</h3>
+                <button onClick={() => setAddingNote(!addingNote)} className="bg-[#04342C] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#0F6E56]">+ Add Note</button>
+              </div>
+
+              {addingNote && (
+                <div className="bg-[#F0FDF4] border border-[#1D9E75] rounded-xl p-4 mb-4">
+                  <div className="mb-3">
+                    <label className="text-xs text-gray-600 mb-1 block font-medium">Category</label>
+                    <select value={newNote.category} onChange={e => setNewNote({ ...newNote, category: e.target.value })}
+                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]">
+                      <option value="visit">🚶 Field Visit</option>
+                      <option value="call">📞 Phone Call</option>
+                      <option value="payment">💳 Payment Follow-up</option>
+                      <option value="other">📌 Other</option>
+                    </select>
+                  </div>
+                  <textarea value={newNote.note} onChange={e => setNewNote({ ...newNote, note: e.target.value })}
+                    placeholder="e.g. Visited customer at home, promised to pay KSh 1,500 by Friday. Customer was cooperative."
+                    rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75] resize-none mb-3" />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setAddingNote(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50">Cancel</button>
+                    <button onClick={saveNote} disabled={savingNote} className="px-4 py-2 text-sm text-white bg-[#04342C] rounded-lg hover:bg-[#0F6E56] disabled:opacity-50">
+                      {savingNote ? "Saving..." : "✅ Save Note"}
                     </button>
                   </div>
+                </div>
+              )}
+
+              {notes.length === 0 && !addingNote ? (
+                <div className="text-center py-10">
+                  <p className="text-4xl mb-2">📝</p>
+                  <p className="text-gray-400 text-sm">No notes yet. Add a note after a call or field visit.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {notes.map((note: any) => (
+                    <div key={note.id} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${categoryColors[note.category]}`}>
+                            {categoryIcons[note.category]} {note.category.charAt(0).toUpperCase() + note.category.slice(1)}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(note.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <button onClick={() => deleteNote(note.id)} className="text-gray-300 hover:text-red-400 text-sm transition-colors">🗑</button>
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed">{note.note}</p>
+                      <p className="text-xs text-gray-400 mt-2 font-medium">— {note.officer_name}</p>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           </div>
         )}
+
+        {/* ── KYC TAB ── */}
+        {activeTab === "kyc" && (
+          <div className="bg-white rounded-xl shadow p-5">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg">🪪 KYC Documents</h3>
+              <span className={`px-3 py-1 rounded-full text-xs font-medium ${kycStatus === "verified" ? "bg-green-100 text-green-700" : kycStatus === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>
+                {kycStatus === "verified" ? "✅ Verified" : kycStatus === "pending" ? "⏳ Awaiting Verification" : "❌ Not Uploaded"}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              {[{ key: "national_id", label: "National ID", required: true }, { key: "passport_photo", label: "Passport Photo", required: false }].map(doc => (
+                <div key={doc.key} className="border-2 border-dashed border-gray-200 rounded-xl p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-semibold text-gray-700 text-sm">{doc.label} {doc.required && <span className="text-red-500">*</span>}</h4>
+                    {kyc?.[doc.key + "_url"] && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✅ Uploaded</span>}
+                  </div>
+                  {kyc?.[doc.key + "_url"] ? (
+                    <img src={kyc[doc.key + "_url"]} alt={doc.label} className="w-full h-36 object-cover rounded-lg border cursor-pointer mb-3"
+                      onClick={() => window.open(kyc[doc.key + "_url"], "_blank")} />
+                  ) : (
+                    <div className="w-full h-36 bg-gray-50 rounded-lg flex items-center justify-center mb-3">
+                      <p className="text-gray-400 text-xs">Not uploaded</p>
+                    </div>
+                  )}
+                  <label className="w-full block text-center bg-blue-600 text-white py-1.5 rounded-lg text-xs cursor-pointer hover:bg-blue-700">
+                    {uploading ? "Uploading..." : kyc?.[doc.key + "_url"] ? "Replace" : "Upload"}
+                    <input type="file" className="hidden" accept="image/*,.pdf" onChange={e => handleKycUpload(e, doc.key)} disabled={uploading} />
+                  </label>
+                </div>
+              ))}
+            </div>
+            {kycStatus === "pending" && (
+              <div className="flex gap-3 justify-center">
+                <button onClick={verifyKyc} className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium">✅ Verify KYC</button>
+                <button onClick={rejectKyc} className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 font-medium">❌ Reject</button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── DETAILS TAB ── */}
+        {activeTab === "details" && (
+          <div className="bg-white rounded-xl shadow p-5">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg">Customer Details</h3>
+              {!editing ? (
+                <button onClick={() => setEditing(true)} className="bg-[#04342C] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#0F6E56]">✏️ Edit</button>
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={handleUpdate} disabled={saving} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50">{saving ? "Saving..." : "Save"}</button>
+                  <button onClick={() => setEditing(false)} className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-200">Cancel</button>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[{ label: "Full Name", key: "name" }, { label: "Phone", key: "phone" }, { label: "Email", key: "email" }, { label: "National ID", key: "national_id" }].map(({ label, key }) => (
+                <div key={key}>
+                  <p className="text-xs text-gray-500 mb-1">{label}</p>
+                  {editing ? (
+                    <input value={editForm?.[key] || ""} onChange={e => setEditForm({ ...editForm, [key]: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]" />
+                  ) : (
+                    <p className="font-medium text-gray-800">{customer?.[key] || "—"}</p>
+                  )}
+                </div>
+              ))}
+              <div>
+                <p className="text-xs text-gray-500 mb-1">KYC Status</p>
+                <p className="font-medium">{kycStatus === "verified" ? "✅ Verified" : kycStatus === "pending" ? "⏳ Pending" : "❌ Not uploaded"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Member Since</p>
+                <p className="font-medium">{customer?.created_at ? new Date(customer.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" }) : "—"}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </Layout>
   );
 }
