@@ -1,7 +1,7 @@
 const sendSms = async (phone, message) => {
   try {
     if (!process.env.AT_API_KEY || !process.env.AT_USERNAME) {
-      console.warn('[SMSService] Africa\'s Talking credentials not set — skipping SMS');
+      console.warn('[SMSService] Africa\'s Talking credentials not set - skipping SMS');
       return;
     }
     const AfricasTalking = require('africastalking');
