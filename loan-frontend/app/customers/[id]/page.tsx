@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Layout from "../../components/Layout";
+import LocationCard from "../../components/LocationCard";
 
 const API = "https://loan-system-h794.onrender.com";
 
@@ -21,9 +22,6 @@ export default function CustomerProfilePage() {
   const [newNote, setNewNote] = useState({ category: "visit", note: "" });
   const [addingNote, setAddingNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
-  const [editingLocation, setEditingLocation] = useState(false);
-  const [locationForm, setLocationForm] = useState({ location: "", nearest_landmark: "", latitude: "", longitude: "" });
-  const [savingLocation, setSavingLocation] = useState(false);
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
   const headers = { "Content-Type": "application/json", Authorization: "Bearer " + token };
@@ -45,12 +43,6 @@ export default function CustomerProfilePage() {
       const data = await res.json();
       setProfile(data);
       setEditForm(data.customer || {});
-      setLocationForm({
-        location: data.customer?.location || "",
-        nearest_landmark: data.customer?.nearest_landmark || "",
-        latitude: data.customer?.latitude || "",
-        longitude: data.customer?.longitude || "",
-      });
     } catch {}
   };
 
@@ -140,39 +132,14 @@ export default function CustomerProfilePage() {
     setNotes(notes.filter((n: any) => n.id !== noteId));
   };
 
-  const saveLocation = async () => {
-    setSavingLocation(true);
-    try {
-      const body: any = { location: locationForm.location, nearest_landmark: locationForm.nearest_landmark };
-      if (locationForm.latitude) body.latitude = parseFloat(locationForm.latitude);
-      if (locationForm.longitude) body.longitude = parseFloat(locationForm.longitude);
-      const res = await fetch(API + "/api/customers/" + id + "/location", {
-        method: "PATCH", headers, body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (data.error) alert(data.error);
-      else { setEditingLocation(false); loadProfile(); }
-    } catch { alert("Failed to save location"); }
-    setSavingLocation(false);
-  };
-
-  const openMaps = () => {
-    const c = profile?.customer;
-    if (c?.latitude && c?.longitude) {
-      window.open(`https://www.google.com/maps?q=${c.latitude},${c.longitude}`, "_blank");
-    } else if (c?.location) {
-      window.open(`https://www.google.com/maps/search/${encodeURIComponent(c.location + " Kenya")}`, "_blank");
-    } else {
-      window.open(`https://www.google.com/maps/search/${encodeURIComponent((c?.name || "") + " Kenya")}`, "_blank");
-    }
-  };
-
   if (loading) return <Layout><div className="flex items-center justify-center h-64"><p className="text-gray-400">Loading profile...</p></div></Layout>;
   if (!profile) return <Layout><div className="flex items-center justify-center h-64"><p className="text-red-400">Customer not found</p></div></Layout>;
 
   const { customer, loans, payments, stats } = profile;
   const kyc = kycDocs[0];
   const kycStatus = kyc?.kyc_verified ? "verified" : kyc?.national_id_url ? "pending" : "none";
+  const hasPin = customer?.latitude !== null && customer?.latitude !== undefined && customer?.latitude !== "" &&
+                 customer?.longitude !== null && customer?.longitude !== undefined && customer?.longitude !== "";
 
   const categoryColors: any = { call: "bg-blue-100 text-blue-700", visit: "bg-green-100 text-green-700", payment: "bg-purple-100 text-purple-700", other: "bg-gray-100 text-gray-600" };
   const categoryIcons: any = { call: "📞", visit: "🚶", payment: "💳", other: "📌" };
@@ -180,7 +147,8 @@ export default function CustomerProfilePage() {
   const tabs = [
     { key: "loans", label: "📋 Loans" },
     { key: "payments", label: "💳 Payments" },
-    { key: "notes", label: `📝 Notes ${notes.length > 0 ? `(${notes.length})` : ""}` },
+    { key: "location", label: hasPin ? "📍 Location ✓" : "📍 Location" },
+    { key: "notes", label: `📝 Notes${notes.length > 0 ? ` (${notes.length})` : ""}` },
     { key: "kyc", label: "🪪 KYC" },
     { key: "details", label: "👤 Details" },
   ];
@@ -188,7 +156,6 @@ export default function CustomerProfilePage() {
   return (
     <Layout>
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
-        {/* Back */}
         <button onClick={() => router.push("/customers")} className="text-blue-600 hover:underline text-sm mb-4 flex items-center gap-1">← Back to Customers</button>
 
         {/* Header */}
@@ -210,13 +177,21 @@ export default function CustomerProfilePage() {
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${kycStatus === "verified" ? "bg-green-100 text-green-700" : kycStatus === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>
                 {kycStatus === "verified" ? "✅ KYC Verified" : kycStatus === "pending" ? "⏳ KYC Pending" : "❌ KYC Missing"}
               </span>
-              <button onClick={openMaps} className="bg-[#04342C] text-white px-3 py-1.5 rounded-lg text-xs hover:bg-[#0F6E56] flex items-center gap-1">
-                🗺️ Open in Maps
-              </button>
+              {hasPin ? (
+                <a href={`https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}&travelmode=driving`}
+                  target="_blank" rel="noreferrer"
+                  className="bg-[#04342C] text-white px-3 py-1.5 rounded-lg text-xs hover:bg-[#0F6E56]">
+                  🧭 Directions
+                </a>
+              ) : (
+                <button onClick={() => setActiveTab("location")}
+                  className="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-amber-600">
+                  📍 Pin location
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 pt-4 border-t border-gray-100">
             <div className="text-center"><p className="text-xs text-gray-500">Loans</p><p className="font-bold text-blue-600">{stats?.total_loans || 0}</p></div>
             <div className="text-center"><p className="text-xs text-gray-500">Borrowed</p><p className="font-bold text-purple-600">KSh {parseFloat(stats?.total_borrowed || 0).toLocaleString()}</p></div>
@@ -235,7 +210,7 @@ export default function CustomerProfilePage() {
           ))}
         </div>
 
-        {/* ── LOANS TAB ── */}
+        {/* LOANS */}
         {activeTab === "loans" && (
           <div className="bg-white rounded-xl shadow overflow-hidden">
             <div className="px-5 py-4 border-b flex justify-between items-center">
@@ -263,7 +238,7 @@ export default function CustomerProfilePage() {
           </div>
         )}
 
-        {/* ── PAYMENTS TAB ── */}
+        {/* PAYMENTS */}
         {activeTab === "payments" && (
           <div className="bg-white rounded-xl shadow overflow-hidden">
             <div className="px-5 py-4 border-b"><h3 className="font-bold">Payment History</h3></div>
@@ -288,132 +263,73 @@ export default function CustomerProfilePage() {
           </div>
         )}
 
-        {/* ── NOTES TAB ── */}
+        {/* LOCATION */}
+        {activeTab === "location" && (
+          <LocationCard customer={customer} customerId={id as string} token={token} onSaved={loadProfile} />
+        )}
+
+        {/* NOTES */}
         {activeTab === "notes" && (
-          <div className="space-y-4">
-            {/* Location Card */}
-            <div className="bg-white rounded-xl shadow p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg">📍 Customer Location</h3>
-                <div className="flex gap-2">
-                  <button onClick={() => setEditingLocation(!editingLocation)} className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-sm hover:bg-gray-200">✏️ Edit</button>
-                  <button onClick={openMaps} className="bg-[#04342C] text-white px-4 py-1.5 rounded-lg text-sm hover:bg-[#0F6E56] flex items-center gap-2">🗺️ Open in Maps</button>
-                </div>
-              </div>
-
-              {editingLocation ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block">Area / Location</label>
-                      <input value={locationForm.location} onChange={e => setLocationForm({ ...locationForm, location: e.target.value })}
-                        placeholder="e.g. Wanguru, near market" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block">Nearest Landmark</label>
-                      <input value={locationForm.nearest_landmark} onChange={e => setLocationForm({ ...locationForm, nearest_landmark: e.target.value })}
-                        placeholder="e.g. Near Wanguru Primary" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block">Latitude (optional)</label>
-                      <input value={locationForm.latitude} onChange={e => setLocationForm({ ...locationForm, latitude: e.target.value })}
-                        placeholder="e.g. -0.6234" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block">Longitude (optional)</label>
-                      <input value={locationForm.longitude} onChange={e => setLocationForm({ ...locationForm, longitude: e.target.value })}
-                        placeholder="e.g. 37.2905" className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]" />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <button onClick={() => setEditingLocation(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                    <button onClick={saveLocation} disabled={savingLocation} className="px-4 py-2 text-sm text-white bg-[#04342C] rounded-lg hover:bg-[#0F6E56] disabled:opacity-50">
-                      {savingLocation ? "Saving..." : "✅ Save Location"}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 mb-1">Location / Area</p>
-                    <p className="font-medium text-gray-800">{customer?.location || <span className="text-gray-400 italic text-sm">Not set</span>}</p>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-xs text-gray-500 mb-1">Nearest Landmark</p>
-                    <p className="font-medium text-gray-800">{customer?.nearest_landmark || <span className="text-gray-400 italic text-sm">Not set</span>}</p>
-                  </div>
-                  {customer?.latitude && customer?.longitude && (
-                    <div className="bg-blue-50 rounded-lg p-3 col-span-2">
-                      <p className="text-xs text-blue-500 mb-1">GPS Coordinates</p>
-                      <p className="font-mono text-sm text-blue-700">{customer.latitude}, {customer.longitude}</p>
-                    </div>
-                  )}
-                </div>
-              )}
+          <div className="bg-white rounded-xl shadow p-5">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg">📝 Field Notes ({notes.length})</h3>
+              <button onClick={() => setAddingNote(!addingNote)} className="bg-[#04342C] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#0F6E56]">+ Add Note</button>
             </div>
 
-            {/* Notes Card */}
-            <div className="bg-white rounded-xl shadow p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-lg">📝 Field Notes ({notes.length})</h3>
-                <button onClick={() => setAddingNote(!addingNote)} className="bg-[#04342C] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#0F6E56]">+ Add Note</button>
+            {addingNote && (
+              <div className="bg-[#F0FDF4] border border-[#1D9E75] rounded-xl p-4 mb-4">
+                <div className="mb-3">
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">Category</label>
+                  <select value={newNote.category} onChange={e => setNewNote({ ...newNote, category: e.target.value })}
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]">
+                    <option value="visit">🚶 Field Visit</option>
+                    <option value="call">📞 Phone Call</option>
+                    <option value="payment">💳 Payment Follow-up</option>
+                    <option value="other">📌 Other</option>
+                  </select>
+                </div>
+                <textarea value={newNote.note} onChange={e => setNewNote({ ...newNote, note: e.target.value })}
+                  placeholder="e.g. Visited customer at home, promised to pay KSh 1,500 by Friday."
+                  rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75] resize-none mb-3" />
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setAddingNote(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50">Cancel</button>
+                  <button onClick={saveNote} disabled={savingNote} className="px-4 py-2 text-sm text-white bg-[#04342C] rounded-lg hover:bg-[#0F6E56] disabled:opacity-50">
+                    {savingNote ? "Saving..." : "✅ Save Note"}
+                  </button>
+                </div>
               </div>
+            )}
 
-              {addingNote && (
-                <div className="bg-[#F0FDF4] border border-[#1D9E75] rounded-xl p-4 mb-4">
-                  <div className="mb-3">
-                    <label className="text-xs text-gray-600 mb-1 block font-medium">Category</label>
-                    <select value={newNote.category} onChange={e => setNewNote({ ...newNote, category: e.target.value })}
-                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75]">
-                      <option value="visit">🚶 Field Visit</option>
-                      <option value="call">📞 Phone Call</option>
-                      <option value="payment">💳 Payment Follow-up</option>
-                      <option value="other">📌 Other</option>
-                    </select>
-                  </div>
-                  <textarea value={newNote.note} onChange={e => setNewNote({ ...newNote, note: e.target.value })}
-                    placeholder="e.g. Visited customer at home, promised to pay KSh 1,500 by Friday. Customer was cooperative."
-                    rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1D9E75] resize-none mb-3" />
-                  <div className="flex gap-2 justify-end">
-                    <button onClick={() => setAddingNote(false)} className="px-4 py-2 text-sm border border-gray-200 rounded-lg bg-white hover:bg-gray-50">Cancel</button>
-                    <button onClick={saveNote} disabled={savingNote} className="px-4 py-2 text-sm text-white bg-[#04342C] rounded-lg hover:bg-[#0F6E56] disabled:opacity-50">
-                      {savingNote ? "Saving..." : "✅ Save Note"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {notes.length === 0 && !addingNote ? (
-                <div className="text-center py-10">
-                  <p className="text-4xl mb-2">📝</p>
-                  <p className="text-gray-400 text-sm">No notes yet. Add a note after a call or field visit.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {notes.map((note: any) => (
-                    <div key={note.id} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${categoryColors[note.category]}`}>
-                            {categoryIcons[note.category]} {note.category.charAt(0).toUpperCase() + note.category.slice(1)}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {new Date(note.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                        <button onClick={() => deleteNote(note.id)} className="text-gray-300 hover:text-red-400 text-sm transition-colors">🗑</button>
+            {notes.length === 0 && !addingNote ? (
+              <div className="text-center py-10">
+                <p className="text-4xl mb-2">📝</p>
+                <p className="text-gray-400 text-sm">No notes yet. Add a note after a call or field visit.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notes.map((note: any) => (
+                  <div key={note.id} className="border border-gray-100 rounded-xl p-4 hover:bg-gray-50">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${categoryColors[note.category]}`}>
+                          {categoryIcons[note.category]} {note.category.charAt(0).toUpperCase() + note.category.slice(1)}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(note.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
                       </div>
-                      <p className="text-sm text-gray-700 leading-relaxed">{note.note}</p>
-                      <p className="text-xs text-gray-400 mt-2 font-medium">— {note.officer_name}</p>
+                      <button onClick={() => deleteNote(note.id)} className="text-gray-300 hover:text-red-400 text-sm transition-colors">🗑</button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    <p className="text-sm text-gray-700 leading-relaxed">{note.note}</p>
+                    <p className="text-xs text-gray-400 mt-2 font-medium">— {note.officer_name}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── KYC TAB ── */}
+        {/* KYC */}
         {activeTab === "kyc" && (
           <div className="bg-white rounded-xl shadow p-5">
             <div className="flex justify-between items-center mb-4">
@@ -453,7 +369,7 @@ export default function CustomerProfilePage() {
           </div>
         )}
 
-        {/* ── DETAILS TAB ── */}
+        {/* DETAILS */}
         {activeTab === "details" && (
           <div className="bg-white rounded-xl shadow p-5">
             <div className="flex justify-between items-center mb-4">
