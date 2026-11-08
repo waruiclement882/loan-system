@@ -282,30 +282,32 @@ export default function ExpensesPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-100">
-                          {["Date","Category","Description","Method","Ref","Amount",""].map(h => (
+                          {["Date","Category","Description","Method","Ref","Amount","Status",""].map(h => (
                             <th key={h} className="text-left py-2 px-3 text-xs font-medium text-slate-400 uppercase tracking-wide">{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {expenses.map((exp: any) => (
-                          <tr key={exp.id} className="border-b border-slate-50 hover:bg-slate-50">
+                          <tr key={exp.id} className={"border-b border-slate-50 hover:bg-slate-50" + (exp.status && exp.status !== "approved" ? " opacity-60" : "")}>
                             <td className="py-3 px-3 text-slate-500 text-xs">{new Date(exp.expense_date).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"numeric"})}</td>
                             <td className="py-3 px-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getCategoryColor(exp.category)}`}>{exp.category}</span></td>
-                            <td className="py-3 px-3 text-slate-700">{exp.description}</td>
+                            <td className="py-3 px-3 text-slate-700">{exp.description}{exp.status === "rejected" && exp.rejection_reason && (<span className="block text-xs text-red-500">Rejected: {exp.rejection_reason}</span>)}</td>
                             <td className="py-3 px-3 text-slate-500 capitalize text-xs">{exp.payment_method}</td>
                             <td className="py-3 px-3 text-slate-400 text-xs font-mono">{exp.reference || "—"}</td>
                             <td className="py-3 px-3 font-bold text-red-600">KES {fmt(exp.amount)}</td>
+                            <td className="py-3 px-3"><span className={"text-xs px-2 py-0.5 rounded-full font-medium " + ((exp.status || "approved") === "approved" ? "bg-green-100 text-green-700" : exp.status === "rejected" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700")}>{(exp.status || "approved").charAt(0).toUpperCase() + (exp.status || "approved").slice(1)}</span></td>
                             <td className="py-3 px-3">
-                              <button onClick={() => handleDelete(exp.id)} className="text-xs text-red-400 hover:text-red-600 border border-red-200 px-2 py-1 rounded-lg">Delete</button>
+                              <div className="flex gap-2 items-center">{(exp.status || "approved") === "approved" && (<button onClick={() => router.push("/voucher?id=" + exp.id)} className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 px-2 py-1 rounded-lg">Voucher</button>)}<button onClick={() => handleDelete(exp.id)} className="text-xs text-red-400 hover:text-red-600 border border-red-200 px-2 py-1 rounded-lg">Delete</button></div>
                             </td>
                           </tr>
                         ))}
                       </tbody>
                       <tfoot className="bg-slate-50 border-t border-slate-200">
                         <tr>
-                          <td colSpan={5} className="py-3 px-3 font-semibold text-slate-600 text-sm">Total</td>
+                          <td colSpan={5} className="py-3 px-3 font-semibold text-slate-600 text-sm">Total (approved only)</td>
                           <td className="py-3 px-3 font-bold text-red-600">KES {fmt(totalExpenses)}</td>
+                          <td></td>
                           <td></td>
                         </tr>
                       </tfoot>
