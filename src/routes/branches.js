@@ -38,7 +38,7 @@ router.get('/:id', verifyToken, async (req, res) => {
         COALESCE((SELECT SUM(l.balance) FROM loans l WHERE l.branch_id = b.id AND l.status = 'active'), 0) as outstanding,
         COALESCE((SELECT SUM(p.amount) FROM payments p JOIN loans l ON p.loan_id = l.id WHERE l.branch_id = b.id), 0) as total_collected,
         COALESCE((SELECT COUNT(*) FROM customers c WHERE c.branch_id = b.id), 0) as total_customers,
-        COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id), 0) as total_expenses,
+        COALESCE((SELECT SUM(e.amount) FROM expenses e WHERE e.branch_id = b.id AND e.status = 'approved'), 0) as total_expenses,
         COALESCE((SELECT SUM(ci.amount) FROM company_income ci WHERE ci.branch_id = b.id), 0) as total_income
       FROM branches b
       LEFT JOIN users u ON b.manager_id = u.id

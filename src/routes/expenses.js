@@ -27,7 +27,7 @@ router.get('/', verifyToken, async (req, res) => {
       ORDER BY e.expense_date DESC, e.created_at DESC
     `, params);
 
-    const total = result.rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+    const total = result.rows.filter(r => r.status === 'approved').reduce((s, r) => s + parseFloat(r.amount || 0), 0);
     res.json({ expenses: result.rows, total });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -105,7 +105,7 @@ const processingFees = await pool.query(`
       SELECT category, COALESCE(SUM(amount), 0) as total, COUNT(*) as count
       FROM expenses
       WHERE EXTRACT(MONTH FROM expense_date) = $1
-      AND EXTRACT(YEAR FROM expense_date) = $2
+      AND EXTRACT(YEAR FROM expense_date) = $2 AND status = 'approved'
       GROUP BY category
       ORDER BY total DESC
     `, [month, year]);
@@ -164,7 +164,7 @@ const badDebt = await pool.query(`
   FROM expenses
   WHERE category = 'Bad Debt'
   AND EXTRACT(MONTH FROM expense_date) = $1
-  AND EXTRACT(YEAR FROM expense_date) = $2
+  AND EXTRACT(YEAR FROM expense_date) = $2 AND status = 'approved'
 `, [month, year]);
 
 // Bad debt recoveries this month
@@ -246,10 +246,10 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO expenses (category, description, amount, payment_method, reference, expense_date, recorded_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+      INSERT INTO expenses (category, description, amount, payment_method, reference, expense_date, recorded_by, branch_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
     `, [category, description, amount, payment_method || 'cash', reference || null,
-        expense_date || new Date().toISOString().split('T')[0], recorded_by]);
+        expense_date || new Date().toISOString().split('T')[0], recorded_by, req.user?.branch_id || 1]);
 
     await pool.query(
       'INSERT INTO audit_logs (user_id, user_name, action, entity, entity_id, details) VALUES ($1,$2,$3,$4,$5,$6)',

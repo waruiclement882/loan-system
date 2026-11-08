@@ -223,8 +223,8 @@ const writeLoanOff = async (loanId, writtenOffBy, reason) => {
 
     // 3. Record as Bad Debt expense
     await client.query(
-      `INSERT INTO expenses (category, description, amount, payment_method, expense_date, recorded_by)
-       VALUES ('Bad Debt', $1, $2, 'write_off', CURRENT_DATE, $3)`,
+      `INSERT INTO expenses (category, description, amount, payment_method, expense_date, recorded_by, status)
+       VALUES ('Bad Debt', $1, $2, 'write_off', CURRENT_DATE, $3, 'approved')`,
       [
         `Loan #${loanId} written off — ${loan.customer_name}. Reason: ${reason}`,
         balance,
