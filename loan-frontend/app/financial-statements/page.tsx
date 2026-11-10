@@ -29,7 +29,7 @@ export default function FinancialStatementsPage() {
   useEffect(() => {
     if (!token) { router.push("/login"); return; }
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (!["admin","cfo"].includes(user.role)) { router.push("/dashboard"); return; }
+    if (!["admin","cfo","super_admin"].includes(user.role)) { router.push("/dashboard"); return; }
     loadAll();
   }, []);
 
