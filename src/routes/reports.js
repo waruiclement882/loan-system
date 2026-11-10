@@ -169,7 +169,7 @@ router.get('/collection', verifyToken, async (req, res) => {
 });
 
 // ── Audit Logs ────────────────────────────────────────────────────────────────
-router.get('/audit', verifyToken, async (req, res) => {
+router.get('/audit', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT al.*, u.name AS user_name

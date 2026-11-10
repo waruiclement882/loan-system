@@ -19,6 +19,7 @@ const suspenseRoutes = require('./routes/suspense');
 const floatRoutes = require('./routes/float');
 const expensesRoutes = require('./routes/expenses');
 const vouchersRoutes = require('./routes/vouchers');
+const cashRoutes = require('./routes/cash');
 const branchRoutes = require('./routes/branches'); 
 const customerNotesRoutes = require('./routes/customerNotes');
 
@@ -94,6 +95,7 @@ app.use('/api/suspense', suspenseRoutes);
 app.use('/api/float', floatRoutes);
 app.use('/api/expenses', expensesRoutes);
 app.use('/api/vouchers', vouchersRoutes);
+app.use('/api/cash', cashRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/customers', customerNotesRoutes);
 

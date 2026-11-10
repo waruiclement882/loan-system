@@ -58,7 +58,7 @@ router.patch('/:id/details', verifyToken, async (req, res) => {
     if (!e) return res.status(404).json({ error: 'Expense not found' });
     if (e.status !== 'pending') return res.status(400).json({ error: 'Approved expenses cannot be edited' });
     const uid = req.user.id || req.user.user_id;
-    if (!isManager(req.user) && e.recorded_by !== uid) return res.status(403).json({ error: 'Not allowed' });
+    if (!canActOn(req.user, e) && e.recorded_by !== uid) return res.status(403).json({ error: 'Not allowed' });
     const r = await pool.query(
       `UPDATE expenses SET paid_to = COALESCE($1, paid_to),
          no_receipt_reason = COALESCE($2, no_receipt_reason)
@@ -76,7 +76,7 @@ router.post('/:id/receipt', verifyToken, upload.single('receipt'), async (req, r
     const e = found.rows[0];
     if (!e) return res.status(404).json({ error: 'Expense not found' });
     const uid = req.user.id || req.user.user_id;
-    if (!isManager(req.user) && e.recorded_by !== uid) return res.status(403).json({ error: 'Not allowed' });
+    if (!canActOn(req.user, e) && e.recorded_by !== uid) return res.status(403).json({ error: 'Not allowed' });
 
     const result = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
@@ -142,6 +142,7 @@ router.get('/:id', verifyToken, async (req, res) => {
        WHERE e.id = $1`, [req.params.id]);
     const e = r.rows[0];
     if (!e) return res.status(404).json({ error: 'Expense not found' });
+    if (req.user.role !== 'admin' && e.branch_id !== req.user.branch_id) return res.status(403).json({ error: 'This voucher belongs to another branch' });
     if (e.status !== 'approved') return res.status(400).json({ error: 'A voucher is only issued once the expense is approved' });
 
     if (!e.voucher_no) {

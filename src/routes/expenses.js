@@ -9,6 +9,8 @@ router.get('/', verifyToken, async (req, res) => {
     const { month, year, category } = req.query;
     let where = 'WHERE 1=1';
     const params = [];
+    const scopeBranch = req.user.role === 'admin' ? (req.query.branch_id || null) : (req.user.branch_id || 1);
+    if (scopeBranch) { params.push(scopeBranch); where += ` AND COALESCE(e.branch_id, 1) = $${params.length}`; }
 
     if (month && year) {
       params.push(month, year);
@@ -45,7 +47,7 @@ router.get('/categories', verifyToken, async (req, res) => {
 });
 
 // GET P&L report
-router.get('/pnl', verifyToken, async (req, res) => {
+router.get('/pnl', verifyToken, requireRole('admin'), async (req, res) => {
   try {
     const month = req.query.month || new Date().getMonth() + 1;
     const year = req.query.year || new Date().getFullYear();
@@ -249,7 +251,7 @@ router.post('/', verifyToken, async (req, res) => {
       INSERT INTO expenses (category, description, amount, payment_method, reference, expense_date, recorded_by, branch_id)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
     `, [category, description, amount, payment_method || 'cash', reference || null,
-        expense_date || new Date().toISOString().split('T')[0], recorded_by, req.user?.branch_id || 1]);
+        expense_date || new Date().toISOString().split('T')[0], recorded_by, (req.user?.role === 'admin' && req.body.branch_id ? parseInt(req.body.branch_id) : (req.user?.branch_id || 1))]);
 
     await pool.query(
       'INSERT INTO audit_logs (user_id, user_name, action, entity, entity_id, details) VALUES ($1,$2,$3,$4,$5,$6)',

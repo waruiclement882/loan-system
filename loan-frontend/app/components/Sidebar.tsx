@@ -64,6 +64,7 @@ export default function Sidebar() {
     { label: "PAR", path: "/par", show: isAdmin, group: "Operations" },
     { label: "Loan Arrears", path: "/arrears", show: isAdmin, group: "Operations" },
     { label: "Expense Approvals", path: "/expense-approvals", show: isAdmin, group: "Operations" },
+    { label: "Cash Count", path: "/cash-count", show: isAdmin, group: "Operations" },
 
     { label: "Schedule", path: "/schedule", show: true, group: "Records" },
     { label: "Statement", path: "/statement", show: true, group: "Records" },
