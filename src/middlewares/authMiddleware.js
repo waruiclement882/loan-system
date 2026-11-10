@@ -11,6 +11,8 @@ const verifyToken = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
+    // Super admin passes every admin permission check
+    if (decoded.role === 'super_admin') req.user = { ...decoded, role: 'admin', real_role: 'super_admin' };
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {

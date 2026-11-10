@@ -13,7 +13,7 @@ const logAudit = async (req, { action, entity, entityId, details, oldValues, new
          (user_id, user_name, user_role, branch_id, action, entity, entity_id, details,
           old_values, new_values, ip_address, outcome)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-      [u.id || u.user_id || null, u.name || u.full_name || 'System', u.role || null, u.branch_id || null,
+      [u.id || u.user_id || null, u.name || u.full_name || 'System', u.real_role || u.role || null, u.branch_id || null,
        action, entity || null, entityId || null, JSON.stringify(body),
        oldValues ? JSON.stringify(oldValues) : null,
        newValues ? JSON.stringify(newValues) : null,
