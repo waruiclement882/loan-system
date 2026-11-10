@@ -72,6 +72,7 @@ export default function Sidebar() {
     { label: "Reports", path: "/reports", show: isAdmin, group: "Records" },
     { label: "P&L / Expenses", path: "/expenses", show: isAdmin, group: "Records" },
     { label: "Export", path: "/export", show: isAdmin, group: "Records" },
+    { label: "Financial Statements", path: "/financial-statements", show: isAdmin || userRole === "cfo", group: "Records" },
     { label: "Branches", path: "/branches", show: userRole === "admin", group: "Admin" },
 { label: "Users", path: "/users", show: userRole === "admin", group: "Admin" },
 
