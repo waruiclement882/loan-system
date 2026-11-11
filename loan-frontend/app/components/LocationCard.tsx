@@ -6,7 +6,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrende
 const DEFAULT_CENTER: [number, number] = [-0.7, 37.35]; // Mwea area
 
 type Props = {
-  customer: any;
+  customer?: any;
   customerId: string | string[];
   token: string | null;
   onSaved: () => void;
@@ -18,7 +18,57 @@ const toNum = (v: any): number | null => {
   return isNaN(n) ? null : n;
 };
 
+// Shrinks phone photos (often 3-8 MB) to ~1280px JPEG before upload.
+const compressImage = (file: File, maxSize = 1280, quality = 0.8): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { URL.revokeObjectURL(url); reject(new Error("Could not process image")); return; }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error("Could not compress image"))), "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not read that image")); };
+    img.src = url;
+  });
+
+// ── Outer: loads the saved location + photo, then shows the editor ───────────
 export default function LocationCard({ customer, customerId, token, onSaved }: Props) {
+  const [data, setData] = useState<any>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/customers/${customerId}/location`, {
+          headers: { Authorization: "Bearer " + token },
+        });
+        const d = await res.json();
+        if (!alive) return;
+        if (d.error) setError(d.error); else setData(d);
+      } catch {
+        if (alive) setError("Could not load the location details.");
+      }
+    })();
+    return () => { alive = false; };
+  }, [customerId]);
+
+  if (error) return <div className="bg-white rounded-xl shadow p-6 text-sm text-red-500">{error}</div>;
+  if (!data) return <div className="bg-white rounded-xl shadow p-6 text-sm text-gray-400">Loading location…</div>;
+  return <LocationEditor data={data} customerName={customer?.name || data.name} customerId={customerId} token={token} onSaved={onSaved} />;
+}
+
+// ── Inner: map, GPS capture, photo ───────────────────────────────────────────
+function LocationEditor({ data, customerName, customerId, token, onSaved }: {
+  data: any; customerName: string; customerId: string | string[]; token: string | null; onSaved: () => void;
+}) {
   const mapEl = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -27,23 +77,34 @@ export default function LocationCard({ customer, customerId, token, onSaved }: P
   const watchRef = useRef<number | null>(null);
   const timerRef = useRef<any>(null);
 
-  const startLat = toNum(customer?.latitude);
-  const startLng = toNum(customer?.longitude);
+  const startLat = toNum(data.latitude);
+  const startLng = toNum(data.longitude);
+  const startAcc = toNum(data.location_accuracy);
 
   const [point, setPoint] = useState<{ lat: number; lng: number } | null>(
     startLat !== null && startLng !== null ? { lat: startLat, lng: startLng } : null
   );
-  const [accuracy, setAccuracy] = useState<number | null>(
-    toNum(customer?.location_accuracy) !== null ? Math.round(toNum(customer?.location_accuracy) as number) : null
-  );
-  const [location, setLocation] = useState<string>(customer?.location || "");
-  const [landmark, setLandmark] = useState<string>(customer?.nearest_landmark || "");
+  const [accuracy, setAccuracy] = useState<number | null>(startAcc !== null ? Math.round(startAcc) : null);
+  const [location, setLocation] = useState<string>(data.location || "");
+  const [landmark, setLandmark] = useState<string>(data.nearest_landmark || "");
+  const [meta, setMeta] = useState<{ by: string | null; at: string | null }>({
+    by: data.location_updated_by || null,
+    at: data.location_updated_at || null,
+  });
   const [locating, setLocating] = useState(false);
   const [geoMsg, setGeoMsg] = useState("");
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [layer, setLayer] = useState<"street" | "satellite">("street");
   const [mapReady, setMapReady] = useState(false);
+
+  const [photoUrl, setPhotoUrl] = useState<string | null>(data.premises_photo_url || null);
+  const [photoMeta, setPhotoMeta] = useState<{ by: string | null; at: string | null }>({
+    by: data.premises_photo_updated_by || null,
+    at: data.premises_photo_updated_at || null,
+  });
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoMsg, setPhotoMsg] = useState("");
 
   const stopWatch = () => {
     if (watchRef.current !== null && typeof navigator !== "undefined" && navigator.geolocation) {
@@ -78,7 +139,7 @@ export default function LocationCard({ customer, customerId, token, onSaved }: P
     if (zoom) map.setView([lat, lng], zoom);
   };
 
-  // ── Build the map once ──────────────────────────────────────────────────────
+  // Build the map once
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -126,7 +187,7 @@ export default function LocationCard({ customer, customerId, token, onSaved }: P
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Street / satellite switch ───────────────────────────────────────────────
+  // Street / satellite switch
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
@@ -136,7 +197,7 @@ export default function LocationCard({ customer, customerId, token, onSaved }: P
     if (!map.hasLayer(wanted)) wanted.addTo(map);
   }, [layer, mapReady]);
 
-  // ── GPS capture: keeps listening up to 15s and keeps the most accurate fix ──
+  // GPS capture: listens up to 15s and keeps the most accurate fix
   const captureGps = () => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setGeoMsg("This device or browser does not support GPS.");
@@ -204,11 +265,45 @@ export default function LocationCard({ customer, customerId, token, onSaved }: P
           location_accuracy: accuracy,
         }),
       });
-      const data = await res.json();
-      if (data.error) alert(data.error);
-      else { setDirty(false); onSaved(); }
+      const d = await res.json();
+      if (d.error) alert(d.error);
+      else {
+        setDirty(false);
+        setMeta({ by: d.location_updated_by || null, at: d.location_updated_at || null });
+        onSaved();
+      }
     } catch { alert("Failed to save location"); }
     setSaving(false);
+  };
+
+  const onPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoBusy(true);
+    setPhotoMsg("Preparing photo…");
+    try {
+      const blob = await compressImage(file);
+      const form = new FormData();
+      form.append("photo", blob, "premises.jpg");
+      setPhotoMsg("Uploading…");
+      const res = await fetch(`${API}/api/customers/${customerId}/premises-photo`, {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token },
+        body: form,
+      });
+      const d = await res.json();
+      if (d.error) setPhotoMsg("❌ " + d.error);
+      else {
+        setPhotoUrl(d.url);
+        setPhotoMeta({ by: d.updated_by || null, at: d.updated_at || null });
+        setPhotoMsg("✅ Photo saved");
+        onSaved();
+      }
+    } catch (err: any) {
+      setPhotoMsg("❌ " + (err?.message || "Upload failed"));
+    }
+    setPhotoBusy(false);
   };
 
   const mapsLink = point ? `https://www.google.com/maps?q=${point.lat},${point.lng}` : "";
@@ -217,7 +312,7 @@ export default function LocationCard({ customer, customerId, token, onSaved }: P
     : "";
   const whatsappLink = point
     ? `https://wa.me/?text=${encodeURIComponent(
-        `${customer?.name || "Customer"} — location${location ? " (" + location + ")" : ""}: ${mapsLink}`
+        `${customerName || "Customer"} — location${location ? " (" + location + ")" : ""}: ${mapsLink}`
       )}`
     : "";
 
@@ -229,6 +324,9 @@ export default function LocationCard({ customer, customerId, token, onSaved }: P
       : accuracy <= 50
       ? { text: `GPS accuracy ±${accuracy} m — good`, cls: "bg-yellow-100 text-yellow-700" }
       : { text: `GPS accuracy ±${accuracy} m — weak, drag the pin to adjust`, cls: "bg-red-100 text-red-700" };
+
+  const fmtDate = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" }) : "";
 
   return (
     <div className="bg-white rounded-xl shadow p-5 space-y-4">
@@ -299,14 +397,45 @@ export default function LocationCard({ customer, customerId, token, onSaved }: P
 
       <div className="flex justify-between items-center flex-wrap gap-2">
         <p className="text-xs text-gray-400">
-          {customer?.location_updated_at
-            ? `Last pinned by ${customer.location_updated_by || "officer"} on ${new Date(customer.location_updated_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}`
-            : "No pin saved yet"}
+          {meta.at ? `Last pinned by ${meta.by || "officer"} on ${fmtDate(meta.at)}` : "No pin saved yet"}
         </p>
         <button onClick={save} disabled={saving || !point || !dirty}
           className="bg-[#04342C] text-white px-5 py-2 rounded-lg text-sm hover:bg-[#0F6E56] disabled:opacity-50">
           {saving ? "Saving…" : dirty ? "✅ Save Location" : "Saved"}
         </button>
+      </div>
+
+      {/* Premises photo */}
+      <div className="border-t border-gray-100 pt-4">
+        <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
+          <h4 className="font-semibold text-gray-700">🏠 Premises photo</h4>
+          <div className="flex gap-2">
+            <label className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs text-white ${photoBusy ? "bg-gray-400" : "bg-[#04342C] hover:bg-[#0F6E56]"}`}>
+              {photoBusy ? "Please wait…" : "📷 Take photo"}
+              <input type="file" accept="image/*" capture="environment" className="hidden" disabled={photoBusy} onChange={onPhoto} />
+            </label>
+            <label className={`cursor-pointer px-3 py-1.5 rounded-lg text-xs bg-gray-100 text-gray-700 ${photoBusy ? "opacity-50" : "hover:bg-gray-200"}`}>
+              🖼️ Gallery
+              <input type="file" accept="image/*" className="hidden" disabled={photoBusy} onChange={onPhoto} />
+            </label>
+          </div>
+        </div>
+
+        {photoUrl ? (
+          <img src={photoUrl} alt="Customer premises"
+            className="w-full max-h-72 object-cover rounded-lg border border-gray-200 cursor-pointer"
+            onClick={() => window.open(photoUrl, "_blank")} />
+        ) : (
+          <div className="w-full h-32 bg-gray-50 rounded-lg border border-dashed border-gray-200 flex items-center justify-center">
+            <p className="text-gray-400 text-sm">No photo yet</p>
+          </div>
+        )}
+
+        <p className="text-xs text-gray-400 mt-2">
+          {photoUrl && photoMeta.at ? `Photo by ${photoMeta.by || "officer"} on ${fmtDate(photoMeta.at)}. ` : ""}
+          Photograph the gate, shop front or house so the next officer can recognise it on arrival.
+        </p>
+        {photoMsg && <p className="text-xs text-gray-600 mt-1">{photoMsg}</p>}
       </div>
     </div>
   );
