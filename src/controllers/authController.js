@@ -186,7 +186,7 @@ const verifyOtp = async (req, res) => {
     await audit(user.id, user.name, 'LOGIN', 'users', user.id, `${user.name} logged in via 2FA (${otp.method})`);
 
     res.json({
-      user: { id: user.id, name: user.name, full_name: user.full_name, email: user.email, role: user.role, branch_id: user.branch_id },
+      user: { id: user.id, name: user.name, full_name: user.full_name, email: user.email, role: user.role === 'super_admin' ? 'admin' : user.role, real_role: user.role, branch_id: user.branch_id },
       token
     });
 

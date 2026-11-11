@@ -5,11 +5,13 @@ const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 const { logAudit } = require('../utils/audit');
 
 const branchOf = (req) =>
-  req.user.role === 'admin'
+  req.user.all_branches
     ? (parseInt(req.query.branch_id || (req.body && req.body.branch_id)) || 1)
     : (req.user.branch_id || 1);
 
 const r2 = (n) => Math.round(n * 100) / 100;
+const requireSuper = (req, res, next) => (req.user && req.user.real_role === 'super_admin')
+  ? next() : res.status(403).json({ error: 'Only the super admin can record or view owner drawings' });
 
 // What the system believes the branch should hold (cash + bank + M-Pesa together)
 const expectedFunds = async (b) => {
@@ -92,7 +94,7 @@ router.post('/count', ...counters, async (req, res) => {
 });
 
 // Owner drawings: admin only, dated today, never edited or deleted here
-router.post('/drawings', verifyToken, requireRole('admin'), async (req, res) => {
+router.post('/drawings', verifyToken, requireSuper, async (req, res) => {
   try {
     const b = branchOf(req);
     const amount = parseFloat(req.body.amount);
@@ -109,7 +111,7 @@ router.post('/drawings', verifyToken, requireRole('admin'), async (req, res) => 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.get('/drawings', verifyToken, requireRole('admin'), async (req, res) => {
+router.get('/drawings', verifyToken, requireSuper, async (req, res) => {
   try {
     const params = [branchOf(req)];
     let where = 'COALESCE(d.branch_id,1) = $1';

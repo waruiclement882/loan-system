@@ -6,7 +6,7 @@ const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
 router.get('/', verifyToken, paymentController.getAllPayments);
 router.post('/', verifyToken, paymentController.createPayment);
 router.get('/unmatched', verifyToken, requireRole('admin', 'cashier', 'branch_admin'), paymentController.getUnmatched);
-router.get('/income', verifyToken, requireRole('admin', 'cashier', 'branch_admin'), async (req, res) => {
+router.get('/income', verifyToken, requireRole('admin', 'cashier', 'branch_admin', 'cfo'), async (req, res) => {
   try {
     const result = await require('../db/pool').query(`
       SELECT ci.id, ci.loan_id, ci.amount, ci.type,

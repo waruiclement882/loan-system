@@ -35,7 +35,7 @@ const EAT = "((a.created_at AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Nairobi')";
 
 // Admin sees everything; branch admins only see actions by users in their own branch
 const scope = (req, params, where) => {
-  if (req.user.role !== 'admin') {
+  if (!req.user.all_branches) {
     params.push(req.user.branch_id || 0);
     where.push(`u.branch_id = $${params.length}`);
   } else if (req.query.branch_id) {
@@ -70,7 +70,7 @@ const buildFilter = (req) => {
 };
 
 const FROM = 'FROM audit_logs a LEFT JOIN users u ON a.user_id = u.id';
-const guard = [verifyToken, requireRole('admin', 'branch_admin')];
+const guard = [verifyToken, requireRole('admin', 'branch_admin', 'cfo')];
 
 router.get('/', ...guard, async (req, res) => {
   try {

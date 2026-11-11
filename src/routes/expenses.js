@@ -9,7 +9,7 @@ router.get('/', verifyToken, async (req, res) => {
     const { month, year, category } = req.query;
     let where = 'WHERE 1=1';
     const params = [];
-    const scopeBranch = req.user.role === 'admin' ? (req.query.branch_id || null) : (req.user.branch_id || 1);
+    const scopeBranch = req.user.all_branches ? (req.query.branch_id || null) : (req.user.branch_id || 1);
     if (scopeBranch) { params.push(scopeBranch); where += ` AND COALESCE(e.branch_id, 1) = $${params.length}`; }
 
     if (month && year) {
@@ -47,7 +47,7 @@ router.get('/categories', verifyToken, async (req, res) => {
 });
 
 // GET P&L report
-router.get('/pnl', verifyToken, requireRole('admin'), async (req, res) => {
+router.get('/pnl', verifyToken, requireRole('admin', 'cfo'), async (req, res) => {
   try {
     const month = req.query.month || new Date().getMonth() + 1;
     const year = req.query.year || new Date().getFullYear();

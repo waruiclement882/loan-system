@@ -48,7 +48,7 @@ export default function AuditPage() {
   useEffect(() => {
     if (!token) { router.push("/login"); return; }
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    if (!["admin", "branch_admin"].includes(user.role)) { router.push("/dashboard"); return; }
+    if (!["admin", "branch_admin", "cfo"].includes(user.role)) { router.push("/dashboard"); return; }
     fetch(`${API}/api/audit/summary`, { headers: auth }).then(r => r.json()).then(d => { if (!d.error) setSummary(d); }).catch(() => {});
     load(1, EMPTY);
   }, []);

@@ -15,13 +15,15 @@ const MODULES = [
   { id:"float",label:"Float",icon:"🏦",path:"/float",roles:["super_admin","admin","branch_admin","cashier"],color:"#16A085" },
   { id:"accounting",label:"Accounting",icon:"📊",path:"/financial-statements",roles:["super_admin","admin","cfo"],color:"#0B2545" },
   { id:"expenses",label:"Expenses",icon:"📋",path:"/expenses",roles:["super_admin","admin","branch_admin","cfo"],color:"#8E44AD" },
+  { id:"expense-approvals",label:"Expense Approvals",icon:"🧾",path:"/expense-approvals",roles:["super_admin","admin","branch_admin"],color:"#6C3483" },
+  { id:"cash-count",label:"Cash Count",icon:"💵",path:"/cash-count",roles:["super_admin","admin","branch_admin","cashier"],color:"#117A65" },
   { id:"reports",label:"Reports",icon:"📈",path:"/reports",roles:["super_admin","admin","branch_admin","cfo"],color:"#1A5276" },
   { id:"par",label:"PAR",icon:"⚠️",path:"/par",roles:["super_admin","admin","branch_admin","cfo"],color:"#E74C3C" },
   { id:"schedule",label:"Schedule",icon:"📅",path:"/schedule",roles:["super_admin","admin","branch_admin","cashier","loan_officer","cfo"],color:"#27AE60" },
   { id:"collection",label:"Collection Sheet",icon:"📝",path:"/collection",roles:["super_admin","admin","branch_admin","cashier","loan_officer"],color:"#2980B9" },
   { id:"branches",label:"Branches",icon:"🏢",path:"/branches",roles:["super_admin","admin"],color:"#1A252F" },
   { id:"users",label:"Users",icon:"👤",path:"/users",roles:["super_admin","admin"],color:"#1A252F" },
-  { id:"audit",label:"Audit Log",icon:"🔍",path:"/audit",roles:["super_admin","admin"],color:"#1A252F" },
+  { id:"audit",label:"Audit Log",icon:"🔍",path:"/audit",roles:["super_admin","admin","cfo"],color:"#1A252F" },
   { id:"settings",label:"Settings",icon:"⚙️",path:"/settings",roles:["super_admin","admin"],color:"#1A252F" },
 ];
 

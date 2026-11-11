@@ -17,6 +17,8 @@ const ALL_MODULES = [
   { id:"arrears",label:"Loan Arrears",icon:"X",path:"/arrears",roles:["super_admin","admin","branch_admin"],color:"#D35400",bg:"#FDF0E8",desc:"Overdue loans management",group:"Operations" },
   { id:"accounting",label:"Accounting",icon:"$",path:"/financial-statements",roles:["super_admin","admin","cfo"],color:"#0B2545",bg:"#E8EDF4",desc:"Financial statements & reports",group:"Accounting" },
   { id:"expenses",label:"Expenses",icon:"E",path:"/expenses",roles:["super_admin","admin","branch_admin","cfo"],color:"#8E44AD",bg:"#F4ECF7",desc:"Expenses & bad debt tracking",group:"Accounting" },
+  { id:"expense-approvals",label:"Expense Approvals",icon:"V",path:"/expense-approvals",roles:["super_admin","admin","branch_admin"],color:"#6C3483",bg:"#F4ECF7",desc:"Approve expenses & issue vouchers",group:"Accounting" },
+  { id:"cash-count",label:"Cash Count",icon:"H",path:"/cash-count",roles:["super_admin","admin","branch_admin","cashier"],color:"#117A65",bg:"#E8F6F3",desc:"Daily cash count & owner drawings",group:"Accounting" },
   { id:"reports",label:"Reports",icon:"G",path:"/reports",roles:["super_admin","admin","branch_admin","cfo"],color:"#1A5276",bg:"#EAF2F8",desc:"Portfolio & collection reports",group:"Accounting" },
   { id:"schedule",label:"Schedule",icon:"T",path:"/schedule",roles:["super_admin","admin","branch_admin","cashier","loan_officer","cfo"],color:"#27AE60",bg:"#E9F7EF",desc:"Repayment schedules",group:"Records" },
   { id:"statement",label:"Statement",icon:"N",path:"/statement",roles:["super_admin","admin","branch_admin","cashier","loan_officer","cfo"],color:"#2980B9",bg:"#EAF4FB",desc:"Loan statements",group:"Records" },
@@ -24,7 +26,7 @@ const ALL_MODULES = [
   { id:"export",label:"Export",icon:"Z",path:"/export",roles:["super_admin","admin","cfo"],color:"#2E4053",bg:"#EAECEE",desc:"Export data to Excel/PDF",group:"Records" },
   { id:"branches",label:"Branches",icon:"B",path:"/branches",roles:["super_admin","admin"],color:"#1A252F",bg:"#EAECEE",desc:"Branch management",group:"Admin" },
   { id:"users",label:"Users",icon:"U",path:"/users",roles:["super_admin","admin"],color:"#1A252F",bg:"#EAECEE",desc:"User & role management",group:"Admin" },
-  { id:"audit",label:"Audit Log",icon:"Q",path:"/audit",roles:["super_admin","admin"],color:"#1A252F",bg:"#EAECEE",desc:"System audit trail",group:"Admin" },
+  { id:"audit",label:"Audit Log",icon:"Q",path:"/audit",roles:["super_admin","admin","cfo"],color:"#1A252F",bg:"#EAECEE",desc:"System audit trail",group:"Admin" },
   { id:"settings",label:"Settings",icon:"W",path:"/settings",roles:["super_admin","admin"],color:"#1A252F",bg:"#EAECEE",desc:"System configuration",group:"Admin" },
 ];
 
