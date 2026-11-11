@@ -1,11 +1,33 @@
 const express = require('express');
 const router = express.Router();
+
+const { requireRole: _rr } = require('../middlewares/authMiddleware');
+const _pool = require('../db/pool');
+// Only the super admin may create, change or remove admin-level accounts
+const _guardRole = async (req, res, next) => {
+  try {
+    const isSuper = req.user && req.user.real_role === 'super_admin';
+    if (!isSuper) {
+      const wanted = req.body && req.body.role;
+      if (wanted && ['super_admin', 'admin'].includes(wanted)) {
+        return res.status(403).json({ error: 'Only the super admin can assign admin roles' });
+      }
+      if (req.params.id) {
+        const t = await _pool.query('SELECT role FROM users WHERE id = $1', [req.params.id]);
+        if (t.rows[0] && ['super_admin', 'admin'].includes(t.rows[0].role)) {
+          return res.status(403).json({ error: 'Only the super admin can change admin accounts' });
+        }
+      }
+    }
+    next();
+  } catch (e) { res.status(500).json({ error: e.message }); }
+};
 const bcrypt = require('bcrypt');
 const pool = require('../db/connection');
 const { verifyToken } = require('../middlewares/authMiddleware');
 
 // Get all users
-router.get('/users', verifyToken, async (req, res) => {
+router.get('/users', verifyToken, _rr('admin'), _guardRole, async (req, res) => {
   try {
     const result = await pool.query('SELECT id, name, email, role, created_at FROM users ORDER BY id');
     res.json(result.rows);
@@ -13,7 +35,7 @@ router.get('/users', verifyToken, async (req, res) => {
 });
 
 // Create user
-router.post('/users', verifyToken, async (req, res) => {
+router.post('/users', verifyToken, _rr('admin'), _guardRole, async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'name, email and password are required' });
@@ -30,7 +52,7 @@ router.post('/users', verifyToken, async (req, res) => {
 });
 
 // Update user
-router.put('/users/:id', verifyToken, async (req, res) => {
+router.put('/users/:id', verifyToken, _rr('admin'), _guardRole, async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     let query, params;
@@ -49,7 +71,7 @@ router.put('/users/:id', verifyToken, async (req, res) => {
 });
 
 // Change role
-router.patch('/users/:id/role', verifyToken, async (req, res) => {
+router.patch('/users/:id/role', verifyToken, _rr('admin'), _guardRole, async (req, res) => {
   try {
     const { role } = req.body;
     const result = await pool.query(
@@ -62,7 +84,7 @@ router.patch('/users/:id/role', verifyToken, async (req, res) => {
 });
 
 // Delete user
-router.delete('/users/:id', verifyToken, async (req, res) => {
+router.delete('/users/:id', verifyToken, _rr('admin'), _guardRole, async (req, res) => {
   try {
     await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]);
     res.json({ success: true });

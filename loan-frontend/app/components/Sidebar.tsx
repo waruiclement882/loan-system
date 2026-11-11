@@ -49,7 +49,7 @@ export default function Sidebar() {
   };
 
   const logout = () => { localStorage.clear(); router.push("/login"); };
-  const isAdmin = ["admin", "cashier"].includes(userRole);
+  const isAdmin = ["super_admin","admin","branch_admin","cashier","loan_officer"].includes(userRole);
 
   const navLinks: NavLink[] = [
     { label: "Dashboard", path: "/dashboard", show: true, group: "Overview" },

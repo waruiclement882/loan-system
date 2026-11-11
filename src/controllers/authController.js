@@ -23,7 +23,7 @@ const validatePassword = (password) => {
 
 // ── Generate JWT token ────────────────────────────────────────────────────────
 const generateToken = (user) => jwt.sign(
-  { id: user.id, user_id: user.id, role: user.role, name: user.name },
+  { id: user.id, user_id: user.id, role: user.role, name: user.name, branch_id: user.branch_id },
   process.env.JWT_SECRET,
   { expiresIn: '24h' }
 );
@@ -186,7 +186,7 @@ const verifyOtp = async (req, res) => {
     await audit(user.id, user.name, 'LOGIN', 'users', user.id, `${user.name} logged in via 2FA (${otp.method})`);
 
     res.json({
-      user: { id: user.id, name: user.name, full_name: user.full_name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, full_name: user.full_name, email: user.email, role: user.role, branch_id: user.branch_id },
       token
     });
 
@@ -248,7 +248,13 @@ const register = async (req, res) => {
     if (!email || !password || !displayName) return res.status(400).json({ error: 'Name, email and password are required' });
     const pwErrors = validatePassword(password);
     if (pwErrors.length) return res.status(400).json({ error: 'Password too weak', requirements: pwErrors });
-    const allowedRoles = ['loan_officer', 'cashier'];
+    const isSuper = req.user && req.user.real_role === 'super_admin';
+    const isAdmin = req.user && req.user.role === 'admin';
+    const allowedRoles = isSuper
+      ? ['super_admin', 'admin', 'branch_admin', 'cashier', 'cfo', 'loan_officer']
+      : isAdmin
+        ? ['branch_admin', 'cashier', 'cfo', 'loan_officer']
+        : ['loan_officer', 'cashier'];
     const userRole = allowedRoles.includes(role) ? role : 'loan_officer';
     const exists = await pool.query('SELECT id FROM users WHERE email=$1', [email]);
     if (exists.rows.length) return res.status(400).json({ error: 'Email already exists' });
