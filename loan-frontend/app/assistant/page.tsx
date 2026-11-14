@@ -108,7 +108,7 @@ export default function AssistantPage() {
 
         {configured === false && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-3 text-sm text-amber-800">
-            The assistant is not switched on yet. Add <strong>ANTHROPIC_API_KEY</strong> to the backend service environment on Render, then redeploy.
+            The assistant is not switched on yet. Add <strong>GEMINI_API_KEY</strong> to the backend service environment on Render, then redeploy.
           </div>
         )}
 

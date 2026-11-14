@@ -15,7 +15,7 @@ const chatLimiter = rateLimit({
 
 // Is the assistant configured?
 router.get('/status', verifyToken, requireRole('admin'), (req, res) => {
-  res.json({ configured: !!process.env.ANTHROPIC_API_KEY, model: MODEL });
+  res.json({ configured: !!process.env.GEMINI_API_KEY, model: MODEL });
 });
 
 // Ask a question

@@ -24,6 +24,8 @@ const branchRoutes = require('./routes/branches');
 const customerNotesRoutes = require('./routes/customerNotes');
 const aiRoutes = require('./routes/ai');
 const errorCapture = require('./middlewares/errorCapture');
+const aiRoutes = require('./routes/ai');
+const errorCapture = require('./middlewares/errorCapture');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -51,7 +53,9 @@ app.use(cors({
 // ── 3. Request size limit ─────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(errorCapture);
+app.use(errorCapture);
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
 
 // ── 4. Rate limiting ──────────────────────────────────────────────────────────
 const generalLimiter = rateLimit({
@@ -101,6 +105,7 @@ app.use('/api/vouchers', vouchersRoutes);
 app.use('/api/cash', cashRoutes);
 app.use('/api/branches', branchRoutes);
 app.use('/api/customers', customerNotesRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/ai', aiRoutes);
 
 // ── 9. Global error handler ───────────────────────────────────────────────────

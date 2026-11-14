@@ -1,9 +1,12 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const OpenAIModule = require('openai');
+const OpenAI = OpenAIModule.default || OpenAIModule;
 const fs = require('fs');
 const path = require('path');
 const pool = require('../db/pool');
 
-const MODEL = process.env.AI_MODEL || 'claude-sonnet-5-5';
+const MODEL = process.env.AI_MODEL || 'gemini-2.5-flash';
+const BASE_URL = process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+const REASONING = process.env.AI_REASONING === 'off' ? null : (process.env.AI_REASONING || 'low');
 const MAX_STEPS = 10;
 const MAX_ROWS = 200;
 const MAX_RESULT_CHARS = 12000;
@@ -371,14 +374,27 @@ How to work:
 - Money is in KES, written like KSh 12,000. Be concise and practical.
 - Format: plain text only. No markdown headings, bold or tables. Use short paragraphs and dashes for lists. Put SQL or code in triple-backtick blocks.`;
 
+// ── Tool definitions in OpenAI/Gemini format (converted from TOOLS above) ────
+const FUNCTION_TOOLS = TOOLS.map(t => {
+  const hasParams = t.input_schema && Object.keys(t.input_schema.properties || {}).length > 0;
+  return {
+    type: 'function',
+    function: {
+      name: t.name,
+      description: t.description,
+      ...(hasParams ? { parameters: t.input_schema } : {}),
+    },
+  };
+});
+
 // ── Main entry ───────────────────────────────────────────────────────────────
 async function askAssistant(messages) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    const e = new Error('The AI assistant is not configured yet. Add ANTHROPIC_API_KEY to the server environment.');
+  if (!process.env.GEMINI_API_KEY) {
+    const e = new Error('The AI assistant is not configured yet. Add GEMINI_API_KEY to the server environment.');
     e.status = 503;
     throw e;
   }
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: BASE_URL, timeout: 90000 });
 
   const convo = messages.slice(-16).map(m => ({
     role: m.role === 'assistant' ? 'assistant' : 'user',
@@ -387,44 +403,60 @@ async function askAssistant(messages) {
   while (convo.length && convo[0].role !== 'user') convo.shift();
   if (!convo.length) throw new Error('No question received');
 
+  const chat = [{ role: 'system', content: SYSTEM_PROMPT }, ...convo];
   const toolLog = [];
 
   for (let step = 0; step < MAX_STEPS; step++) {
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      tools: TOOLS,
-      messages: convo,
-    });
-
-    if (response.stop_reason !== 'tool_use') {
-      let answer = response.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
-      if (response.stop_reason === 'max_tokens') answer += '\n\n(My answer was cut off. Ask me to continue.)';
-      return { answer: answer || '(No answer produced.)', toolLog, model: MODEL };
+    let response;
+    try {
+      response = await client.chat.completions.create({
+        model: MODEL,
+        messages: chat,
+        tools: FUNCTION_TOOLS,
+        tool_choice: 'auto',
+        ...(REASONING ? { reasoning_effort: REASONING } : {}),
+      });
+    } catch (err) {
+      if (err && err.status === 429) {
+        throw new Error('The free Gemini quota is used up for now. Wait a minute (or until tomorrow if it keeps happening) and try again.');
+      }
+      if (err && err.status === 404) {
+        throw new Error(`Model "${MODEL}" was not found. Set AI_MODEL on the server to a model ID listed in Google AI Studio.`);
+      }
+      throw err;
     }
 
-    convo.push({ role: 'assistant', content: response.content });
+    const msg = response.choices && response.choices[0] && response.choices[0].message;
+    if (!msg) throw new Error('The model returned an empty response');
+    const calls = msg.tool_calls || [];
 
-    const results = [];
-    for (const block of response.content.filter(b => b.type === 'tool_use')) {
+    if (!calls.length) {
+      return { answer: (msg.content || '').trim() || '(No answer produced.)', toolLog, model: MODEL };
+    }
+
+    // Keep tool_calls exactly as received (Gemini 3 needs its thought signatures echoed back)
+    chat.push({ role: 'assistant', content: msg.content ?? null, tool_calls: calls });
+
+    for (const call of calls) {
+      const name = call.function && call.function.name;
+      let args = {};
+      try { args = JSON.parse((call.function && call.function.arguments) || '{}'); } catch {}
       let output;
       let isError = false;
       try {
-        output = await runTool(block.name, block.input || {});
+        output = await runTool(name, args);
       } catch (e) {
         output = 'Error: ' + e.message;
         isError = true;
       }
-      toolLog.push({ tool: block.name, summary: summarize(block), error: isError });
-      results.push({
-        type: 'tool_result',
-        tool_use_id: block.id,
+      toolLog.push({ tool: name, summary: summarize({ name, input: args }), error: isError });
+      chat.push({
+        role: 'tool',
+        tool_call_id: call.id,
+        name,
         content: clip(typeof output === 'string' ? output : JSON.stringify(output)),
-        is_error: isError,
       });
     }
-    convo.push({ role: 'user', content: results });
   }
 
   return {
