@@ -24,8 +24,6 @@ const branchRoutes = require('./routes/branches');
 const customerNotesRoutes = require('./routes/customerNotes');
 const aiRoutes = require('./routes/ai');
 const errorCapture = require('./middlewares/errorCapture');
-const aiRoutes = require('./routes/ai');
-const errorCapture = require('./middlewares/errorCapture');
 
 const app = express();
 app.set('trust proxy', 1);
