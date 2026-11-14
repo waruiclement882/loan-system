@@ -27,6 +27,11 @@ const ALL_MODULES = [
   { id:"branches",label:"Branches",icon:"B",path:"/branches",roles:["super_admin","admin"],color:"#1A252F",bg:"#EAECEE",desc:"Branch management",group:"Admin" },
   { id:"users",label:"Users",icon:"U",path:"/users",roles:["super_admin","admin"],color:"#1A252F",bg:"#EAECEE",desc:"User & role management",group:"Admin" },
   { id:"audit",label:"Audit Log",icon:"Q",path:"/audit",roles:["super_admin","admin","cfo"],color:"#1A252F",bg:"#EAECEE",desc:"System audit trail",group:"Admin" },
+  { id:"slip",label:"Payment Slip",icon:"R",path:"/slip",roles:["super_admin","admin","branch_admin","cashier","loan_officer","cfo"],color:"#2980B9",bg:"#EAF4FB",desc:"Payment slip generation",group:"Records" },
+  { id:"expense-approvals",label:"Expense Approvals",icon:"V",path:"/expense-approvals",roles:["super_admin","admin"],color:"#8E44AD",bg:"#F4ECF7",desc:"Approve pending expenses",group:"Operations" },
+  { id:"cash-count",label:"Cash Count",icon:"H",path:"/cash-count",roles:["super_admin","admin","branch_admin","cashier"],color:"#27AE60",bg:"#E9F7EF",desc:"Daily cash reconciliation",group:"Operations" },
+  { id:"voucher",label:"Voucher",icon:"J",path:"/voucher",roles:["super_admin","admin","branch_admin","cashier"],color:"#F39C12",bg:"#FEF9E7",desc:"Payment vouchers",group:"Records" },
+  { id:"assistant",label:"AI Assistant",icon:"I",path:"/assistant",roles:["super_admin","admin","branch_admin","cashier","loan_officer","cfo"],color:"#1565C0",bg:"#EAF2FB",desc:"AI-powered assistant",group:"Overview" },
   { id:"settings",label:"Settings",icon:"W",path:"/settings",roles:["super_admin","admin"],color:"#1A252F",bg:"#EAECEE",desc:"System configuration",group:"Admin" },
 ];
 
