@@ -62,7 +62,7 @@ export default function DashboardPage() {
   const dueTodayAmount = dueToday.reduce((s, r) => s + parseFloat(r.amount_due || 0), 0);
   const overdueLoans = loans.filter(l => l.status === "active" && l.due_date && new Date(l.due_date) < today);
   const overdueAmount = overdueLoans.reduce((s, l) => s + parseFloat(l.balance || 0), 0);
-  const fmt = (n) => "KSh " + Math.round(n || 0).toLocaleString();
+  const fmt = (n: number) => "KSh " + Math.round(n || 0).toLocaleString();
 
   const kpis = [
     { label: "Total Portfolio", value: fmt(totalDisbursed), sub: loans.length + " loans total", color: "#1565C0", bg: "#EAF2FB", icon: "??" },
