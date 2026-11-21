@@ -6,12 +6,12 @@ import Layout from "../components/Layout";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [customers, setCustomers] = useState([]);
-  const [loans, setLoans] = useState([]);
-  const [payments, setPayments] = useState([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [loans, setLoans] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [userName, setUserName] = useState("");
   const [unmatched, setUnmatched] = useState(0);
-  const [dueToday, setDueToday] = useState([]);
+  const [dueToday, setDueToday] = useState<any[]>([]);
   const [userRole, setUserRole] = useState("");
   const [greeting, setGreeting] = useState("");
   const API = process.env.NEXT_PUBLIC_API_URL || "https://loan-system-h794.onrender.com";
