@@ -388,10 +388,13 @@ const FUNCTION_TOOLS = TOOLS.map(t => {
   };
 });
 
-// ── Model selection: ask Google what this key can use, newest first ──────────
-// Google retires models often, so the model is discovered instead of hard-coded.
+// ── Timing / model selection ─────────────────────────────────────────────────
+// Google retires and overloads free models often, so the model is discovered,
+// slow calls are cut off quickly, and the next model is tried.
+const REQUEST_TIMEOUT_MS = 40000;   // per Gemini call
+const TOTAL_BUDGET_MS = 100000;     // per question
+const MAX_CANDIDATES = 4;
 const FALLBACK_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
-const MAX_CANDIDATES = 5;
 let candidateCache = { at: 0, list: [] };
 let workingModel = null;
 
@@ -401,13 +404,16 @@ const versionOf = (id) => {
 };
 const newestFirst = (a, b) => versionOf(b) - versionOf(a);
 
+const isTimeout = (err) => !!err && (err.name === 'APIConnectionTimeoutError' || /timed? ?out/i.test(String(err.message)));
+const describeErr = (err) => (isTimeout(err) ? 'timed out' : err && err.status ? `error ${err.status}` : String((err && err.message) || 'failed').slice(0, 60));
+
 async function getCandidates(client) {
   if (FIXED_MODEL) return [FIXED_MODEL];
   if (candidateCache.list.length && Date.now() - candidateCache.at < 60 * 60 * 1000) return candidateCache.list;
 
   let ids = [];
   try {
-    const page = await client.models.list();
+    const page = await client.models.list({ timeout: 15000, maxRetries: 0 });
     ids = (page.data || []).map(m => String(m.id).replace(/^models\//, ''));
   } catch (e) {
     console.error('[AI] Could not list models:', e.message);
@@ -424,37 +430,53 @@ async function getCandidates(client) {
   return list;
 }
 
-async function createCompletion(client, chat) {
+async function createCompletion(client, chat, deadline) {
   const candidates = await getCandidates(client);
   const order = workingModel && candidates.includes(workingModel)
     ? [workingModel, ...candidates.filter(m => m !== workingModel)]
     : candidates;
 
+  const attempts = [];
   let lastErr;
   for (const model of order.slice(0, MAX_CANDIDATES)) {
+    if (attempts.length && Date.now() > deadline - REQUEST_TIMEOUT_MS / 2) break;
+
     for (const withReasoning of REASONING ? [true, false] : [false]) {
+      const started = Date.now();
       try {
-        const response = await client.chat.completions.create({
-          model,
-          messages: chat,
-          tools: FUNCTION_TOOLS,
-          tool_choice: 'auto',
-          ...(withReasoning ? { reasoning_effort: REASONING } : {}),
-        });
+        const response = await client.chat.completions.create(
+          {
+            model,
+            messages: chat,
+            tools: FUNCTION_TOOLS,
+            tool_choice: 'auto',
+            ...(withReasoning ? { reasoning_effort: REASONING } : {}),
+          },
+          { timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 }
+        );
+        console.log(`[AI] ${model} answered in ${Date.now() - started}ms`);
         workingModel = model;
         return { response, model };
       } catch (err) {
         lastErr = err;
+        console.error(`[AI] ${model} failed after ${Date.now() - started}ms: ${err && err.message}`);
         if (err && err.status === 404 && model === workingModel) { workingModel = null; candidateCache = { at: 0, list: [] }; }
         // A 400 can be caused by the reasoning option: retry the same model without it
         if (err && err.status === 400 && withReasoning) continue;
         break;
       }
     }
-    // 404 = model gone, 403/429 = not allowed or no quota on this model: try the next one
-    if (!lastErr || ![400, 403, 404, 429].includes(lastErr.status)) throw lastErr;
+
+    attempts.push(`${model} (${describeErr(lastErr)})`);
+    // Timeouts, overloads, missing models and quota limits: try the next model
+    const retryable = isTimeout(lastErr) || (lastErr && [400, 403, 404, 429, 500, 502, 503, 504].includes(lastErr.status));
+    if (!retryable) throw lastErr;
   }
-  throw lastErr || new Error('No Gemini model is available for this key');
+
+  const e = new Error('No Gemini model answered');
+  e.attempts = attempts;
+  e.allQuota = attempts.length > 0 && attempts.every(a => a.includes('error 429'));
+  throw e;
 }
 
 // ── Main entry ───────────────────────────────────────────────────────────────
@@ -464,7 +486,8 @@ async function askAssistant(messages) {
     e.status = 503;
     throw e;
   }
-  const client = new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: BASE_URL, timeout: 90000 });
+  const client = new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: BASE_URL, timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 });
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
 
   const convo = messages.slice(-16).map(m => ({
     role: m.role === 'assistant' ? 'assistant' : 'user',
@@ -478,17 +501,30 @@ async function askAssistant(messages) {
   let usedModel = FIXED_MODEL || 'auto';
 
   for (let step = 0; step < MAX_STEPS; step++) {
+    if (Date.now() > deadline) {
+      return {
+        answer: 'This is taking too long, so I stopped. Ask a narrower question (for example one area or one table) and I will answer faster.',
+        toolLog,
+        model: usedModel,
+      };
+    }
+
     let response;
     try {
-      const out = await createCompletion(client, chat);
+      const out = await createCompletion(client, chat, deadline);
       response = out.response;
       usedModel = out.model;
     } catch (err) {
-      if (err && err.status === 429) {
+      if (err && err.allQuota) {
         throw new Error('The free Gemini quota is used up for now. Wait a minute (or until tomorrow if it keeps happening) and try again.');
       }
-      if (err && (err.status === 404 || err.status === 403)) {
-        throw new Error(`No usable Gemini model was found for this key (${String(err.message).slice(0, 160)}). In Google AI Studio check which models your key can use, then set AI_MODEL on the server.`);
+      if (err && err.attempts) {
+        const hint = err.attempts.some(a => a.includes('timed out') || /error 5\d\d/.test(a))
+          ? 'Google looks slow or overloaded right now. Try again in a minute.'
+          : err.attempts.every(a => /error 40[34]/.test(a))
+          ? 'Check which models your key can use in Google AI Studio, then set AI_MODEL on the server.'
+          : 'Try again in a minute.';
+        throw new Error(`Gemini could not answer. Tried: ${err.attempts.join(', ')}. ${hint}`);
       }
       throw err;
     }
