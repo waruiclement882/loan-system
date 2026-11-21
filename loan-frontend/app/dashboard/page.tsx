@@ -189,7 +189,7 @@ export default function DashboardPage() {
                 const balance = parseFloat(loan.balance || 0);
                 const total = parseFloat(loan.total_amount || 0);
                 const progress = total > 0 ? Math.max(0, 100 - (balance / total) * 100) : 0;
-                const statusColors = { active:"bg-blue-100 text-blue-700", paid:"bg-green-100 text-green-700", pending:"bg-amber-100 text-amber-700", overdue:"bg-red-100 text-red-700" };
+                const statusColors: Record<string,string> = { active:"bg-blue-100 text-blue-700", paid:"bg-green-100 text-green-700", pending:"bg-amber-100 text-amber-700", overdue:"bg-red-100 text-red-700" };
                 return (
                   <div key={loan.id} onClick={() => router.push("/loans/" + loan.id)}
                     className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 transition-colors">
