@@ -3,7 +3,7 @@ const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const pool = require('../db/pool');
 const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
-const { askAssistant, MODEL } = require('../services/aiService');
+const { askAssistant, MODEL, isConfigured } = require('../services/aiService');
 
 const chatLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -15,7 +15,7 @@ const chatLimiter = rateLimit({
 
 // Is the assistant configured?
 router.get('/status', verifyToken, requireRole('admin'), (req, res) => {
-  res.json({ configured: !!process.env.GEMINI_API_KEY, model: MODEL });
+  res.json({ configured: isConfigured(), model: MODEL });
 });
 
 // Ask a question

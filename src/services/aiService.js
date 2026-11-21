@@ -4,9 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('../db/pool');
 
-const FIXED_MODEL = process.env.AI_MODEL || null; // leave unset to pick automatically
-const MODEL = FIXED_MODEL || 'auto';
-const BASE_URL = process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/';
 const REASONING = process.env.AI_REASONING === 'off' ? null : (process.env.AI_REASONING || 'low');
 const MAX_STEPS = 10;
 const MAX_ROWS = 200;
@@ -375,118 +372,172 @@ How to work:
 - Money is in KES, written like KSh 12,000. Be concise and practical.
 - Format: plain text only. No markdown headings, bold or tables. Use short paragraphs and dashes for lists. Put SQL or code in triple-backtick blocks.`;
 
-// ── Tool definitions in OpenAI/Gemini format (converted from TOOLS above) ────
-const FUNCTION_TOOLS = TOOLS.map(t => {
-  const hasParams = t.input_schema && Object.keys(t.input_schema.properties || {}).length > 0;
-  return {
-    type: 'function',
-    function: {
-      name: t.name,
-      description: t.description,
-      ...(hasParams ? { parameters: t.input_schema } : {}),
-    },
-  };
-});
-
-// ── Timing / model selection ─────────────────────────────────────────────────
-// Google retires and overloads free models often, so the model is discovered,
-// slow calls are cut off quickly, and the next model is tried.
-const REQUEST_TIMEOUT_MS = 40000;   // per Gemini call
+// ── Providers: every one speaks the same OpenAI chat format ─────────────────
+// Groq is first (very fast). Gemini is the automatic backup (more room for big answers).
+const REQUEST_TIMEOUT_MS = 40000;   // per call
 const TOTAL_BUDGET_MS = 100000;     // per question
-const MAX_CANDIDATES = 4;
-const FALLBACK_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
-let candidateCache = { at: 0, list: [] };
-let workingModel = null;
+const MAX_MODELS_PER_PROVIDER = 3;
+const COMPACT_TO_CHARS = 1500;
+
+const PROVIDERS = [
+  {
+    name: 'groq',
+    keyEnv: 'GROQ_API_KEY',
+    baseURL: process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1',
+    fixedModel: process.env.GROQ_MODEL || null,
+    models: ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'],
+    discover: false,
+    maxResultChars: 6000,        // free plan allows about 8,000 tokens per minute
+    omitEmptyParams: false,
+  },
+  {
+    name: 'gemini',
+    keyEnv: 'GEMINI_API_KEY',
+    baseURL: process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/',
+    fixedModel: process.env.GEMINI_MODEL || process.env.AI_MODEL || null,
+    models: null,
+    discover: true,
+    maxResultChars: 12000,
+    omitEmptyParams: true,
+  },
+];
+
+const activeProviders = () => PROVIDERS.filter(p => !!process.env[p.keyEnv]);
+const isConfigured = () => activeProviders().length > 0;
+const MODEL = activeProviders().map(p => p.name).join(' + ') || 'not configured';
+
+const buildTools = (p) =>
+  TOOLS.map(t => {
+    const hasParams = t.input_schema && Object.keys(t.input_schema.properties || {}).length > 0;
+    return {
+      type: 'function',
+      function: {
+        name: t.name,
+        description: t.description,
+        ...(hasParams
+          ? { parameters: t.input_schema }
+          : p.omitEmptyParams ? {} : { parameters: { type: 'object', properties: {} } }),
+      },
+    };
+  });
+
+PROVIDERS.forEach(p => { p.tools = buildTools(p); p.working = null; p.cache = { at: 0, list: [] }; p.client = null; });
+
+const clientFor = (p) => {
+  if (!p.client) {
+    p.client = new OpenAI({ apiKey: process.env[p.keyEnv], baseURL: p.baseURL, timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 });
+  }
+  return p.client;
+};
 
 const versionOf = (id) => {
   const m = String(id).match(/^gemini-(\d+(?:\.\d+)?)-/);
   return m ? parseFloat(m[1]) : 0;
 };
 const newestFirst = (a, b) => versionOf(b) - versionOf(a);
+const FALLBACK_GEMINI = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
 
 const isTimeout = (err) => !!err && (err.name === 'APIConnectionTimeoutError' || /timed? ?out/i.test(String(err.message)));
 const describeErr = (err) => (isTimeout(err) ? 'timed out' : err && err.status ? `error ${err.status}` : String((err && err.message) || 'failed').slice(0, 60));
 
-async function getCandidates(client) {
-  if (FIXED_MODEL) return [FIXED_MODEL];
-  if (candidateCache.list.length && Date.now() - candidateCache.at < 60 * 60 * 1000) return candidateCache.list;
+const putWorkingFirst = (p, list) => (p.working && list.includes(p.working) ? [p.working, ...list.filter(m => m !== p.working)] : list);
 
+async function getModels(p, client) {
+  if (p.fixedModel) return [p.fixedModel];
+  if (!p.discover) return putWorkingFirst(p, p.models);
+
+  // Gemini: ask Google which models this key can use, newest first
+  if (p.cache.list.length && Date.now() - p.cache.at < 60 * 60 * 1000) return putWorkingFirst(p, p.cache.list);
   let ids = [];
   try {
     const page = await client.models.list({ timeout: 15000, maxRetries: 0 });
     ids = (page.data || []).map(m => String(m.id).replace(/^models\//, ''));
   } catch (e) {
-    console.error('[AI] Could not list models:', e.message);
+    console.error('[AI] Could not list Gemini models:', e.message);
   }
-
   const stable = ids.filter(i => /^gemini-\d+(\.\d+)?-flash$/.test(i)).sort(newestFirst);
   const lite = ids.filter(i => /^gemini-\d+(\.\d+)?-flash-lite$/.test(i)).sort(newestFirst);
   const latest = ids.filter(i => i === 'gemini-flash-latest');
-  const preview = ids.filter(i => /^gemini-\d+(\.\d+)?-flash-preview(-\d[\w-]*)?$/.test(i)).sort(newestFirst);
-
-  const list = [...new Set([...stable, ...lite, ...latest, ...preview])];
-  if (!list.length) return FALLBACK_MODELS;
-  candidateCache = { at: Date.now(), list };
-  return list;
+  const list = [...new Set([...stable, ...lite, ...latest])];
+  if (!list.length) return FALLBACK_GEMINI;
+  p.cache = { at: Date.now(), list };
+  return putWorkingFirst(p, list);
 }
 
-async function createCompletion(client, chat, deadline) {
-  const candidates = await getCandidates(client);
-  const order = workingModel && candidates.includes(workingModel)
-    ? [workingModel, ...candidates.filter(m => m !== workingModel)]
-    : candidates;
+// Shrinks older tool results so a long conversation fits a small free-tier window
+function compactChat(chat) {
+  for (const m of chat) {
+    if (m.role === 'tool' && typeof m.content === 'string' && m.content.length > COMPACT_TO_CHARS) {
+      m.content = m.content.slice(0, COMPACT_TO_CHARS) + '\n…[trimmed to fit the free-tier limit]';
+    }
+  }
+}
+
+async function createCompletion(chat, deadline, preferredName) {
+  const providers = activeProviders();
+  const order = preferredName
+    ? [...providers.filter(p => p.name === preferredName), ...providers.filter(p => p.name !== preferredName)]
+    : providers;
 
   const attempts = [];
   let lastErr;
-  for (const model of order.slice(0, MAX_CANDIDATES)) {
-    if (attempts.length && Date.now() > deadline - REQUEST_TIMEOUT_MS / 2) break;
 
-    for (const withReasoning of REASONING ? [true, false] : [false]) {
-      const started = Date.now();
-      try {
-        const response = await client.chat.completions.create(
-          {
-            model,
-            messages: chat,
-            tools: FUNCTION_TOOLS,
-            tool_choice: 'auto',
-            ...(withReasoning ? { reasoning_effort: REASONING } : {}),
-          },
-          { timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 }
-        );
-        console.log(`[AI] ${model} answered in ${Date.now() - started}ms`);
-        workingModel = model;
-        return { response, model };
-      } catch (err) {
-        lastErr = err;
-        console.error(`[AI] ${model} failed after ${Date.now() - started}ms: ${err && err.message}`);
-        if (err && err.status === 404 && model === workingModel) { workingModel = null; candidateCache = { at: 0, list: [] }; }
-        // A 400 can be caused by the reasoning option: retry the same model without it
-        if (err && err.status === 400 && withReasoning) continue;
-        break;
+  outer: for (const p of order) {
+    const client = clientFor(p);
+    const models = await getModels(p, client);
+
+    for (const model of models.slice(0, MAX_MODELS_PER_PROVIDER)) {
+      if (attempts.length && Date.now() > deadline - REQUEST_TIMEOUT_MS / 2) break outer;
+
+      let withReasoning = !!REASONING;
+      let compacted = false;
+
+      for (let tries = 0; tries < 3; tries++) {
+        const started = Date.now();
+        try {
+          const response = await client.chat.completions.create(
+            {
+              model,
+              messages: chat,
+              tools: p.tools,
+              tool_choice: 'auto',
+              ...(withReasoning ? { reasoning_effort: REASONING } : {}),
+            },
+            { timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 }
+          );
+          console.log(`[AI] ${p.name}/${model} answered in ${Date.now() - started}ms`);
+          p.working = model;
+          return { response, provider: p, model };
+        } catch (err) {
+          lastErr = err;
+          console.error(`[AI] ${p.name}/${model} failed after ${Date.now() - started}ms: ${err && err.message}`);
+          if (err && err.status === 404 && model === p.working) { p.working = null; p.cache = { at: 0, list: [] }; }
+          if (err && err.status === 400 && withReasoning) { withReasoning = false; continue; }   // maybe the reasoning option
+          if (err && err.status === 413 && !compacted) { compactChat(chat); compacted = true; continue; } // too big for the window
+          break;
+        }
       }
-    }
 
-    attempts.push(`${model} (${describeErr(lastErr)})`);
-    // Timeouts, overloads, missing models and quota limits: try the next model
-    const retryable = isTimeout(lastErr) || (lastErr && [400, 403, 404, 429, 500, 502, 503, 504].includes(lastErr.status));
-    if (!retryable) throw lastErr;
+      attempts.push(`${p.name}/${model} (${describeErr(lastErr)})`);
+      // Timeouts, overloads, missing models, size and quota limits: try the next model/provider
+      const retryable = isTimeout(lastErr) || (lastErr && [400, 403, 404, 408, 413, 429, 500, 502, 503, 504].includes(lastErr.status));
+      if (!retryable) throw lastErr;
+    }
   }
 
-  const e = new Error('No Gemini model answered');
+  const e = new Error('No AI model answered');
   e.attempts = attempts;
-  e.allQuota = attempts.length > 0 && attempts.every(a => a.includes('error 429'));
+  e.allQuota = attempts.length > 0 && attempts.every(a => /error (429|413)/.test(a));
   throw e;
 }
 
 // ── Main entry ───────────────────────────────────────────────────────────────
 async function askAssistant(messages) {
-  if (!process.env.GEMINI_API_KEY) {
-    const e = new Error('The AI assistant is not configured yet. Add GEMINI_API_KEY to the server environment.');
+  if (!isConfigured()) {
+    const e = new Error('The AI assistant is not configured yet. Add GROQ_API_KEY (recommended) or GEMINI_API_KEY to the server environment.');
     e.status = 503;
     throw e;
   }
-  const client = new OpenAI({ apiKey: process.env.GEMINI_API_KEY, baseURL: BASE_URL, timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 });
   const deadline = Date.now() + TOTAL_BUDGET_MS;
 
   const convo = messages.slice(-16).map(m => ({
@@ -498,33 +549,37 @@ async function askAssistant(messages) {
 
   const chat = [{ role: 'system', content: SYSTEM_PROMPT }, ...convo];
   const toolLog = [];
-  let usedModel = FIXED_MODEL || 'auto';
+  let preferred = null;
+  let usedProvider = activeProviders()[0];
+  let usedLabel = MODEL;
 
   for (let step = 0; step < MAX_STEPS; step++) {
     if (Date.now() > deadline) {
       return {
         answer: 'This is taking too long, so I stopped. Ask a narrower question (for example one area or one table) and I will answer faster.',
         toolLog,
-        model: usedModel,
+        model: usedLabel,
       };
     }
 
     let response;
     try {
-      const out = await createCompletion(client, chat, deadline);
+      const out = await createCompletion(chat, deadline, preferred);
       response = out.response;
-      usedModel = out.model;
+      usedProvider = out.provider;
+      preferred = out.provider.name;
+      usedLabel = `${out.provider.name}/${out.model}`;
     } catch (err) {
       if (err && err.allQuota) {
-        throw new Error('The free Gemini quota is used up for now. Wait a minute (or until tomorrow if it keeps happening) and try again.');
+        throw new Error('The free AI limits are used up for now. Wait a minute (or until tomorrow if it keeps happening), or ask a narrower question.');
       }
       if (err && err.attempts) {
         const hint = err.attempts.some(a => a.includes('timed out') || /error 5\d\d/.test(a))
-          ? 'Google looks slow or overloaded right now. Try again in a minute.'
+          ? 'The free services look slow or overloaded right now. Try again in a minute.'
           : err.attempts.every(a => /error 40[34]/.test(a))
-          ? 'Check which models your key can use in Google AI Studio, then set AI_MODEL on the server.'
+          ? 'None of the configured models accepted the request. Check the model names in the provider console.'
           : 'Try again in a minute.';
-        throw new Error(`Gemini could not answer. Tried: ${err.attempts.join(', ')}. ${hint}`);
+        throw new Error(`The AI services could not answer. Tried: ${err.attempts.join(', ')}. ${hint}`);
       }
       throw err;
     }
@@ -534,7 +589,7 @@ async function askAssistant(messages) {
     const calls = msg.tool_calls || [];
 
     if (!calls.length) {
-      return { answer: (msg.content || '').trim() || '(No answer produced.)', toolLog, model: usedModel };
+      return { answer: (msg.content || '').trim() || '(No answer produced.)', toolLog, model: usedLabel };
     }
 
     // Keep tool_calls exactly as received (Gemini 3 needs its thought signatures echoed back)
@@ -543,7 +598,7 @@ async function askAssistant(messages) {
     for (const call of calls) {
       const name = call.function && call.function.name;
       let args = {};
-      try { args = JSON.parse((call.function && call.function.arguments) || '{}'); } catch {}
+      try { args = JSON.parse((call.function && call.function.arguments) || '{}') || {}; } catch {}
       let output;
       let isError = false;
       try {
@@ -557,7 +612,7 @@ async function askAssistant(messages) {
         role: 'tool',
         tool_call_id: call.id,
         name,
-        content: clip(typeof output === 'string' ? output : JSON.stringify(output)),
+        content: clip(typeof output === 'string' ? output : JSON.stringify(output), usedProvider.maxResultChars),
       });
     }
   }
@@ -565,8 +620,8 @@ async function askAssistant(messages) {
   return {
     answer: 'I used my full allowance of lookups without finishing. Please ask a narrower question, or tell me to continue.',
     toolLog,
-    model: usedModel,
+    model: usedLabel,
   };
 }
 
-module.exports = { askAssistant, MODEL };
+module.exports = { askAssistant, MODEL, isConfigured };
