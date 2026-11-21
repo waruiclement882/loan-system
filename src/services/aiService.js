@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const pool = require('../db/pool');
 
-const MODEL = process.env.AI_MODEL || 'gemini-2.5-flash';
+const FIXED_MODEL = process.env.AI_MODEL || null; // leave unset to pick automatically
+const MODEL = FIXED_MODEL || 'auto';
 const BASE_URL = process.env.AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/';
 const REASONING = process.env.AI_REASONING === 'off' ? null : (process.env.AI_REASONING || 'low');
 const MAX_STEPS = 10;
@@ -387,6 +388,75 @@ const FUNCTION_TOOLS = TOOLS.map(t => {
   };
 });
 
+// ── Model selection: ask Google what this key can use, newest first ──────────
+// Google retires models often, so the model is discovered instead of hard-coded.
+const FALLBACK_MODELS = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+const MAX_CANDIDATES = 5;
+let candidateCache = { at: 0, list: [] };
+let workingModel = null;
+
+const versionOf = (id) => {
+  const m = String(id).match(/^gemini-(\d+(?:\.\d+)?)-/);
+  return m ? parseFloat(m[1]) : 0;
+};
+const newestFirst = (a, b) => versionOf(b) - versionOf(a);
+
+async function getCandidates(client) {
+  if (FIXED_MODEL) return [FIXED_MODEL];
+  if (candidateCache.list.length && Date.now() - candidateCache.at < 60 * 60 * 1000) return candidateCache.list;
+
+  let ids = [];
+  try {
+    const page = await client.models.list();
+    ids = (page.data || []).map(m => String(m.id).replace(/^models\//, ''));
+  } catch (e) {
+    console.error('[AI] Could not list models:', e.message);
+  }
+
+  const stable = ids.filter(i => /^gemini-\d+(\.\d+)?-flash$/.test(i)).sort(newestFirst);
+  const lite = ids.filter(i => /^gemini-\d+(\.\d+)?-flash-lite$/.test(i)).sort(newestFirst);
+  const latest = ids.filter(i => i === 'gemini-flash-latest');
+  const preview = ids.filter(i => /^gemini-\d+(\.\d+)?-flash-preview(-\d[\w-]*)?$/.test(i)).sort(newestFirst);
+
+  const list = [...new Set([...stable, ...lite, ...latest, ...preview])];
+  if (!list.length) return FALLBACK_MODELS;
+  candidateCache = { at: Date.now(), list };
+  return list;
+}
+
+async function createCompletion(client, chat) {
+  const candidates = await getCandidates(client);
+  const order = workingModel && candidates.includes(workingModel)
+    ? [workingModel, ...candidates.filter(m => m !== workingModel)]
+    : candidates;
+
+  let lastErr;
+  for (const model of order.slice(0, MAX_CANDIDATES)) {
+    for (const withReasoning of REASONING ? [true, false] : [false]) {
+      try {
+        const response = await client.chat.completions.create({
+          model,
+          messages: chat,
+          tools: FUNCTION_TOOLS,
+          tool_choice: 'auto',
+          ...(withReasoning ? { reasoning_effort: REASONING } : {}),
+        });
+        workingModel = model;
+        return { response, model };
+      } catch (err) {
+        lastErr = err;
+        if (err && err.status === 404 && model === workingModel) { workingModel = null; candidateCache = { at: 0, list: [] }; }
+        // A 400 can be caused by the reasoning option: retry the same model without it
+        if (err && err.status === 400 && withReasoning) continue;
+        break;
+      }
+    }
+    // 404 = model gone, 403/429 = not allowed or no quota on this model: try the next one
+    if (!lastErr || ![400, 403, 404, 429].includes(lastErr.status)) throw lastErr;
+  }
+  throw lastErr || new Error('No Gemini model is available for this key');
+}
+
 // ── Main entry ───────────────────────────────────────────────────────────────
 async function askAssistant(messages) {
   if (!process.env.GEMINI_API_KEY) {
@@ -405,23 +475,20 @@ async function askAssistant(messages) {
 
   const chat = [{ role: 'system', content: SYSTEM_PROMPT }, ...convo];
   const toolLog = [];
+  let usedModel = FIXED_MODEL || 'auto';
 
   for (let step = 0; step < MAX_STEPS; step++) {
     let response;
     try {
-      response = await client.chat.completions.create({
-        model: MODEL,
-        messages: chat,
-        tools: FUNCTION_TOOLS,
-        tool_choice: 'auto',
-        ...(REASONING ? { reasoning_effort: REASONING } : {}),
-      });
+      const out = await createCompletion(client, chat);
+      response = out.response;
+      usedModel = out.model;
     } catch (err) {
       if (err && err.status === 429) {
         throw new Error('The free Gemini quota is used up for now. Wait a minute (or until tomorrow if it keeps happening) and try again.');
       }
-      if (err && err.status === 404) {
-        throw new Error(`Model "${MODEL}" was not found. Set AI_MODEL on the server to a model ID listed in Google AI Studio.`);
+      if (err && (err.status === 404 || err.status === 403)) {
+        throw new Error(`No usable Gemini model was found for this key (${String(err.message).slice(0, 160)}). In Google AI Studio check which models your key can use, then set AI_MODEL on the server.`);
       }
       throw err;
     }
@@ -431,7 +498,7 @@ async function askAssistant(messages) {
     const calls = msg.tool_calls || [];
 
     if (!calls.length) {
-      return { answer: (msg.content || '').trim() || '(No answer produced.)', toolLog, model: MODEL };
+      return { answer: (msg.content || '').trim() || '(No answer produced.)', toolLog, model: usedModel };
     }
 
     // Keep tool_calls exactly as received (Gemini 3 needs its thought signatures echoed back)
@@ -462,7 +529,7 @@ async function askAssistant(messages) {
   return {
     answer: 'I used my full allowance of lookups without finishing. Please ask a narrower question, or tell me to continue.',
     toolLog,
-    model: MODEL,
+    model: usedModel,
   };
 }
 
