@@ -73,7 +73,7 @@ export default function LoansPage() {
             <p className="text-xs text-gray-500 mt-0.5">{stats.total} total loans � {stats.active} active</p>
           </div>
           {isAdmin && (
-            <button onClick={() => router.push("/loans/new")}
+            <button onClick={() => router.push("/loans")}
               className="flex items-center gap-2 bg-[#1565C0] hover:bg-[#0D47A1] text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
               + New Loan
             </button>
@@ -83,13 +83,13 @@ export default function LoansPage() {
         {/* KPI strip */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[
-            { label:"Total Disbursed", val:fmt(stats.totalDisbursed), icon:"??", color:"#1565C0", bg:"#EAF2FB" },
-            { label:"Outstanding", val:fmt(stats.outstanding), icon:"?", color:"#E67E22", bg:"#FEF3E2" },
+            { label:"Total Disbursed", val:fmt(stats.totalDisbursed), icon:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1565C0" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>', color:"#1565C0", bg:"#EAF2FB" },
+            { label:"Outstanding", val:fmt(stats.outstanding), icon:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E67E22" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', color:"#E67E22", bg:"#FEF3E2" },
             { label:"Active Loans", val:stats.active, icon:"??", color:"#0D7377", bg:"#E0F4F4" },
-            { label:"Fully Paid", val:stats.paid, icon:"?", color:"#1B8A5A", bg:"#E8F5EF" },
+            { label:"Fully Paid", val:stats.paid, icon:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>', color:"#1B8A5A", bg:"#E8F5EF" },
           ].map(k => (
             <div key={k.label} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: k.bg }}>{k.icon}</div>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: k.bg }}><span dangerouslySetInnerHTML={{ __html: k.icon }} /></div>
               <div>
                 <p className="text-xs text-gray-500">{k.label}</p>
                 <p className="text-lg font-bold" style={{ color: k.color }}>{k.val}</p>
