@@ -73,7 +73,7 @@ export default function LoansPage() {
             <p className="text-xs text-gray-500 mt-0.5">{stats.total} total loans � {stats.active} active</p>
           </div>
           {isAdmin && (
-            <button onClick={() => router.push("/loans")}
+            <button onClick={() => router.push("/loans/new")}
               className="flex items-center gap-2 bg-[#1565C0] hover:bg-[#0D47A1] text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
               + New Loan
             </button>
