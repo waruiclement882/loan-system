@@ -1,0 +1,213 @@
+﻿
+===== src/services/webhookService.js =====
+const pool = require('../db/connection');
+const { getProvider } = require('./providers/providerFactory');
+
+const logWebhook = async ({ provider, endpoint, method, headers, body, signatureValid, responseCode, responseBody, processingTimeMs, ipAddress }) => {
+  try {
+    await pool.query(
+      `INSERT INTO webhook_logs (provider, endpoint, method, headers, body, signature_valid, response_code, response_body, processing_time_ms, ip_address)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [provider, endpoint, method, JSON.stringify(headers), JSON.stringify(body), signatureValid, responseCode, JSON.stringify(responseBody), processingTimeMs, ipAddress]
+    );
+  } catch (err) {
+    console.error('[WebhookService] Failed to log webhook:', err.message);
+  }
+};
+
+const isDuplicate = async (transactionReference) => {
+  const result = await pool.query(
+    `SELECT id, status FROM bank_transactions WHERE transaction_reference = $1`,
+    [transactionReference]
+  );
+  return result.rows.length > 0 ? result.rows[0] : null;
+};
+
+const recordTransaction = async (normalized, status = 'received') => {
+  const result = await pool.query(
+    `INSERT INTO bank_transactions
+      (provider, transaction_reference, request_id, amount, currency,
+       customer_reference, customer_name, customer_phone, channel_code,
+       narration, organization_short_code, raw_payload, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     RETURNING id`,
+    [
+      'kcb_paybill', normalized.transactionReference, normalized.requestId,
+      normalized.amount, normalized.currency, normalized.customerReference,
+      normalized.customerName, normalized.customerPhone, normalized.channelCode,
+      normalized.narration, normalized.organizationShortCode,
+      JSON.stringify(normalized.raw), status,
+    ]
+  );
+  return result.rows[0].id;
+};
+
+const processKcbWebhook = async ({ headers, body, ip }) => {
+  const startTime = Date.now();
+
+  // â”€â”€ Log raw incoming payload for debugging â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  console.log('[KCB Webhook] Received:', JSON.stringify(body, null, 2));
+
+  const provider = getProvider('kcb');
+  const signature = headers['signature'] || headers['Signature'] || headers['x-signature'];
+  const signatureResult = provider.validateWebhookSignature(signature, body);
+  const normalized = provider.normalizePayload(body);
+
+  // â”€â”€ Validate required fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  if (!normalized.transactionReference || !normalized.amount) {
+    console.error('[KCB Webhook] Missing required fields:', { ref: normalized.transactionReference, amount: normalized.amount });
+    const errResponse = {
+      transactionID: normalized.transactionReference || '',
+      statusCode: '1',
+      statusMessage: 'Missing required fields: transactionReference or transactionAmount'
+    };
+    await logWebhook({
+      provider: 'kcb', endpoint: '/webhooks/kcb', method: 'POST',
+      headers, body, signatureValid: false,
+      responseCode: 400, responseBody: errResponse,
+      processingTimeMs: Date.now() - startTime, ipAddress: ip
+    });
+    return { statusCode: 400, response: errResponse };
+  }
+
+  // â”€â”€ Check for duplicate transaction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const existing = await isDuplicate(normalized.transactionReference);
+  if (existing) {
+    console.warn(`[KCB Webhook] Duplicate ignored: ${normalized.transactionReference}`);
+    const dupResponse = {
+      transactionID: normalized.transactionReference,
+      statusCode: '0',
+      statusMessage: 'Notification received'
+    };
+    return { statusCode: 200, response: dupResponse };
+  }
+
+  // â”€â”€ Record transaction â€” cashier matches manually â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const bankTransactionId = await recordTransaction(normalized, 'received');
+  console.log(`[KCB Webhook] Recorded transaction #${bankTransactionId}: ${normalized.transactionReference} â€” KES ${normalized.amount}`);
+
+  // â”€â”€ KCB standard response â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const responseBody = {
+    transactionID: normalized.transactionReference,
+    statusCode: '0',
+    statusMessage: 'Notification received'
+  };
+
+  // â”€â”€ Log webhook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  await logWebhook({
+    provider: 'kcb', endpoint: '/webhooks/kcb', method: 'POST',
+    headers, body, signatureValid: signatureResult.valid,
+    responseCode: 200, responseBody,
+    processingTimeMs: Date.now() - startTime, ipAddress: ip
+  });
+
+  return { statusCode: 200, response: responseBody };
+};
+
+module.exports = { processKcbWebhook, logWebhook };
+
+
+===== src/services/providers/kcbProvider.js =====
+const axios = require('axios');
+const { kcbConfig } = require('../../../config/kcb');
+const { getToken } = require('../token/tokenService');
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const makeRequest = async (method, url, data = null, headers = {}, attempt = 1) => {
+  try {
+    const token = await getToken();
+    const response = await axios({
+      method, url, data,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...headers,
+      },
+      timeout: kcbConfig.timeout,
+    });
+    return response.data;
+  } catch (err) {
+    const status = err.response?.status;
+    if (status === 401) {
+      const pool = require('../../db/connection');
+      await pool.query(`DELETE FROM token_cache WHERE provider = 'kcb'`);
+      if (attempt < kcbConfig.retryAttempts) {
+        return makeRequest(method, url, data, headers, attempt + 1);
+      }
+    }
+    const isRetryable = !status || status === 429 || status >= 500;
+    if (isRetryable && attempt < kcbConfig.retryAttempts) {
+      await sleep(kcbConfig.retryDelay * attempt);
+      return makeRequest(method, url, data, headers, attempt + 1);
+    }
+    throw new Error(`[KCBProvider] Request failed: ${err.response?.data?.message || err.message}`);
+  }
+};
+
+const validateWebhookSignature = (signature, payload) => {
+  if (!signature) {
+    console.warn('[KCBProvider] No signature header â€” skipping validation');
+    return { valid: true, warning: 'No signature present' };
+  }
+  return { valid: true, warning: 'Signature validation not yet implemented' };
+};
+
+const normalizePayload = (raw) => ({
+  transactionReference: raw.transactionReference,
+  requestId: raw.requestId,
+  channelCode: raw.channelCode,
+  timestamp: raw.timestamp,
+  amount: parseFloat(raw.transactionAmount || 0),
+  currency: raw.currency || 'KES',
+  customerReference: raw.customerReference,
+  customerName: raw.customerName,
+  customerPhone: raw.customerMobileNumber,
+  narration: raw.narration,
+  organizationShortCode: raw.organizationShortCode,
+  raw,
+});
+
+module.exports = { makeRequest, validateWebhookSignature, normalizePayload };
+
+===== src/routes/webhooks.js =====
+const express = require('express');
+const router = express.Router();
+const { handleKcbWebhook, health } = require('../controllers/webhookController');
+
+router.get('/kcb/health', health);
+router.post('/kcb', handleKcbWebhook);
+
+module.exports = router;
+
+===== src/routes/payments.js =====
+const express = require('express');
+const router = express.Router();
+const paymentController = require('../controllers/paymentController');
+const { verifyToken, requireRole } = require('../middlewares/authMiddleware');
+
+router.get('/', verifyToken, paymentController.getAllPayments);
+router.post('/', verifyToken, paymentController.createPayment);
+router.get('/unmatched', verifyToken, requireRole('admin', 'cashier', 'branch_admin'), paymentController.getUnmatched);
+router.get('/income', verifyToken, requireRole('admin', 'cashier', 'branch_admin', 'cfo'), async (req, res) => {
+  try {
+    const result = await require('../db/pool').query(`
+      SELECT ci.id, ci.loan_id, ci.amount, ci.type,
+             ci.transaction_code, ci.notes, ci.created_at,
+             c.name AS customer_name
+      FROM company_income ci
+      LEFT JOIN loans l ON ci.loan_id = l.id
+      LEFT JOIN customers c ON l.customer_id = c.id
+      ORDER BY ci.created_at DESC
+    `);
+    const total = result.rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+    res.json({ income: result.rows, total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.post('/match', verifyToken, requireRole('admin', 'cashier', 'branch_admin'), (req, res) => paymentController.matchTransaction(req, res));
+router.post('/manual', verifyToken, requireRole('admin', 'cashier', 'branch_admin'), (req, res) => paymentController.manualPayment(req, res));
+
+module.exports = router;

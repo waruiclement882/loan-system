@@ -23,6 +23,7 @@ const ALL_MODULES = [
   { id:"schedule",label:"Schedule",icon:"T",path:"/schedule",roles:["super_admin","admin","branch_admin","cashier","loan_officer","cfo"],color:"#27AE60",bg:"#E9F7EF",desc:"Repayment schedules",group:"Records" },
   { id:"statement",label:"Statement",icon:"N",path:"/statement",roles:["super_admin","admin","branch_admin","cashier","loan_officer","cfo"],color:"#2980B9",bg:"#EAF4FB",desc:"Loan statements",group:"Records" },
   { id:"collection",label:"Collection Sheet",icon:"K",path:"/collection",roles:["super_admin","admin","branch_admin","cashier","loan_officer"],color:"#148F77",bg:"#E8F8F5",desc:"Daily collection sheets",group:"Records" },
+  { id:"documents",label:"Documents",icon:"J",path:"/documents",roles:["super_admin","admin","branch_admin","cashier","cfo"],color:"#0B6B6E",bg:"#E4F2F2",desc:"Vouchers, agreements & receipts",group:"Records" },
   { id:"export",label:"Export",icon:"Z",path:"/export",roles:["super_admin","admin","cfo"],color:"#2E4053",bg:"#EAECEE",desc:"Export data to Excel/PDF",group:"Records" },
   { id:"branches",label:"Branches",icon:"B",path:"/branches",roles:["super_admin","admin"],color:"#1A252F",bg:"#EAECEE",desc:"Branch management",group:"Admin" },
   { id:"users",label:"Users",icon:"U",path:"/users",roles:["super_admin","admin"],color:"#1A252F",bg:"#EAECEE",desc:"User & role management",group:"Admin" },

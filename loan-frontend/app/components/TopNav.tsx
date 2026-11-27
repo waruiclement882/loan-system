@@ -21,6 +21,7 @@ const MODULES = [
   { id:"par",label:"PAR",icon:"⚠️",path:"/par",roles:["super_admin","admin","branch_admin","cfo"],color:"#E74C3C" },
   { id:"schedule",label:"Schedule",icon:"📅",path:"/schedule",roles:["super_admin","admin","branch_admin","cashier","loan_officer","cfo"],color:"#27AE60" },
   { id:"collection",label:"Collection Sheet",icon:"📝",path:"/collection",roles:["super_admin","admin","branch_admin","cashier","loan_officer"],color:"#2980B9" },
+  { id:"documents",label:"Documents",icon:"📄",path:"/documents",roles:["super_admin","admin","branch_admin","cashier","cfo"],color:"#0B6B6E" },
   { id:"branches",label:"Branches",icon:"🏢",path:"/branches",roles:["super_admin","admin"],color:"#1A252F" },
   { id:"users",label:"Users",icon:"👤",path:"/users",roles:["super_admin","admin"],color:"#1A252F" },
   { id:"audit",label:"Audit Log",icon:"🔍",path:"/audit",roles:["super_admin","admin","cfo"],color:"#1A252F" },
