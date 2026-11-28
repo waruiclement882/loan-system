@@ -69,7 +69,7 @@ export default function ApprovalsPage() {
     setTimeout(() => setMsg(null), 4000);
   };
 
-  const handleDisburse = async (id) => {
+  const handleDisburse = async (id: number) => {
     if (!confirm("Disburse Loan #" + id + "? This will generate the repayment schedule.")) return;
     setProcessing(id);
     try {
