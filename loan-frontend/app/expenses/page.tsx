@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Layout from "../components/Layout";
 
 const API = "https://loan-system-h794.onrender.com";
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -139,43 +140,31 @@ export default function ExpensesPage() {
   const fmt = (n: any) => parseFloat(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-        <h1 className="text-xl font-bold text-blue-600">Microfinance System</h1>
-        <div className="flex gap-4 text-sm">
-          {["dashboard","loans","customers","payments"].map(p => (
-            <button key={p} onClick={() => router.push("/"+p)} className="text-slate-500 hover:text-blue-600 capitalize">{p}</button>
-          ))}
-          <button onClick={() => router.push("/reports")} className="text-slate-500 hover:text-blue-600">Reports</button>
-          <button onClick={() => { localStorage.clear(); router.push("/login"); }} className="text-red-400 hover:text-red-600">Logout</button>
-        </div>
-      </nav>
-
-      <div className="p-6 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+    <Layout>
+      <div className="p-4 md:p-6 max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800">📊 Expenses & P&L</h2>
-            <p className="text-slate-400 text-sm mt-0.5">Track costs and monthly profit & loss</p>
+            <h1 className="text-xl font-bold text-[#0B2545]">Expenses & P&amp;L</h1>
+            <p className="text-gray-400 text-sm mt-0.5">Track costs and monthly profit &amp; loss</p>
           </div>
           <button onClick={() => setShowForm(!showForm)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700">
+            className="bg-[#1565C0] hover:bg-[#0D47A1] text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
             + Record Expense
           </button>
         </div>
-
         {/* Period Filter */}
-        <div className="flex items-center gap-3 mb-6 bg-white rounded-xl border border-slate-200 p-4">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Period:</span>
+        <div className="flex items-center gap-3 mb-6 bg-white rounded-xl border border-gray-200 p-4">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Period:</span>
           <select value={filterMonth} onChange={e => setFilterMonth(parseInt(e.target.value))}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
             {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{m}</option>)}
           </select>
           <select value={filterYear} onChange={e => setFilterYear(parseInt(e.target.value))}
-            className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <span className="text-sm font-medium text-slate-600">{MONTHS[filterMonth-1]} {filterYear}</span>
-          <button onClick={() => window.print()} className="ml-auto text-sm text-slate-500 border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50">🖨️ Print</button>
+          <button onClick={() => window.print()} className="ml-auto text-sm text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-[#F0F2F5]">🖨️ Print</button>
         </div>
 
         {msg && (
@@ -186,39 +175,39 @@ export default function ExpensesPage() {
 
         {/* Record Form */}
         {showForm && (
-          <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
             <h3 className="font-semibold text-slate-700 mb-4">Record Expense</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-xs text-slate-400 mb-1 font-medium">Category *</label>
+                <label className="block text-xs text-gray-400 mb-1 font-medium">Category *</label>
                 <select value={form.category} onChange={e => setForm({...form, category: e.target.value})}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
                   <option value="">Select category</option>
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1 font-medium">Amount (KES) *</label>
+                <label className="block text-xs text-gray-400 mb-1 font-medium">Amount (KES) *</label>
                 <input type="number" placeholder="e.g. 5000" value={form.amount}
                   onChange={e => setForm({...form, amount: e.target.value})}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1 font-medium">Date *</label>
+                <label className="block text-xs text-gray-400 mb-1 font-medium">Date *</label>
                 <input type="date" value={form.expense_date}
                   onChange={e => setForm({...form, expense_date: e.target.value})}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs text-slate-400 mb-1 font-medium">Description *</label>
+                <label className="block text-xs text-gray-400 mb-1 font-medium">Description *</label>
                 <input placeholder="e.g. June salary for loan officer" value={form.description}
                   onChange={e => setForm({...form, description: e.target.value})}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1 font-medium">Payment Method</label>
+                <label className="block text-xs text-gray-400 mb-1 font-medium">Payment Method</label>
                 <select value={form.payment_method} onChange={e => setForm({...form, payment_method: e.target.value})}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
                   <option value="cash">Cash</option>
                   <option value="mpesa">M-Pesa</option>
                   <option value="bank">Bank Transfer</option>
@@ -231,17 +220,17 @@ export default function ExpensesPage() {
                 className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
                 {submitting ? "Saving..." : "💾 Save"}
               </button>
-              <button onClick={() => setShowForm(false)} className="text-slate-500 border border-slate-200 px-5 py-2 rounded-lg text-sm">Cancel</button>
+              <button onClick={() => setShowForm(false)} className="text-gray-500 border border-gray-200 px-5 py-2 rounded-lg text-sm">Cancel</button>
             </div>
           </div>
         )}
 
         {/* Main Tabs */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="flex border-b border-slate-200">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex border-b border-gray-200">
             {[{ key: "expenses", label: "💸 Expenses" }, { key: "pnl", label: "📈 P&L Report" }].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={`px-6 py-3 text-sm font-medium transition-colors ${activeTab === tab.key ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50" : "text-slate-500 hover:text-slate-700"}`}>
+                className={`px-6 py-3 text-sm font-medium transition-colors ${activeTab === tab.key ? "text-[#1565C0] border-b-2 border-[#1565C0] bg-[#EAF2FB]" : "text-gray-500 hover:text-slate-700"}`}>
                 {tab.label}
               </button>
             ))}
@@ -254,12 +243,12 @@ export default function ExpensesPage() {
               <div>
                 <div className="flex items-center gap-3 mb-4 flex-wrap">
                   <button onClick={() => setFilterCategory("")}
-                    className={`text-xs px-3 py-1 rounded-full border ${!filterCategory ? "bg-blue-600 text-white border-blue-600" : "text-slate-500 border-slate-200 hover:border-blue-300"}`}>
+                    className={`text-xs px-3 py-1 rounded-full border ${!filterCategory ? "bg-[#1565C0] text-white border-[#1565C0]" : "text-gray-500 border-gray-200 hover:border-[#1565C0]"}`}>
                     All
                   </button>
                   {categories.map(c => (
                     <button key={c} onClick={() => setFilterCategory(c === filterCategory ? "" : c)}
-                      className={`text-xs px-3 py-1 rounded-full border ${filterCategory === c ? "bg-blue-600 text-white border-blue-600" : "text-slate-500 border-slate-200 hover:border-blue-300"}`}>
+                      className={`text-xs px-3 py-1 rounded-full border ${filterCategory === c ? "bg-[#1565C0] text-white border-[#1565C0]" : "text-gray-500 border-gray-200 hover:border-[#1565C0]"}`}>
                       {c}
                     </button>
                   ))}
@@ -272,29 +261,29 @@ export default function ExpensesPage() {
                   </div>
                 </div>
                 {loading ? (
-                  <div className="flex justify-center py-12 text-slate-400 text-sm gap-2">
+                  <div className="flex justify-center py-12 text-gray-400 text-sm gap-2">
                     <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /> Loading...
                   </div>
                 ) : expenses.length === 0 ? (
-                  <div className="text-center py-12"><p className="text-3xl mb-2">💸</p><p className="text-slate-400 text-sm">No expenses for this period</p></div>
+                  <div className="text-center py-12"><p className="text-3xl mb-2">💸</p><p className="text-gray-400 text-sm">No expenses for this period</p></div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-100">
                           {["Date","Category","Description","Method","Ref","Amount","Status",""].map(h => (
-                            <th key={h} className="text-left py-2 px-3 text-xs font-medium text-slate-400 uppercase tracking-wide">{h}</th>
+                            <th key={h} className="text-left py-2 px-3 text-xs font-medium text-gray-400 uppercase tracking-wide">{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {expenses.map((exp: any) => (
-                          <tr key={exp.id} className={"border-b border-slate-50 hover:bg-slate-50" + (exp.status && exp.status !== "approved" ? " opacity-60" : "")}>
-                            <td className="py-3 px-3 text-slate-500 text-xs">{new Date(exp.expense_date).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"numeric"})}</td>
+                          <tr key={exp.id} className={"border-b border-slate-50 hover:bg-[#F0F2F5]" + (exp.status && exp.status !== "approved" ? " opacity-60" : "")}>
+                            <td className="py-3 px-3 text-gray-500 text-xs">{new Date(exp.expense_date).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"numeric"})}</td>
                             <td className="py-3 px-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getCategoryColor(exp.category)}`}>{exp.category}</span></td>
                             <td className="py-3 px-3 text-slate-700">{exp.description}{exp.status === "rejected" && exp.rejection_reason && (<span className="block text-xs text-red-500">Rejected: {exp.rejection_reason}</span>)}</td>
-                            <td className="py-3 px-3 text-slate-500 capitalize text-xs">{exp.payment_method}</td>
-                            <td className="py-3 px-3 text-slate-400 text-xs font-mono">{exp.reference || "—"}</td>
+                            <td className="py-3 px-3 text-gray-500 capitalize text-xs">{exp.payment_method}</td>
+                            <td className="py-3 px-3 text-gray-400 text-xs font-mono">{exp.reference || "—"}</td>
                             <td className="py-3 px-3 font-bold text-red-600">KES {fmt(exp.amount)}</td>
                             <td className="py-3 px-3"><span className={"text-xs px-2 py-0.5 rounded-full font-medium " + ((exp.status || "approved") === "approved" ? "bg-green-100 text-green-700" : exp.status === "rejected" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700")}>{(exp.status || "approved").charAt(0).toUpperCase() + (exp.status || "approved").slice(1)}</span></td>
                             <td className="py-3 px-3">
@@ -303,7 +292,7 @@ export default function ExpensesPage() {
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-slate-50 border-t border-slate-200">
+                      <tfoot className="bg-[#F0F2F5] border-t border-gray-200">
                         <tr>
                           <td colSpan={5} className="py-3 px-3 font-semibold text-slate-600 text-sm">Total (approved only)</td>
                           <td className="py-3 px-3 font-bold text-red-600">KES {fmt(totalExpenses)}</td>
@@ -321,8 +310,8 @@ export default function ExpensesPage() {
             {activeTab === "pnl" && pnl && (
               <div className="space-y-6">
                 <div className="text-center pb-4 border-b border-slate-100">
-                  <h3 className="text-xl font-bold text-slate-800">Profit & Loss Statement</h3>
-                  <p className="text-slate-400 text-sm">{MONTHS[pnl.month-1]} {pnl.year}</p>
+                  <h3 className="text-xl font-bold text-[#0B2545]">Profit & Loss Statement</h3>
+                  <p className="text-gray-400 text-sm">{MONTHS[pnl.month-1]} {pnl.year}</p>
                 </div>
 
                 {/* Summary Cards */}
@@ -447,7 +436,7 @@ export default function ExpensesPage() {
                   </div>
                 )}
                 {/* P&L Sub-tabs */}
-                <div className="flex gap-2 border-b border-slate-200 pb-0">
+                <div className="flex gap-2 border-b border-gray-200 pb-0">
                   {[
                     { key: "summary", label: "📋 Summary" },
                     { key: "all_loans", label: "🏦 All Loans with Payments" },
@@ -455,7 +444,7 @@ export default function ExpensesPage() {
                     { key: "bad_debt", label: "⚠️ Bad Debt" },
                   ].map(t => (
                     <button key={t.key} onClick={() => setPnlTab(t.key)}
-                      className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors border-b-2 ${pnlTab === t.key ? "text-blue-600 border-blue-600 bg-blue-50" : "text-slate-500 border-transparent hover:text-slate-700"}`}>
+                      className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors border-b-2 ${pnlTab === t.key ? "text-blue-600 border-blue-600 bg-blue-50" : "text-gray-500 border-transparent hover:text-slate-700"}`}>
                       {t.label}
                     </button>
                   ))}
@@ -464,36 +453,36 @@ export default function ExpensesPage() {
                 {/* BREAKDOWN 1: Summary */}
                 {pnlTab === "summary" && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="border border-gray-200 rounded-xl overflow-hidden">
                       <div className="bg-emerald-600 px-4 py-3"><h4 className="font-semibold text-white text-sm">Income Breakdown</h4></div>
                       <div className="divide-y divide-slate-100">
-                        <div className="px-4 py-3 bg-slate-50">
+                        <div className="px-4 py-3 bg-[#F0F2F5]">
                           <div className="flex justify-between items-center">
-                            <div><p className="text-sm font-medium text-slate-700">Loan Repayments (Total)</p><p className="text-xs text-slate-400">{pnl.income.repayments.count} payments received</p></div>
+                            <div><p className="text-sm font-medium text-slate-700">Loan Repayments (Total)</p><p className="text-xs text-gray-400">{pnl.income.repayments.count} payments received</p></div>
                             <p className="font-bold text-slate-600">KES {fmt(pnl.income.repayments.total)}</p>
                           </div>
                         </div>
                         <div className="px-4 py-3 pl-8">
                           <div className="flex justify-between items-center">
-                            <div><p className="text-sm text-slate-600">└ Interest Income</p><p className="text-xs text-slate-400">Actual profit portion</p></div>
+                            <div><p className="text-sm text-slate-600">└ Interest Income</p><p className="text-xs text-gray-400">Actual profit portion</p></div>
                             <p className="font-bold text-emerald-600">KES {fmt(pnl.income.repayments.interest)}</p>
                           </div>
                         </div>
                         <div className="px-4 py-3 pl-8">
                           <div className="flex justify-between items-center">
-                            <div><p className="text-sm text-slate-600">└ Principal Recovered</p><p className="text-xs text-slate-400">Capital returned (not income)</p></div>
-                            <p className="font-medium text-slate-400">KES {fmt(pnl.income.repayments.principal)}</p>
+                            <div><p className="text-sm text-slate-600">└ Principal Recovered</p><p className="text-xs text-gray-400">Capital returned (not income)</p></div>
+                            <p className="font-medium text-gray-400">KES {fmt(pnl.income.repayments.principal)}</p>
                           </div>
                         </div>
                         <div className="px-4 py-3">
                           <div className="flex justify-between items-center">
-                            <div><p className="text-sm font-medium text-slate-700">Processing Fees</p><p className="text-xs text-slate-400">{pnl.income.processing_fees.count} loans</p></div>
+                            <div><p className="text-sm font-medium text-slate-700">Processing Fees</p><p className="text-xs text-gray-400">{pnl.income.processing_fees.count} loans</p></div>
                             <p className="font-bold text-emerald-600">KES {fmt(pnl.income.processing_fees.total)}</p>
                           </div>
                         </div>
                         <div className="px-4 py-3">
                           <div className="flex justify-between items-center">
-                            <div><p className="text-sm font-medium text-slate-700">Float Income</p><p className="text-xs text-slate-400">{pnl.income.float_income.count} transactions</p></div>
+                            <div><p className="text-sm font-medium text-slate-700">Float Income</p><p className="text-xs text-gray-400">{pnl.income.float_income.count} transactions</p></div>
                             <p className="font-bold text-emerald-600">KES {fmt(pnl.income.float_income.total)}</p>
                           </div>
                         </div>
@@ -505,15 +494,15 @@ export default function ExpensesPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="border border-gray-200 rounded-xl overflow-hidden">
                       <div className="bg-red-600 px-4 py-3"><h4 className="font-semibold text-white text-sm">Expenses Breakdown</h4></div>
                       {pnl.expenses.breakdown.length === 0 ? (
-                        <div className="text-center py-8 text-slate-400 text-sm">No expenses recorded</div>
+                        <div className="text-center py-8 text-gray-400 text-sm">No expenses recorded</div>
                       ) : (
                         <div className="divide-y divide-slate-100">
                           {pnl.expenses.breakdown.map((exp: any) => (
                             <div key={exp.category} className="flex justify-between items-center px-4 py-3">
-                              <div><p className="text-sm font-medium text-slate-700">{exp.category}</p><p className="text-xs text-slate-400">{exp.count} record{exp.count > 1 ? "s" : ""}</p></div>
+                              <div><p className="text-sm font-medium text-slate-700">{exp.category}</p><p className="text-xs text-gray-400">{exp.count} record{exp.count > 1 ? "s" : ""}</p></div>
                               <p className="font-bold text-red-600">KES {fmt(exp.total)}</p>
                             </div>
                           ))}
@@ -524,19 +513,19 @@ export default function ExpensesPage() {
                         </div>
                       )}
                     </div>
-                    <div className="md:col-span-2 bg-slate-50 rounded-xl border border-slate-200 p-4 flex justify-between items-center">
-                      <div><p className="text-sm font-semibold text-slate-700">Loans Disbursed This Month</p><p className="text-xs text-slate-400">{pnl.disbursed.count} new loans issued</p></div>
+                    <div className="md:col-span-2 bg-[#F0F2F5] rounded-xl border border-gray-200 p-4 flex justify-between items-center">
+                      <div><p className="text-sm font-semibold text-slate-700">Loans Disbursed This Month</p><p className="text-xs text-gray-400">{pnl.disbursed.count} new loans issued</p></div>
                       <p className="text-xl font-bold text-blue-600">KES {fmt(pnl.disbursed.total)}</p>
                     </div>
                     <div className={`md:col-span-2 rounded-xl border p-5 ${pnl.net_profit >= 0 ? "bg-blue-50 border-blue-200" : "bg-orange-50 border-orange-200"}`}>
                       <div className="flex justify-between items-center">
                         <div>
                           <p className="font-bold text-slate-700 text-lg">Net {pnl.net_profit >= 0 ? "Profit" : "Loss"} — {MONTHS[pnl.month-1]} {pnl.year}</p>
-                          <p className="text-slate-500 text-sm">Interest KES {fmt(pnl.income.repayments.interest)} + Fees KES {fmt(pnl.income.processing_fees.total)} + Float KES {fmt(pnl.income.float_income.total)} − Expenses KES {fmt(pnl.expenses.total)}</p>
+                          <p className="text-gray-500 text-sm">Interest KES {fmt(pnl.income.repayments.interest)} + Fees KES {fmt(pnl.income.processing_fees.total)} + Float KES {fmt(pnl.income.float_income.total)} − Expenses KES {fmt(pnl.expenses.total)}</p>
                         </div>
                         <div className="text-right">
                           <p className={`text-3xl font-bold ${pnl.net_profit >= 0 ? "text-blue-600" : "text-orange-600"}`}>{pnl.net_profit >= 0 ? "+" : "-"}KES {fmt(Math.abs(pnl.net_profit))}</p>
-                          <p className="text-xs text-slate-400">{pnl.profit_margin}% profit margin</p>
+                          <p className="text-xs text-gray-400">{pnl.profit_margin}% profit margin</p>
                         </div>
                       </div>
                     </div>
@@ -546,10 +535,10 @@ export default function ExpensesPage() {
                 {/* BREAKDOWN 2: All loans with payments this month */}
                 {pnlTab === "all_loans" && (
                   <div>
-                    <p className="text-sm text-slate-500 mb-4">All loans that received payments in {MONTHS[pnl.month-1]} {pnl.year} — includes loans from previous months still being repaid.</p>
+                    <p className="text-sm text-gray-500 mb-4">All loans that received payments in {MONTHS[pnl.month-1]} {pnl.year} — includes loans from previous months still being repaid.</p>
                     <div className="grid grid-cols-3 gap-3 mb-4">
-                      <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 text-center">
-                        <p className="text-xs text-slate-400">Loans with Payments</p>
+                      <div className="bg-[#F0F2F5] rounded-xl border border-gray-200 p-3 text-center">
+                        <p className="text-xs text-gray-400">Loans with Payments</p>
                         <p className="text-2xl font-bold text-slate-700">{pnl.breakdown2_all_loans?.length || 0}</p>
                       </div>
                       <div className="bg-blue-50 rounded-xl border border-blue-200 p-3 text-center">
@@ -566,7 +555,7 @@ export default function ExpensesPage() {
                         <thead>
                           <tr className="border-b border-slate-100">
                             {["Customer","Loan #","Loan Date","Loan Amount","Payments","Total Paid","Interest Earned","Principal"].map(h => (
-                              <th key={h} className="text-left py-2 px-3 text-xs font-medium text-slate-400 uppercase tracking-wide">{h}</th>
+                              <th key={h} className="text-left py-2 px-3 text-xs font-medium text-gray-400 uppercase tracking-wide">{h}</th>
                             ))}
                           </tr>
                         </thead>
@@ -574,11 +563,11 @@ export default function ExpensesPage() {
                           {pnl.breakdown2_all_loans?.map((row: any) => {
                             const isNewLoan = new Date(row.loan_date).getMonth() + 1 === pnl.month && new Date(row.loan_date).getFullYear() === pnl.year;
                             return (
-                              <tr key={row.loan_id} className={`border-b hover:bg-slate-50 cursor-pointer ${isNewLoan ? "bg-blue-50/30" : ""}`}
+                              <tr key={row.loan_id} className={`border-b hover:bg-[#F0F2F5] cursor-pointer ${isNewLoan ? "bg-blue-50/30" : ""}`}
                                 onClick={() => router.push(`/loans/${row.loan_id}`)}>
-                                <td className="py-2 px-3 font-medium text-slate-800">{row.customer_name}</td>
+                                <td className="py-2 px-3 font-medium text-[#0B2545]">{row.customer_name}</td>
                                 <td className="py-2 px-3 text-blue-600 font-mono text-xs">#{row.loan_id}</td>
-                                <td className="py-2 px-3 text-slate-500 text-xs">
+                                <td className="py-2 px-3 text-gray-500 text-xs">
                                   {new Date(row.loan_date).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"numeric"})}
                                   {isNewLoan && <span className="ml-1 text-xs bg-blue-100 text-blue-600 px-1 rounded">New</span>}
                                 </td>
@@ -586,17 +575,17 @@ export default function ExpensesPage() {
                                 <td className="py-2 px-3 text-center">{row.payment_count}</td>
                                 <td className="py-2 px-3 font-medium text-blue-600">KES {fmt(row.total_paid)}</td>
                                 <td className="py-2 px-3 font-medium text-emerald-600">KES {fmt(row.interest_paid)}</td>
-                                <td className="py-2 px-3 text-slate-400">KES {fmt(row.principal_paid)}</td>
+                                <td className="py-2 px-3 text-gray-400">KES {fmt(row.principal_paid)}</td>
                               </tr>
                             );
                           })}
                         </tbody>
-                        <tfoot className="bg-slate-50 border-t border-slate-200 font-semibold">
+                        <tfoot className="bg-[#F0F2F5] border-t border-gray-200 font-semibold">
                           <tr>
                             <td colSpan={5} className="py-3 px-3 text-slate-600">Total</td>
                             <td className="py-3 px-3 text-blue-600">KES {fmt(pnl.income.repayments.total)}</td>
                             <td className="py-3 px-3 text-emerald-600">KES {fmt(pnl.income.repayments.interest)}</td>
-                            <td className="py-3 px-3 text-slate-400">KES {fmt(pnl.income.repayments.principal)}</td>
+                            <td className="py-3 px-3 text-gray-400">KES {fmt(pnl.income.repayments.principal)}</td>
                           </tr>
                         </tfoot>
                       </table>
@@ -607,10 +596,10 @@ export default function ExpensesPage() {
                 {/* BREAKDOWN 3: New loans this month only */}
                 {pnlTab === "new_loans" && pnl.breakdown3_new_loans && (
                   <div>
-                    <p className="text-sm text-slate-500 mb-4">Only loans disbursed in {MONTHS[pnl.month-1]} {pnl.year} and their payments made during this month.</p>
+                    <p className="text-sm text-gray-500 mb-4">Only loans disbursed in {MONTHS[pnl.month-1]} {pnl.year} and their payments made during this month.</p>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                      <div className="bg-slate-50 rounded-xl border border-slate-200 p-3 text-center">
-                        <p className="text-xs text-slate-400">New Loans</p>
+                      <div className="bg-[#F0F2F5] rounded-xl border border-gray-200 p-3 text-center">
+                        <p className="text-xs text-gray-400">New Loans</p>
                         <p className="text-2xl font-bold text-slate-700">{pnl.breakdown3_new_loans.summary.loan_count}</p>
                       </div>
                       <div className="bg-blue-50 rounded-xl border border-blue-200 p-3 text-center">
@@ -631,17 +620,17 @@ export default function ExpensesPage() {
                         <thead>
                           <tr className="border-b border-slate-100">
                             {["Customer","Loan #","Disbursed","Loan Amount","Expected Total","Paid This Month","Interest Earned","Remaining"].map(h => (
-                              <th key={h} className="text-left py-2 px-3 text-xs font-medium text-slate-400 uppercase tracking-wide">{h}</th>
+                              <th key={h} className="text-left py-2 px-3 text-xs font-medium text-gray-400 uppercase tracking-wide">{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {pnl.breakdown3_new_loans.loans.map((row: any) => (
-                            <tr key={row.loan_id} className="border-b hover:bg-slate-50 cursor-pointer"
+                            <tr key={row.loan_id} className="border-b hover:bg-[#F0F2F5] cursor-pointer"
                               onClick={() => router.push(`/loans/${row.loan_id}`)}>
-                              <td className="py-2 px-3 font-medium text-slate-800">{row.customer_name}</td>
+                              <td className="py-2 px-3 font-medium text-[#0B2545]">{row.customer_name}</td>
                               <td className="py-2 px-3 text-blue-600 font-mono text-xs">#{row.loan_id}</td>
-                              <td className="py-2 px-3 text-slate-500 text-xs">{new Date(row.loan_date).toLocaleDateString("en-KE",{day:"numeric",month:"short"})}</td>
+                              <td className="py-2 px-3 text-gray-500 text-xs">{new Date(row.loan_date).toLocaleDateString("en-KE",{day:"numeric",month:"short"})}</td>
                               <td className="py-2 px-3">KES {fmt(row.amount)}</td>
                               <td className="py-2 px-3">KES {fmt(row.total_amount)}</td>
                               <td className="py-2 px-3 font-medium text-blue-600">{parseFloat(row.total_paid) > 0 ? `KES ${fmt(row.total_paid)}` : <span className="text-slate-300">—</span>}</td>
@@ -650,7 +639,7 @@ export default function ExpensesPage() {
                             </tr>
                           ))}
                         </tbody>
-                        <tfoot className="bg-slate-50 border-t border-slate-200 font-semibold">
+                        <tfoot className="bg-[#F0F2F5] border-t border-gray-200 font-semibold">
                           <tr>
                             <td colSpan={4} className="py-3 px-3 text-slate-600">Total ({pnl.breakdown3_new_loans.summary.loan_count} loans)</td>
                             <td className="py-3 px-3 text-slate-600">KES {fmt(pnl.breakdown3_new_loans.loans.reduce((s:number,r:any)=>s+parseFloat(r.total_amount||0),0))}</td>
@@ -668,6 +657,6 @@ export default function ExpensesPage() {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 }
