@@ -40,7 +40,7 @@ export default function ApprovalsPage() {
   const handleApprove = async (id: number) => {
     setProcessing(id);
     try {
-      const res = await fetch(API + "/api/loans/" + id + "/approve", { method:"POST", headers: getHeaders() });
+      const res = await fetch(API + "/api/loans/" + id + "/approve", { method:"PATCH", headers: getHeaders() });
       const data = await res.json();
       if (data.error) { setMsg({ type:"error", text:data.error }); }
       else { setMsg({ type:"success", text:"Loan #" + id + " approved successfully" }); loadLoans(); }
@@ -54,8 +54,7 @@ export default function ApprovalsPage() {
     setProcessing(id);
     try {
       const res = await fetch(API + "/api/loans/" + id + "/reject", {
-        method:"POST", headers: getHeaders(),
-        body: JSON.stringify({ reason: rejectReason })
+        method:"PATCH", headers: getHeaders(), body: JSON.stringify({ reason: rejectReason })
       });
       const data = await res.json();
       if (data.error) { setMsg({ type:"error", text:data.error }); }
