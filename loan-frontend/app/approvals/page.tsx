@@ -30,9 +30,11 @@ export default function ApprovalsPage() {
   const loadLoans = async () => {
     setLoading(true);
     try {
-      const res = await fetch(API + "/api/loans?status=pending", { headers: getHeaders() });
-      const data = await res.json();
-      setLoans(Array.isArray(data) ? data : []);
+      const [res, res2] = await Promise.all([fetch(API + "/api/loans?status=pending", { headers: getHeaders() });
+      const [data, data2] = await Promise.all([res.json(), res2.json()]);
+      const pending = Array.isArray(data) ? data.map((l: any) => ({...l, _stage:"pending"})) : [];
+      const approved = Array.isArray(data2) ? data2.map((l: any) => ({...l, _stage:"approved"})) : [];
+      setLoans([...pending, ...approved]);
     } catch {}
     setLoading(false);
   };
@@ -60,6 +62,19 @@ export default function ApprovalsPage() {
       if (data.error) { setMsg({ type:"error", text:data.error }); }
       else { setMsg({ type:"success", text:"Loan #" + id + " rejected" }); setRejectId(null); setRejectReason(""); loadLoans(); }
     } catch { setMsg({ type:"error", text:"Failed to reject loan" }); }
+    setProcessing(null);
+    setTimeout(() => setMsg(null), 4000);
+  };
+
+  const handleDisburse = async (id) => {
+    if (!confirm("Disburse Loan #" + id + "? This will generate the repayment schedule.")) return;
+    setProcessing(id);
+    try {
+      const res = await fetch(API + "/api/loans/" + id + "/disburse", { method:"PATCH", headers: getHeaders() });
+      const data = await res.json();
+      if (data.error) { setMsg({ type:"error", text:data.error }); }
+      else { setMsg({ type:"success", text:"Loan #" + id + " disbursed! Repayment schedule generated." }); loadLoans(); }
+    } catch { setMsg({ type:"error", text:"Failed to disburse loan" }); }
     setProcessing(null);
     setTimeout(() => setMsg(null), 4000);
   };
@@ -100,7 +115,7 @@ export default function ApprovalsPage() {
         {/* KPI Strip */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label:"Pending Approvals", val:loans.length, color:"#D97706", bg:"#FEF3C7", border:"#FDE68A",
+            { label:"Pending Approvals", val:loans.filter((l) => l._stage==="pending").length, color:"#D97706", bg:"#FEF3C7", border:"#FDE68A",
               icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' },
             { label:"Total Amount Pending", val:fmt(totalPending), color:"#1565C0", bg:"#EAF2FB", border:"#BFDBFE",
               icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1565C0" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
@@ -152,7 +167,11 @@ export default function ApprovalsPage() {
                       <p className="text-xs text-gray-400">Loan #{loan.id}</p>
                     </div>
                   </div>
-                  <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">Pending</span>
+                  {loan._stage === "pending" ? (
+                    <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">Pending</span>
+                  ) : (
+                    <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">Approved</span>
+                  )}
                 </div>
 
                 {/* Card body */}
@@ -198,33 +217,38 @@ export default function ApprovalsPage() {
                   )}
 
                   {/* Actions */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-col">
                     <button onClick={() => router.push("/loans/" + loan.id)}
-                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-xl text-xs font-semibold transition-colors">
+                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-xl text-xs font-semibold transition-colors">
                       View Details
                     </button>
-                    {rejectId === loan.id ? (
-                      <>
+                    {loan._stage === "approved" ? (
+                      <button onClick={() => handleDisburse(loan.id)} disabled={processing === loan.id}
+                        className="w-full bg-[#1565C0] hover:bg-[#0D47A1] text-white py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50">
+                        {processing === loan.id ? "Disbursing..." : "Disburse Loan"}
+                      </button>
+                    ) : rejectId === loan.id ? (
+                      <div className="flex gap-2">
                         <button onClick={() => handleReject(loan.id)} disabled={processing === loan.id}
-                          className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50">
+                          className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-xl text-xs font-semibold disabled:opacity-50">
                           {processing === loan.id ? "..." : "Confirm Reject"}
                         </button>
                         <button onClick={() => { setRejectId(null); setRejectReason(""); }}
-                          className="px-3 bg-gray-100 hover:bg-gray-200 text-gray-600 py-2 rounded-xl text-xs font-semibold">
+                          className="px-3 bg-gray-100 text-gray-600 py-2 rounded-xl text-xs font-semibold">
                           Cancel
                         </button>
-                      </>
+                      </div>
                     ) : (
-                      <>
+                      <div className="flex gap-2">
                         <button onClick={() => handleApprove(loan.id)} disabled={processing === loan.id}
-                          className="flex-1 bg-[#059669] hover:bg-[#047857] text-white py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50">
+                          className="flex-1 bg-[#059669] hover:bg-[#047857] text-white py-2 rounded-xl text-xs font-semibold disabled:opacity-50">
                           {processing === loan.id ? "..." : "Approve"}
                         </button>
                         <button onClick={() => setRejectId(loan.id)}
-                          className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-xl text-xs font-semibold transition-colors">
+                          className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-xl text-xs font-semibold">
                           Reject
                         </button>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>
