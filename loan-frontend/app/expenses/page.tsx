@@ -141,11 +141,11 @@ export default function ExpensesPage() {
 
   return (
     <Layout>
-      <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <div className="p-4 md:p-6 max-w-6xl mx-auto min-h-screen bg-[#F0F2F5]">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-bold text-[#0B2545]">Expenses & P&amp;L</h1>
-            <p className="text-gray-400 text-sm mt-0.5">Track costs and monthly profit &amp; loss</p>
+            <h1 className="text-xl font-bold text-[#0B2545]">Expenses & P&L</h1>
+            <p className="text-gray-400 text-sm mt-0.5">Track costs and monthly profit & loss</p>
           </div>
           <button onClick={() => setShowForm(!showForm)}
             className="bg-[#1565C0] hover:bg-[#0D47A1] text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors">
