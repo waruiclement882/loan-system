@@ -30,7 +30,10 @@ export default function ApprovalsPage() {
   const loadLoans = async () => {
     setLoading(true);
     try {
-      const [res, res2] = await Promise.all([fetch(API + "/api/loans?status=pending", { headers: getHeaders() });
+      const [res, res2] = await Promise.all([
+        fetch(API + "/api/loans?status=pending", { headers: getHeaders() }),
+        fetch(API + "/api/loans?status=approved", { headers: getHeaders() }),
+      ]);
       const [data, data2] = await Promise.all([res.json(), res2.json()]);
       const pending = Array.isArray(data) ? data.map((l: any) => ({...l, _stage:"pending"})) : [];
       const approved = Array.isArray(data2) ? data2.map((l: any) => ({...l, _stage:"approved"})) : [];
